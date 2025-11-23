@@ -11,17 +11,31 @@ def load_solar_profile(file_path=None):
     """
     Load solar generation profile from CSV file.
 
+    Security: Only loads from default path to prevent path traversal attacks.
+    For custom file uploads, use a separate upload handler function.
+
     Args:
-        file_path: Optional path to solar profile CSV. Uses default if None.
+        file_path: Optional path to solar profile CSV. Must be None or default path.
+                   Custom paths are rejected for security.
 
     Returns:
         numpy array: Hourly solar generation in MW for 8760 hours
+
+    Raises:
+        ValueError: If custom file path is provided (security violation)
     """
-    if file_path is None:
-        file_path = SOLAR_PROFILE_PATH
+    # Security fix: Only allow default path to prevent path traversal attacks
+    if file_path is not None and file_path != SOLAR_PROFILE_PATH:
+        raise ValueError(
+            f"Security: Custom file paths not allowed. "
+            f"Only default solar profile can be loaded via this function. "
+            f"For custom uploads, use load_solar_profile_from_upload() instead."
+        )
+
+    file_path = SOLAR_PROFILE_PATH
 
     try:
-        # Read CSV file
+        # Read CSV file (validated to default path only)
         df = pd.read_csv(file_path)
 
         # Extract solar generation column

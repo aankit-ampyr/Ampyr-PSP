@@ -74,7 +74,7 @@ else:
 ---
 
 ### 3. Degradation Display Unit Error (Factor of 100)
-**Status:** ✅ CONFIRMED - CRITICAL
+**Status:** ⏸️ DEFERRED - Complex calculation to be revisited
 **Location:** `src/battery_simulator.py:183` and `utils/metrics.py:50`
 **Severity:** HIGH - Misleading user display
 
@@ -95,7 +95,10 @@ def get_degradation(self):
 - User sees "0.15%" when actual degradation is 15%
 - Massive understatement of battery degradation
 
-#### Recommended Fix:
+#### Decision:
+**DEFERRED** - BESS degradation is a complex calculation that requires comprehensive review. Will be revisited later with proper degradation modeling methodology.
+
+#### Recommended Fix (for future reference):
 ```python
 # Option 1 - Fix display (preferred):
 'Degradation (%)': round(simulation_results['degradation_percent'] * 100, 2)
@@ -109,43 +112,59 @@ def get_degradation(self):
 ---
 
 ### 4. Path Traversal Security Vulnerability
-**Status:** ✅ CONFIRMED - CRITICAL SECURITY
-**Location:** `src/data_loader.py:10-25`
+**Status:** ✅ FIXED
+**Location:** `src/data_loader.py:10-39`
 **Severity:** HIGH - Security vulnerability
 
 #### Problem Description:
 ```python
-# Current vulnerable code:
+# OLD vulnerable code:
 def load_solar_profile(file_path=None):
     if file_path is None:
         file_path = SOLAR_PROFILE_PATH
     df = pd.read_csv(file_path)  # No validation!
 ```
-- Accepts arbitrary file paths without validation
+- Accepted arbitrary file paths without validation
 - Could read sensitive system files
 - Path traversal attack possible (e.g., `../../etc/passwd`)
 
-#### Recommended Fix:
+#### Implemented Fix (Simple Lockdown Approach):
 ```python
-from pathlib import Path
-
 def load_solar_profile(file_path=None):
-    if file_path is None:
-        file_path = SOLAR_PROFILE_PATH
+    """
+    Load solar generation profile from CSV file.
 
-    # Validate path security
-    file_path = Path(file_path).resolve()
-    allowed_dir = Path(SOLAR_PROFILE_PATH).parent.resolve()
+    Security: Only loads from default path to prevent path traversal attacks.
+    For custom file uploads, use a separate upload handler function.
+    """
+    # Security fix: Only allow default path to prevent path traversal attacks
+    if file_path is not None and file_path != SOLAR_PROFILE_PATH:
+        raise ValueError(
+            f"Security: Custom file paths not allowed. "
+            f"Only default solar profile can be loaded via this function. "
+            f"For custom uploads, use load_solar_profile_from_upload() instead."
+        )
 
-    if not file_path.is_relative_to(allowed_dir):
-        raise ValueError(f"Security: Path must be within {allowed_dir}")
-
-    if not file_path.exists():
-        raise FileNotFoundError(f"Solar profile not found: {file_path}")
+    file_path = SOLAR_PROFILE_PATH
 
     try:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path)  # ✅ SAFE - locked to default path
         # ... rest of code
+```
+
+#### Fix Benefits:
+- ✅ Eliminates path traversal vulnerability completely
+- ✅ No breaking changes (app doesn't use custom paths currently)
+- ✅ Clear error messages prevent future misuse
+- ✅ Sets foundation for proper file upload feature later
+
+#### Future Enhancement:
+When file upload feature is needed, implement separate function:
+```python
+def load_solar_profile_from_upload(uploaded_file):
+    """Handle Streamlit file uploads safely."""
+    df = pd.read_csv(uploaded_file)  # Streamlit handles BytesIO security
+    # ... validate and process
 ```
 
 ---
