@@ -19,6 +19,7 @@ from src.data_loader import load_solar_profile, get_solar_statistics
 from src.battery_simulator import simulate_bess_year
 from utils.metrics import calculate_metrics_summary
 from utils.config_manager import get_config
+from utils.validators import validate_battery_config
 
 # Page config
 st.set_page_config(page_title="Optimization", page_icon="🎯", layout="wide")
@@ -270,8 +271,43 @@ else:
 
     # Provide option to run new optimization if needed
     if st.sidebar.button("🚀 Run New Optimization", type="primary"):
-        with st.spinner("Running optimization analysis..."):
-            # Run simulations for all battery sizes
+        # Validate configuration before running optimization
+        is_valid, validation_errors = validate_battery_config(config)
+
+        if not is_valid:
+            st.error("❌ **Invalid Configuration - Cannot Run Optimization**")
+            st.error("Please fix the following issues in the Configuration page:")
+            for error in validation_errors:
+                st.error(f"  • {error}")
+            st.stop()
+
+        # Configuration is valid - proceed with optimization
+        # Calculate number of simulations
+        num_simulations = len(list(range(min_size, max_size + step_size, step_size)))
+
+        # Enforce resource limits
+        MAX_SIMULATIONS = 200
+        actual_step_size = step_size
+
+        if num_simulations > MAX_SIMULATIONS:
+            # Calculate adjusted step size to cap at 200 simulations
+            actual_step_size = (max_size - min_size) // MAX_SIMULATIONS + 1
+            actual_num_simulations = len(list(range(min_size, max_size + actual_step_size, actual_step_size)))
+
+            st.warning(f"⚠️ Configuration would run {num_simulations} simulations (exceeds limit of {MAX_SIMULATIONS})")
+            st.warning(f"🔄 Auto-adjusting step size from {step_size} MWh to {actual_step_size} MWh")
+            st.info(f"💡 Running {actual_num_simulations} simulations instead. To change this, adjust BATTERY_SIZE_STEP in Configuration page")
+
+            num_simulations = actual_num_simulations
+            step_size = actual_step_size
+
+        # Warn about estimated duration for longer runs
+        estimated_time_seconds = num_simulations * 0.5  # ~0.5 sec per simulation
+        if estimated_time_seconds > 30:
+            st.warning(f"⏱️ Running {num_simulations} simulations (estimated ~{estimated_time_seconds:.0f} seconds)")
+
+        with st.spinner(f"Running {num_simulations} simulations..."):
+            # Run simulations for all battery sizes with adjusted step
             battery_sizes = range(min_size, max_size + step_size, step_size)
             all_results = []
 
@@ -283,7 +319,7 @@ else:
                 results = simulate_bess_year(size, solar_profile, config)
                 metrics = calculate_metrics_summary(size, results)
                 all_results.append(metrics)
-                progress_bar.progress((i + 1) / len(battery_sizes))
+                progress_bar.progress((i + 1) / num_simulations)
 
             status_text.empty()
 

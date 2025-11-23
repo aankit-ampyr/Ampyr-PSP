@@ -57,12 +57,26 @@ def load_solar_profile(file_path=None):
 
         # Ensure we have 8760 values
         if len(solar_profile) != 8760:
-            print(f"Warning: Solar profile has {len(solar_profile)} hours, expected 8760")
+            try:
+                import streamlit as st
+                st.warning(f"⚠️ Solar profile has {len(solar_profile)} hours, expected 8760. Results may be inaccurate.")
+            except ImportError:
+                print(f"Warning: Solar profile has {len(solar_profile)} hours, expected 8760")
 
         return solar_profile
 
     except Exception as e:
-        print(f"Error loading solar profile: {e}")
+        # Show user-visible error messages in Streamlit UI
+        try:
+            import streamlit as st
+            st.error(f"❌ Failed to load solar profile: {str(e)}")
+            st.warning("⚠️ Using synthetic solar profile for demonstration purposes")
+            st.info("📝 To fix: Ensure 'data/solar_profile.csv' exists with 8760 hourly values")
+        except ImportError:
+            # Fallback to console if Streamlit not available (e.g., during testing)
+            print(f"Error loading solar profile: {e}")
+            print("Using synthetic solar profile for demonstration purposes")
+
         # Return synthetic profile if file cannot be loaded
         return generate_synthetic_solar_profile()
 

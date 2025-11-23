@@ -172,29 +172,48 @@ def load_solar_profile_from_upload(uploaded_file):
 ## 🟠 HIGH PRIORITY BUGS (Fix Before Production)
 
 ### 5. CORS Security Configuration Disabled
-**Status:** ⚠️ PARTIALLY VALID
-**Location:** `.streamlit/config.toml:10`
+**Status:** ✅ FIXED
+**Location:** `.streamlit/config.toml:10-12`
 **Severity:** MEDIUM (for local app) / HIGH (for deployed app)
 
-#### Context:
-- CORS disabled is acceptable for local development
-- Becomes security issue if app is deployed publicly
-
-#### Recommended Fix:
+#### Problem Description:
 ```toml
-# For production:
-enableCORS = true
-
-# Or document the reason:
-# CORS disabled for local development only
-# MUST be enabled before deployment
-enableCORS = false
+# OLD - CORS disabled without documentation:
+[server]
+enableCORS = false  # No explanation, security risk for deployment
 ```
+- CORS disabled is acceptable for local development only
+- Becomes security vulnerability when deployed to Streamlit Cloud, AWS, or GCP
+- No documentation explaining the setting
+
+#### Implemented Fix:
+```toml
+# NEW - CORS enabled for production deployment:
+[server]
+headless = true
+# CORS enabled for production deployment (Streamlit Cloud, AWS, GCP)
+# Protects against cross-origin attacks when app is publicly accessible
+enableCORS = true
+enableXsrfProtection = true
+```
+
+#### Fix Benefits:
+- ✅ Secure for Streamlit Cloud deployment
+- ✅ Secure for AWS/GCP deployment
+- ✅ Works fine for local development
+- ✅ Prevents cross-origin attacks in production
+- ✅ Clear documentation of security settings
+
+#### Deployment Context:
+App will be deployed to:
+- **Streamlit Cloud** (testing environment)
+- **AWS/GCP** (internal production environment)
+Both require CORS enabled for proper security.
 
 ---
 
 ### 6. Missing Input Validation Enforcement
-**Status:** ✅ CONFIRMED - HIGH
+**Status:** ✅ FIXED
 **Location:** `pages/0_configurations.py` warnings without enforcement
 **Severity:** HIGH - Can cause simulation crashes
 
@@ -203,76 +222,224 @@ enableCORS = false
 - But allows simulation to proceed with invalid data
 - Example: MIN_SOC >= MAX_SOC would crash simulation
 
-#### Recommended Fix:
-Create validation utility and enforce before simulation:
+#### Implemented Fix:
+Created centralized validation utility and enforced before all simulation entry points:
+
+**1. New validation utility (`utils/validators.py`):**
 ```python
-# utils/validators.py
-def validate_config(config):
-    """Validate configuration and stop execution if invalid."""
+def validate_battery_config(config):
+    """
+    Validate battery configuration parameters.
+
+    Checks all critical constraints to prevent simulation crashes and
+    ensure physically realistic and computationally valid configurations.
+
+    Returns:
+        tuple: (is_valid, list_of_error_messages)
+    """
     errors = []
 
+    # Critical Validation #1: SOC Limits
     if config['MIN_SOC'] >= config['MAX_SOC']:
-        errors.append("MIN_SOC must be less than MAX_SOC")
+        errors.append(
+            f"MIN_SOC ({config['MIN_SOC']*100:.0f}%) must be less than "
+            f"MAX_SOC ({config['MAX_SOC']*100:.0f}%)"
+        )
 
-    if config['ROUND_TRIP_EFFICIENCY'] <= 0 or config['ROUND_TRIP_EFFICIENCY'] > 1:
-        errors.append("Round-trip efficiency must be between 0 and 1")
+    if not (0 <= config['MIN_SOC'] <= 1):
+        errors.append(f"MIN_SOC must be between 0 and 1 (got {config['MIN_SOC']})")
 
-    if errors:
-        for error in errors:
-            st.error(f"❌ {error}")
-        st.stop()
-        return False
-    return True
+    if not (0 <= config['MAX_SOC'] <= 1):
+        errors.append(f"MAX_SOC must be between 0 and 1 (got {config['MAX_SOC']})")
+
+    # Critical Validation #2: Battery Size Range
+    if config['MIN_BATTERY_SIZE_MWH'] >= config['MAX_BATTERY_SIZE_MWH']:
+        errors.append(
+            f"MIN_BATTERY_SIZE ({config['MIN_BATTERY_SIZE_MWH']} MWh) must be less than "
+            f"MAX_BATTERY_SIZE ({config['MAX_BATTERY_SIZE_MWH']} MWh)"
+        )
+
+    # ... 10 total validation checks covering all critical parameters
+
+    is_valid = len(errors) == 0
+    return is_valid, errors
 ```
+
+**2. Enforcement in simulation page (`pages/1_simulation.py:92-111`):**
+```python
+if st.button("🚀 Run Simulation", type="primary"):
+    # Validate configuration before running simulation
+    is_valid, validation_errors = validate_battery_config(config)
+
+    if not is_valid:
+        st.error("❌ **Invalid Configuration - Cannot Run Simulation**")
+        st.error("Please fix the following issues in the Configuration page:")
+        for error in validation_errors:
+            st.error(f"  • {error}")
+        st.stop()
+
+    # Configuration is valid - proceed with simulation
+    with st.spinner(f"Simulating {battery_size} MWh battery..."):
+        results = simulate_bess_year(battery_size, solar_profile, config)
+```
+
+**3. Enforcement in optimization page (`pages/3_optimization.py:273-300`):**
+```python
+if st.sidebar.button("🚀 Run New Optimization", type="primary"):
+    # Validate configuration before running optimization
+    is_valid, validation_errors = validate_battery_config(config)
+
+    if not is_valid:
+        st.error("❌ **Invalid Configuration - Cannot Run Optimization**")
+        st.error("Please fix the following issues in the Configuration page:")
+        for error in validation_errors:
+            st.error(f"  • {error}")
+        st.stop()
+
+    # Configuration is valid - proceed with optimization
+    with st.spinner("Running optimization analysis..."):
+```
+
+#### Fix Benefits:
+- ✅ Prevents all simulation crashes from invalid configurations
+- ✅ Clear, actionable error messages guide users to fix issues
+- ✅ Centralized validation logic (single source of truth)
+- ✅ Validates 10 critical constraints before execution
+- ✅ Enforced at all simulation entry points
 
 ---
 
 ### 7. Silent Error Handling (User Unaware of Failures)
-**Status:** ✅ CONFIRMED - HIGH
-**Location:** `src/data_loader.py:50-53`
+**Status:** ✅ FIXED
+**Location:** `src/data_loader.py:68-81`
 **Severity:** HIGH - Poor user experience
 
 #### Problem Description:
 ```python
+# OLD - Console-only error messages (invisible to users):
 except Exception as e:
-    print(f"Error loading solar profile: {e}")  # Console only
-    return generate_synthetic_solar_profile()  # Silent fallback
+    print(f"Error loading solar profile: {e}")  # ❌ Console only
+    return generate_synthetic_solar_profile()  # ❌ Silent fallback
 ```
-- Errors only visible in console (not Streamlit UI)
-- Users unaware they're using synthetic data
+- Errors only visible in server console (not Streamlit UI)
+- Users unaware they're using synthetic data instead of real data
+- No guidance on how to fix the issue
+- Difficult to debug for users
 
-#### Recommended Fix:
+#### Implemented Fix:
 ```python
+# NEW - User-visible error messages in Streamlit UI:
 except Exception as e:
-    import streamlit as st
-    st.error(f"❌ Failed to load solar profile: {str(e)}")
-    st.warning("⚠️ Using synthetic data for demonstration")
+    # Show user-visible error messages in Streamlit UI
+    try:
+        import streamlit as st
+        st.error(f"❌ Failed to load solar profile: {str(e)}")
+        st.warning("⚠️ Using synthetic solar profile for demonstration purposes")
+        st.info("📝 To fix: Ensure 'data/solar_profile.csv' exists with 8760 hourly values")
+    except ImportError:
+        # Fallback to console if Streamlit not available (e.g., during testing)
+        print(f"Error loading solar profile: {e}")
+        print("Using synthetic solar profile for demonstration purposes")
+
+    # Return synthetic profile if file cannot be loaded
     return generate_synthetic_solar_profile()
 ```
+
+**Also fixed warning for incorrect profile length (line 59-64):**
+```python
+# Ensure we have 8760 values
+if len(solar_profile) != 8760:
+    try:
+        import streamlit as st
+        st.warning(f"⚠️ Solar profile has {len(solar_profile)} hours, expected 8760. Results may be inaccurate.")
+    except ImportError:
+        print(f"Warning: Solar profile has {len(solar_profile)} hours, expected 8760")
+```
+
+#### Fix Benefits:
+- ✅ Users see clear error messages directly in the UI
+- ✅ Users know when synthetic data is being used
+- ✅ Provides actionable guidance on how to fix the issue
+- ✅ Maintains graceful fallback behavior
+- ✅ Much better debugging experience
+- ✅ ImportError fallback ensures compatibility with non-Streamlit contexts (testing)
 
 ---
 
 ### 8. Uncontrolled Resource Consumption
-**Status:** ✅ CONFIRMED - HIGH
-**Location:** `pages/1_simulation.py:112-122`
+**Status:** ✅ FIXED
+**Location:** `pages/1_simulation.py:118-158` and `pages/3_optimization.py:284-322`
 **Severity:** HIGH - Performance/UX issue
 
 #### Problem Description:
-- Can run up to 98 simulations × 8,760 hours = 857,280 iterations
+```python
+# OLD - No limits or warnings:
+if st.button("🔍 Find Optimal Size"):
+    with st.spinner("Running optimization analysis..."):
+        battery_sizes = range(
+            config['MIN_BATTERY_SIZE_MWH'],
+            config['MAX_BATTERY_SIZE_MWH'] + config['BATTERY_SIZE_STEP_MWH'],
+            config['BATTERY_SIZE_STEP_MWH']
+        )
+        # ❌ Could run 500+ simulations with no warning
+        # ❌ No time estimates
+        # ❌ No resource limits
+        for i, size in enumerate(battery_sizes):
+            results = simulate_bess_year(size, solar_profile, config)
+```
+- Could run up to 500+ simulations × 8,760 hours = millions of iterations
 - No timeout or cancellation option
+- No warning about expected duration
 - Blocks UI during execution
 
-#### Recommended Fix:
+#### Implemented Fix:
 ```python
-# Add limits and warnings:
-num_simulations = len(battery_sizes)
-if num_simulations > 100:
-    st.error("❌ Too many simulations. Please increase step size.")
-    st.stop()
+# NEW - Resource limits with auto-adjustment:
+if st.button("🔍 Find Optimal Size"):
+    # Calculate number of simulations
+    min_size = config['MIN_BATTERY_SIZE_MWH']
+    max_size = config['MAX_BATTERY_SIZE_MWH']
+    step_size = config['BATTERY_SIZE_STEP_MWH']
 
-estimated_time = num_simulations * 0.5
-st.warning(f"⚠️ Running {num_simulations} simulations (~{estimated_time:.0f} seconds)")
+    num_simulations = len(list(range(min_size, max_size + step_size, step_size)))
+
+    # ✅ Enforce 200 simulation limit
+    MAX_SIMULATIONS = 200
+    actual_step_size = step_size
+
+    if num_simulations > MAX_SIMULATIONS:
+        # Auto-adjust step size to cap at 200 simulations
+        actual_step_size = (max_size - min_size) // MAX_SIMULATIONS + 1
+        actual_num_simulations = len(list(range(min_size, max_size + actual_step_size, actual_step_size)))
+
+        st.warning(f"⚠️ Configuration would run {num_simulations} simulations (exceeds limit of {MAX_SIMULATIONS})")
+        st.warning(f"🔄 Auto-adjusting step size from {step_size} MWh to {actual_step_size} MWh")
+        st.info(f"💡 Running {actual_num_simulations} simulations instead. To change this, adjust BATTERY_SIZE_STEP in Configuration page")
+
+        num_simulations = actual_num_simulations
+        step_size = actual_step_size
+
+    # ✅ Warn about estimated duration
+    estimated_time_seconds = num_simulations * 0.5
+    if estimated_time_seconds > 30:
+        st.warning(f"⏱️ Running {num_simulations} simulations (estimated ~{estimated_time_seconds:.0f} seconds)")
+
+    with st.spinner(f"Running {num_simulations} simulations..."):
+        battery_sizes = range(min_size, max_size + step_size, step_size)
+        for i, size in enumerate(battery_sizes):
+            results = simulate_bess_year(size, solar_profile, config)
+            # ... process results
 ```
+
+#### Fix Benefits:
+- ✅ Hard limit prevents runaway computations (200 simulations max)
+- ✅ Auto-adjusts step size if user configuration exceeds limit
+- ✅ Users warned when configuration would exceed limit
+- ✅ Clear guidance on how to adjust settings
+- ✅ Duration estimates for runs > 30 seconds
+- ✅ Better user experience and expectations
+- ✅ Prevents browser unresponsiveness
+- ✅ Applied to both simulation and optimization pages
 
 ---
 
