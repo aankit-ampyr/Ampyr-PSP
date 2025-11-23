@@ -13,7 +13,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 from src.config import (
     MARGINAL_IMPROVEMENT_THRESHOLD,
     MARGINAL_INCREMENT_MWH,
-    BATTERY_SIZE_STEP_MWH
+    BATTERY_SIZE_STEP_MWH,
+    HOURS_PER_YEAR
 )
 
 
@@ -39,7 +40,7 @@ def calculate_metrics_summary(battery_capacity_mwh, simulation_results):
     metrics = {
         'Battery Size (MWh)': battery_capacity_mwh,
         'Delivery Hours': simulation_results['hours_delivered'],
-        'Delivery Rate (%)': round(simulation_results['hours_delivered'] / 87.6, 1),
+        'Delivery Rate (%)': round(simulation_results['hours_delivered'] / (HOURS_PER_YEAR / 100), 1),
         'Energy Delivered (GWh)': round(simulation_results['energy_delivered_mwh'] / 1000, 2),
         'Solar Charged (MWh)': round(simulation_results['solar_charged_mwh'], 1),
         'Solar Wasted (MWh)': round(simulation_results['solar_wasted_mwh'], 1),

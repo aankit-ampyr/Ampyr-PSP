@@ -28,6 +28,7 @@ DEGRADATION_PER_CYCLE = 0.0015  # Capacity degradation per cycle (0.15%)
 
 # Simulation Parameters
 HOURS_PER_YEAR = 8760  # Hours in a year
+DAYS_PER_YEAR = 365  # Days in a year
 INITIAL_SOC = 0.5  # Initial state of charge (50%)
 
 # File Paths

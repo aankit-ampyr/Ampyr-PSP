@@ -1768,17 +1768,20 @@ AFTER (Fixed):
 
 **Implementation**:
 ```python
+def _is_cycle_transition(self, new_state):
+    """Check if state transition counts as a cycle."""
+    if self.state == new_state:
+        return False
+    return (
+        ((self.state == 'IDLE' or self.state == 'CHARGING') and new_state == 'DISCHARGING') or
+        ((self.state == 'IDLE' or self.state == 'DISCHARGING') and new_state == 'CHARGING')
+    )
+
 def update_state_and_cycles(self, new_state, hour):
-    if self.state != new_state:
-        # Transitions that add 0.5 cycles
-        if ((self.state == 'IDLE' or self.state == 'CHARGING') and
-            new_state == 'DISCHARGING'):
-            self.total_cycles += 0.5
-            self.current_day_cycles += 0.5
-        elif ((self.state == 'IDLE' or self.state == 'DISCHARGING') and
-              new_state == 'CHARGING'):
-            self.total_cycles += 0.5
-            self.current_day_cycles += 0.5
+    # Track state transitions for cycle counting
+    if self._is_cycle_transition(new_state):
+        self.total_cycles += 0.5
+        self.current_day_cycles += 0.5
 
     # Update state
     self.previous_state = self.state
@@ -1806,14 +1809,11 @@ Hour 7: CHARGING → IDLE → +0.0 cycles (total: 1.5)
 **Check Before Transition**:
 ```python
 def can_cycle(self, new_state):
-    if self.state != new_state:
-        if ((self.state == 'IDLE' or self.state == 'CHARGING') and
-            new_state == 'DISCHARGING') or \
-           ((self.state == 'IDLE' or self.state == 'DISCHARGING') and
-            new_state == 'CHARGING'):
-            # This transition would add 0.5 cycles
-            if self.current_day_cycles + 0.5 > self.max_daily_cycles:
-                return False  # Would exceed limit
+    """Check if battery can perform transition without exceeding daily cycle limit."""
+    if self._is_cycle_transition(new_state):
+        # This transition would add 0.5 cycles
+        if self.current_day_cycles + 0.5 > self.max_daily_cycles:
+            return False  # Would exceed limit
     return True
 ```
 
@@ -2291,6 +2291,24 @@ Step 6: Return 21.44 × 0.933 = 20 MWh AC delivered ✓
 
 **Purpose**: Track state transitions and count cycles
 
+**Helper Method**:
+```python
+def _is_cycle_transition(self, new_state):
+    """
+    Determine if a state transition would count as a cycle.
+
+    Returns:
+        bool: True if this transition counts as 0.5 cycles
+    """
+    if self.state == new_state:
+        return False
+
+    return (
+        ((self.state == 'IDLE' or self.state == 'CHARGING') and new_state == 'DISCHARGING') or
+        ((self.state == 'IDLE' or self.state == 'DISCHARGING') and new_state == 'CHARGING')
+    )
+```
+
 **Algorithm**:
 ```python
 def update_state_and_cycles(self, new_state, hour):
@@ -2301,27 +2319,17 @@ def update_state_and_cycles(self, new_state, hour):
         new_state: New battery state (IDLE, CHARGING, DISCHARGING)
         hour: Current simulation hour
     """
-    # Step 1: Check for state change
-    if self.state != new_state:
-        # Step 2: Determine if this transition adds cycles
-        if ((self.state == 'IDLE' or self.state == 'CHARGING') and
-            new_state == 'DISCHARGING'):
-            # Transition to discharging adds 0.5 cycles
-            self.total_cycles += 0.5
-            self.current_day_cycles += 0.5
+    # Step 1: Track state transitions for cycle counting
+    if self._is_cycle_transition(new_state):
+        self.total_cycles += 0.5
+        self.current_day_cycles += 0.5
 
-        elif ((self.state == 'IDLE' or self.state == 'DISCHARGING') and
-              new_state == 'CHARGING'):
-            # Transition to charging adds 0.5 cycles
-            self.total_cycles += 0.5
-            self.current_day_cycles += 0.5
-
-    # Step 3: Check for new day (reset daily cycle counter)
+    # Step 2: Check for new day (reset daily cycle counter)
     if hour > 0 and hour % 24 == 0:
         self.daily_cycles.append(self.current_day_cycles)
         self.current_day_cycles = 0
 
-    # Step 4: Update state
+    # Step 3: Update state
     self.previous_state = self.state
     self.state = new_state
 ```
@@ -2343,16 +2351,11 @@ def can_cycle(self, new_state):
     Returns:
         bool: True if transition is allowed, False if would exceed limit
     """
-    # Step 1: Check if state would change
-    if self.state != new_state:
-        # Step 2: Check if this specific transition adds cycles
-        if ((self.state == 'IDLE' or self.state == 'CHARGING') and
-            new_state == 'DISCHARGING') or \
-           ((self.state == 'IDLE' or self.state == 'DISCHARGING') and
-            new_state == 'CHARGING'):
-            # Step 3: Check if adding 0.5 would exceed limit
-            if self.current_day_cycles + 0.5 > self.max_daily_cycles:
-                return False  # Would exceed daily limit
+    # Step 1: Check if this transition would add cycles (uses helper)
+    if self._is_cycle_transition(new_state):
+        # Step 2: Check if adding 0.5 would exceed limit
+        if self.current_day_cycles + 0.5 > self.max_daily_cycles:
+            return False  # Would exceed daily limit
 
     # Transition allowed
     return True
@@ -2651,9 +2654,9 @@ Delivery rate = (2,458 / 8,760) × 100 = 28.06%
 
 ```python
 def get_avg_daily_cycles(self):
-    """Calculate average daily cycles."""
+    """Calculate average daily cycles over a full year (365 days)."""
     if self.daily_cycles:
-        return sum(self.daily_cycles) / len(self.daily_cycles)
+        return sum(self.daily_cycles) / DAYS_PER_YEAR  # Uses 365, not len()
     return 0
 ```
 

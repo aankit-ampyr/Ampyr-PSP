@@ -17,6 +17,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.data_loader import load_solar_profile, get_solar_statistics
 from src.battery_simulator import simulate_bess_year
+from src.config import HOURS_PER_YEAR
 from utils.metrics import calculate_metrics_summary
 from utils.config_manager import get_config
 from utils.validators import validate_battery_config
@@ -374,7 +375,7 @@ if 'optimization_results' in st.session_state:
             st.metric("📈 Total Cycles", f"{optimal.get('total_cycles', 'N/A')}")
 
     with col4:
-        delivery_rate = (optimal['delivery_hours'] / 87.6) if optimal['delivery_hours'] else 0
+        delivery_rate = (optimal['delivery_hours'] / (HOURS_PER_YEAR / 100)) if optimal['delivery_hours'] else 0
         st.metric("✅ Delivery Rate", f"{delivery_rate:.1f}%")
 
     # Algorithm reasoning
