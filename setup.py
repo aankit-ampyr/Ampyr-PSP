@@ -12,22 +12,22 @@ long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists
 
 setup(
     name="bess-sizing",
-    version="1.0.0",
+    version="1.1.1",
     description="Battery Energy Storage System (BESS) Sizing and Optimization Tool",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="BESS Sizing Team",
-    python_requires=">=3.8",
+    python_requires=">=3.11",
 
     # Package discovery
     packages=find_packages(include=["src", "src.*", "utils", "utils.*"]),
 
     # Dependencies
     install_requires=[
-        "streamlit>=1.28.0",
-        "pandas>=2.0.0",
-        "numpy>=1.24.0",
-        "plotly>=5.0.0",
+        "streamlit>=1.39.0",
+        "pandas>=2.2.0",
+        "numpy>=2.1.0",
+        "plotly>=5.24.0",
     ],
 
     # Development dependencies

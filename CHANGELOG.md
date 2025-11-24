@@ -8,14 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.1] - 2025-11-24
 
 ### Fixed
-- **Streamlit Cloud Deployment Error** - Removed editable install (`-e .`) from requirements.txt
-  - Editable installs not supported on Streamlit Cloud
+- **Streamlit Cloud Deployment Error** - Python 3.13 compatibility issues
+  - **Root Cause:** Old package versions incompatible with Python 3.13
+  - `numpy==1.24.0` failed to build (requires `distutils`, removed in Python 3.12+)
+  - Streamlit Cloud upgraded to Python 3.13.9 by default
   - Caused "installer returned a non-zero exit code" deployment failure
-  - Streamlit Cloud automatically adds repository root to PYTHONPATH
-  - No package installation needed for cloud deployment
-  - Local development can still use `pip install -e .` separately if desired
+  - **Initial Fix:** Removed editable install (`-e .`) from requirements.txt
+    - Editable installs not supported on Streamlit Cloud
+    - Streamlit Cloud automatically adds repository root to PYTHONPATH
+  - **Complete Fix:** Updated all packages to Python 3.13-compatible versions
 
 ### Changed
+- **Python Version** ([runtime.txt](runtime.txt))
+  - Updated from `python-3.11` to `python-3.13`
+  - Matches Streamlit Cloud default environment
+
+- **Package Versions** ([requirements.txt](requirements.txt))
+  - **streamlit:** 1.28.0 → 1.39.0 (latest stable, Nov 2024)
+  - **pandas:** 2.0.0 → 2.2.3 (latest stable 2.x, Sep 2024)
+  - **numpy:** 1.24.0 → 2.1.3 (Python 3.13 compatible, Oct 2024)
+  - **plotly:** 5.0.0 → 5.24.1 (latest stable, Oct 2024)
+  - All packages now fully compatible with Python 3.13
+
+- **setup.py**
+  - Updated version to 1.1.1
+  - Updated `python_requires` from `>=3.8` to `>=3.11`
+  - Updated `install_requires` to match new package versions
+  - All dependencies use `>=` for forward compatibility
+
 - **requirements.txt** - Updated comment to accurately reflect Streamlit Cloud behavior
   - Corrected misleading note about `-e .` working on Streamlit Cloud
   - Added clear explanation of automatic PYTHONPATH configuration
@@ -24,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **bug_report_analysis.md** - Corrected Bug #14 deployment note (line 999-1002)
   - Previous note incorrectly claimed `-e .` works on Streamlit Cloud
   - Updated with accurate information about cloud vs local deployment
+
+### Upgrade Notes
+- **Breaking Change:** Minimum Python version now 3.11 (was 3.8)
+- **NumPy Major Version:** Upgraded from 1.x to 2.x
+  - NumPy 2.x is backward compatible for most use cases
+  - If issues occur, may need minor code adjustments
+- **Recommended:** Test locally with Python 3.13 before deploying
 
 ---
 
