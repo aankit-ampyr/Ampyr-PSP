@@ -5,6 +5,28 @@ All notable changes to the BESS Sizing Tool project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-11-24
+
+### Fixed
+- **Streamlit Cloud Deployment Error** - Removed editable install (`-e .`) from requirements.txt
+  - Editable installs not supported on Streamlit Cloud
+  - Caused "installer returned a non-zero exit code" deployment failure
+  - Streamlit Cloud automatically adds repository root to PYTHONPATH
+  - No package installation needed for cloud deployment
+  - Local development can still use `pip install -e .` separately if desired
+
+### Changed
+- **requirements.txt** - Updated comment to accurately reflect Streamlit Cloud behavior
+  - Corrected misleading note about `-e .` working on Streamlit Cloud
+  - Added clear explanation of automatic PYTHONPATH configuration
+
+### Documentation
+- **bug_report_analysis.md** - Corrected Bug #14 deployment note (line 999-1002)
+  - Previous note incorrectly claimed `-e .` works on Streamlit Cloud
+  - Updated with accurate information about cloud vs local deployment
+
+---
+
 ## [1.1.0] - 2025-11-23
 
 ### Added

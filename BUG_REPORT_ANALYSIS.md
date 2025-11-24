@@ -996,7 +996,10 @@ pip install -r requirements.txt
 
 This installs the project as an editable package, enabling all imports to work naturally.
 
-**Deployment Note:** Works seamlessly on Streamlit Cloud - the `-e .` in requirements.txt ensures the package is installed during deployment, making all imports functional without sys.path manipulation.
+**Deployment Note (CORRECTED in v1.1.1):**
+- **Streamlit Cloud:** Does NOT require `-e .` in requirements.txt. Streamlit Cloud automatically adds the repository root to PYTHONPATH, making all imports functional without package installation.
+- **Local Development:** The `-e .` editable install is optional but recommended for convenience. Run `pip install -e .` locally after cloning.
+- **Important:** The `-e .` line was removed from requirements.txt in v1.1.1 to fix Streamlit Cloud deployment failures (editable installs not supported in cloud environments).
 
 #### Verification:
 ✅ **Code now follows Python best practices:**

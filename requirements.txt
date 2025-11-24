@@ -3,6 +3,6 @@ pandas==2.0.0
 numpy==1.24.0
 plotly==5.0.0
 
-# Install project as package (enables proper imports without sys.path manipulation)
-# Works locally and on Streamlit Cloud
--e .
+# Note: No package installation needed for Streamlit Cloud
+# Streamlit Cloud automatically adds repository root to PYTHONPATH
+# For local development, you can optionally run: pip install -e .
