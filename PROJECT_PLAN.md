@@ -1,6 +1,6 @@
 # BESS Sizing Tool - Complete Project Plan & Documentation
 
-> **Version 1.1.0** (2025-11-23) - Updated with v1.1.0 production hardening changes
+> **Version 1.1.1** (2025-11-24) - Updated with Python 3.13 compatibility and deployment fixes
 >
 > See [CHANGELOG.md](CHANGELOG.md) for version history and recent updates.
 
@@ -8,12 +8,15 @@
 
 The Battery Energy Storage System (BESS) Sizing Tool is a comprehensive Streamlit-based application designed to optimize battery storage sizing for solar energy systems. The tool simulates year-long battery operations, enforces operational constraints, and provides advanced optimization algorithms to determine the ideal battery capacity for maximizing delivery hours while respecting technical limitations.
 
-**Recent Updates (v1.1.0):**
+**Recent Updates (v1.1.1):**
 
-- Professional logging framework with centralized configuration
-- Pinned dependency versions for reproducible deployments
-- Enhanced package structure with convenient imports
-- Code quality improvements and bug fixes
+- Python 3.13 compatibility with updated dependencies
+- Fixed Streamlit Cloud deployment errors (numpy 2.1.3, streamlit 1.39.0)
+- Removed editable install from requirements.txt for cloud compatibility
+- Updated all packages to latest stable versions
+
+**Previous (v1.1.0):**
+- Professional logging framework, pinned dependencies, enhanced package structure
 
 ---
 
@@ -39,14 +42,14 @@ The Battery Energy Storage System (BESS) Sizing Tool is a comprehensive Streamli
 
 ### Technology Stack
 ```
-Frontend:        Streamlit 1.28.0 (pinned)
-Backend:         Python 3.8+
-Data Processing: Pandas 2.0.0 (pinned), NumPy 1.24.0 (pinned)
-Visualization:   Plotly 5.0.0 (pinned)
+Frontend:        Streamlit 1.39.0 (pinned)
+Backend:         Python 3.11+ (3.13 recommended)
+Data Processing: Pandas 2.2.3 (pinned), NumPy 2.1.3 (pinned, Python 3.13 compatible)
+Visualization:   Plotly 5.24.1 (pinned)
 Logging:         Python logging module (built-in)
 ```
 
-**Note:** All dependencies are pinned to exact versions in `requirements.txt` for reproducible deployments (v1.1.0+).
+**Note:** All dependencies are pinned to exact versions in `requirements.txt` for reproducible deployments and full Python 3.13 compatibility (v1.1.1+).
 
 ### Application Structure
 ```
@@ -54,7 +57,7 @@ BESS-22-nov/
 │
 ├── app.py                     # Main application entry point
 ├── setup.py                   # Python package configuration (enables proper imports)
-├── requirements.txt           # Python dependencies (pinned versions, includes -e .)
+├── requirements.txt           # Python dependencies (pinned versions, Python 3.13 compatible)
 ├── CHANGELOG.md              # Version history and changes (NEW in v1.1.0)
 ├── BUG_REPORT_ANALYSIS.md    # Detailed bug tracking and fixes
 ├── PROJECT_PLAN.md           # This document
@@ -524,7 +527,19 @@ Reasoning: Marginal improvement below 300 hours per 10 MWh
 
 ## 📝 Version History
 
-### Version 1.0 (Current)
+### Version 1.1.1 (Current - 2025-11-24)
+- Python 3.13 compatibility
+- Updated dependencies (numpy 2.1.3, streamlit 1.39.0, pandas 2.2.3, plotly 5.24.1)
+- Fixed Streamlit Cloud deployment errors
+- Removed editable install from requirements.txt
+
+### Version 1.1.0 (2025-11-23)
+- Professional logging framework
+- Pinned dependency versions
+- Enhanced package structure
+- Code quality improvements
+
+### Version 1.0.0 (2024-11-22)
 - Full BESS sizing application
 - Binary delivery constraint
 - Cycle limit enforcement
@@ -550,6 +565,6 @@ This project is provided as-is for educational and commercial use. Users are enc
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: November 2024*
+*Document Version: 1.1.1*
+*Last Updated: November 24, 2025*
 *Generated with Claude Code*

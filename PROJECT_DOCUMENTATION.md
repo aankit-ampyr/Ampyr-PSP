@@ -1,8 +1,8 @@
 # Battery Energy Storage System (BESS) Sizing Tool
 ## Comprehensive Technical Project Documentation
 
-**Version:** 1.0
-**Date:** November 2024
+**Version:** 1.1.1
+**Date:** November 2025
 **Project Location:** `c:\repos\bess-sizing\`
 **Status:** Production-Ready (Post Bug Fixes)
 **Author:** Technical Documentation
@@ -518,10 +518,11 @@ A battery sizing tool must:
 ### Runtime Requirements
 
 **Python Environment**:
-- Python 3.8+
-- Streamlit 1.x
-- NumPy for numerical calculations
-- Pandas for data handling
+- Python 3.11+ (Python 3.13 recommended)
+- Streamlit 1.39.0
+- NumPy 2.1.3 (Python 3.13 compatible)
+- Pandas 2.2.3 for data handling
+- Plotly 5.24.1 for visualizations
 - Additional dependencies per requirements.txt
 
 **System Resources**:
@@ -701,29 +702,35 @@ The project now uses proper Python packaging with `setup.py`, eliminating the ne
 
 ### Core Technologies
 
-**Python 3.8+**:
+**Python 3.11+** (Python 3.13 recommended):
 - Primary programming language
 - Type hints for better code clarity
 - Modern syntax (f-strings, walrus operator, etc.)
+- Full Python 3.13 compatibility
 
-**Streamlit 1.x**:
+**Streamlit 1.39.0**:
 - Web application framework
 - Interactive widgets (sliders, buttons, tables)
 - Session state management
 - Multi-page application support
 - Caching for performance (@st.cache_data)
 
-**NumPy**:
+**NumPy 2.1.3**:
+- Python 3.13 compatible version
 - Numerical array operations
 - Efficient mathematical calculations
 - 8,760-hour array processing
 - Statistical functions
 
-**Pandas**:
+**Pandas 2.2.3**:
 - DataFrame operations for results
 - CSV reading/writing
 - Data manipulation and filtering
 - Export functionality
+
+**Plotly 5.24.1**:
+- Interactive visualizations
+- Dynamic charts and graphs
 
 ### Module Structure
 

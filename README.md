@@ -2,8 +2,8 @@
 
 A comprehensive Battery Energy Storage System (BESS) sizing optimization tool for solar+storage systems.
 
-> **Latest Version: 1.1.0** (2025-11-23)
-> Production-ready with professional logging, pinned dependencies, and enhanced code structure.
+> **Latest Version: 1.1.1** (2025-11-24)
+> Python 3.13 compatible with updated dependencies for Streamlit Cloud deployment.
 > See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## 🚀 Quick Start
@@ -29,15 +29,17 @@ Open browser at `http://localhost:8501`
 - **📝 Professional Logging**: Structured logging with timestamps and module identification (NEW in v1.1.0)
 - **📦 Package Structure**: Clean imports with proper package initialization (NEW in v1.1.0)
 
-## ✨ What's New in v1.1.0
+## ✨ What's New in v1.1.1
 
-### Production Hardening Release
+### Python 3.13 Compatibility & Deployment Fix
 
-- **Professional Logging Framework**: Centralized logging with formatted messages, timestamps, and log levels
-- **Pinned Dependencies**: Exact version pinning for reproducible deployments (prevents breaking changes)
-- **Enhanced Package Structure**: Convenient package-level imports (`from src import BatterySystem`)
-- **Code Cleanup**: Removed unused imports and improved code quality
-- **Better Error Handling**: Structured error messages with proper logging
+- **Python 3.13 Support**: Full compatibility with latest Python version
+- **Updated Dependencies**: Modern package versions (NumPy 2.1.3, Streamlit 1.39.0, Pandas 2.2.3, Plotly 5.24.1)
+- **Streamlit Cloud Fix**: Resolved deployment errors caused by old numpy incompatibility with Python 3.13
+- **Production Ready**: Tested and verified on Streamlit Cloud with Python 3.13.9
+
+### Previous Release (v1.1.0)
+- Professional Logging Framework, Pinned Dependencies, Enhanced Package Structure
 
 See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 
@@ -103,14 +105,14 @@ Degradation: 0.448%
 
 ## 🛠️ Requirements
 
-- Python 3.8+
+- **Python 3.11+** (Python 3.13 recommended)
 - **Pinned Dependencies** (exact versions for reproducibility):
-  - Streamlit 1.28.0
-  - Pandas 2.0.0
-  - NumPy 1.24.0
-  - Plotly 5.0.0
+  - Streamlit 1.39.0
+  - Pandas 2.2.3
+  - NumPy 2.1.3 (Python 3.13 compatible)
+  - Plotly 5.24.1
 
-All dependencies are pinned to exact versions in `requirements.txt` to ensure consistent behavior across deployments.
+All dependencies are pinned to exact versions in `requirements.txt` to ensure consistent behavior across deployments and full Python 3.13 compatibility.
 
 ## 📄 Documentation
 
