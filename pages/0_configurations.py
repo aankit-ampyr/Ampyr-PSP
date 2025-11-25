@@ -270,7 +270,6 @@ col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
 with col1:
     if st.button("💾 Save Configuration", type="primary"):
         st.success("✅ Configuration saved to session")
-        st.balloons()
 
 with col2:
     if st.button("🔄 Reset to Defaults"):

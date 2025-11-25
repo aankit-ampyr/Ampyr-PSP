@@ -209,8 +209,6 @@ with col1:
             st.session_state['all_results'] = all_results
             st.session_state['optimal'] = optimal
 
-            st.success(f"✅ Optimal battery size: **{optimal['optimal_size_mwh']} MWh**")
-
 with col2:
     st.markdown("### 📊 Results")
 
