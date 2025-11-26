@@ -5,6 +5,8 @@ Detailed explanation of BESS sizing calculations and algorithms
 
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from src.config import (
     TARGET_DELIVERY_MW, MIN_SOC, MAX_SOC,
@@ -21,15 +23,69 @@ st.title("🧮 Calculation Logic")
 st.markdown("---")
 
 # Create tabs for different sections
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📋 Operation Logic",
     "🔄 Cycle Calculations",
     "⚡ Efficiency Model",
     "📊 Optimization",
+    "🔥 DG Simulation",
     "💻 Code Examples"
 ])
 
 with tab1:
+    st.markdown("## Sample Daily Power Flow")
+    st.info("This illustrative chart shows how solar and battery power flow through a typical day to meet the 25 MW delivery target.")
+
+    # Sample data for a typical sunny day
+    # Scenario: Battery starts partially charged (30 MWh usable)
+    hours = list(range(24))
+    solar_mw = [0, 0, 0, 0, 0, 5, 15, 30, 45, 55, 60, 65, 67, 65, 60, 50, 35, 20, 10, 5, 0, 0, 0, 0]
+
+    # BESS logic (negative = charging, positive = discharging):
+    # Decision: If solar + battery_available >= 25 → DELIVER, else → CHARGE
+    #
+    # Hour 0: 0+30=30>=25 → Deliver, discharge 25 → BESS=+25 (battery: 30→5)
+    # Hour 1-4: 0+5<25 → Can't deliver, charge with solar(0) → BESS=0
+    # Hour 5: 5+5=10<25 → Can't deliver, charge with solar → BESS=-5 (battery: 5→10)
+    # Hour 6: 15+10=25>=25 → Deliver, discharge 10 → BESS=+10 (battery: 10→0)
+    # Hour 7: 30+0=30>=25 → Deliver (solar enough), charge excess → BESS=-5
+    # Hours 8-16: Solar>=25 → Deliver, charge excess → BESS=-(solar-25)
+    # Hours 17-21: Solar<25 → Deliver, discharge gap → BESS=+(25-solar)
+    # Hours 22-23: 0+0<25 → Can't deliver, no solar → BESS=0
+    bess_mw = [25, 0, 0, 0, 0, -5, 10, -5, -20, -30, -35, -40, -42, -40, -35, -25, -10, 5, 15, 20, 25, 25, 0, 0]
+
+    # Combined: Solar + BESS (net power delivered)
+    combined_mw = [s + b for s, b in zip(solar_mw, bess_mw)]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=hours, y=solar_mw, name='Solar',
+                             fill='tozeroy', line=dict(color='#FFA500', width=2)))
+    fig.add_trace(go.Scatter(x=hours, y=bess_mw, name='BESS',
+                             line=dict(color='#1f77b4', width=2)))
+    fig.add_trace(go.Scatter(x=hours, y=combined_mw, name='Solar + BESS',
+                             line=dict(color='red', width=3, shape='hv')))
+    fig.add_hline(y=25, line_dash="dash", line_color="green",
+                  annotation_text="Target 25 MW")
+    fig.add_hline(y=0, line_color="gray", line_width=1)
+
+    fig.update_layout(
+        xaxis_title="Hour of Day",
+        yaxis_title="Power (MW)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        height=350,
+        xaxis=dict(
+            showgrid=True,
+            gridcolor='lightgray',
+            gridwidth=1,
+            griddash='dot',
+            dtick=1  # Show grid line every hour
+        )
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("**Orange area**: Solar | **Blue line**: BESS (negative=charging, positive=discharging) | **Red line**: Solar + BESS (net power)")
+    st.markdown("---")
+
     st.markdown("## Operational Decision Logic")
 
     st.markdown("### Binary Delivery System")
@@ -392,6 +448,317 @@ wastage_percent = (solar_wasted_mwh / total_solar_available) × 100
     """)
 
 with tab5:
+    st.markdown("## Solar + BESS + DG Hybrid System")
+
+    st.info("""
+    The DG (Diesel Generator) simulation adds a backup generator to the Solar+BESS system.
+    The DG operates based on battery SOC thresholds using hysteresis control to prevent
+    frequent start/stop cycling.
+    """)
+
+    # Sample DG Dispatch Graph
+    st.markdown("### Sample DG Dispatch Through a Day")
+    st.caption("This illustrative chart shows how Solar, DG, and BESS interact with SOC-triggered DG control.")
+
+    # Sample data for a day with DG activation
+    # Scenario: Battery starts at 30% SOC, DG ON threshold=20%, OFF threshold=80%
+    # Load = 25 MW, DG capacity = 25 MW
+    hours = list(range(24))
+
+    # Solar profile (typical sunny day)
+    solar_mw = [0, 0, 0, 0, 0, 5, 15, 30, 45, 55, 60, 65, 67, 65, 60, 50, 35, 20, 10, 5, 0, 0, 0, 0]
+
+    # SOC profile (starts at 30%, drops to 20% at hour 3, DG charges to 80% by hour 8)
+    # After DG off, solar maintains/charges, then depletes in evening
+    soc_pct = [30, 25, 22, 20, 35, 50, 65, 80, 85, 90, 92, 93, 93, 92, 90, 85, 75, 60, 45, 35, 28, 22, 20, 25]
+
+    # DG state (ON when SOC hits 20%, OFF when SOC hits 80%)
+    # Hours 3-7: DG ON (SOC dropped to 20% at hour 3, reaches 80% at hour 7)
+    # Hours 22-23: DG ON again (SOC dropped to 20% at hour 22)
+    dg_output_mw = [0, 0, 0, 25, 25, 25, 25, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25]
+
+    # BESS (negative=charging, positive=discharging)
+    # When DG ON: excess DG+Solar charges battery
+    # When DG OFF: battery discharges if solar < load, charges if solar > load
+    bess_mw = [25, 25, 25, -25, -30, -30, -40, -55, -20, -30, -35, -40, -42, -40, -35, -25, -10, 5, 15, 20, 25, 25, -25, -25]
+
+    # Combined output to load: Solar + DG + BESS discharge (positive only)
+    # This represents total power delivered to the load
+    combined_mw = [s + d + max(0, b) for s, d, b in zip(solar_mw, dg_output_mw, bess_mw)]
+
+    # Create figure with secondary y-axis for SOC
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # Add traces
+    fig.add_trace(
+        go.Scatter(x=hours, y=solar_mw, name='Solar', fill='tozeroy',
+                   line=dict(color='#FFA500', width=2)),
+        secondary_y=False
+    )
+    fig.add_trace(
+        go.Scatter(x=hours, y=dg_output_mw, name='DG Output', fill='tozeroy',
+                   line=dict(color='#DC143C', width=2), fillcolor='rgba(220,20,60,0.3)'),
+        secondary_y=False
+    )
+    fig.add_trace(
+        go.Scatter(x=hours, y=bess_mw, name='BESS',
+                   line=dict(color='#1f77b4', width=2)),
+        secondary_y=False
+    )
+    fig.add_trace(
+        go.Scatter(x=hours, y=soc_pct, name='SOC %',
+                   line=dict(color='#2E8B57', width=2, dash='dot')),
+        secondary_y=True
+    )
+    fig.add_trace(
+        go.Scatter(x=hours, y=combined_mw, name='Total to Load',
+                   line=dict(color='purple', width=3, shape='hv')),
+        secondary_y=False
+    )
+
+    # Add threshold lines
+    fig.add_hline(y=25, line_dash="dash", line_color="gray",
+                  annotation_text="Load 25 MW", secondary_y=False)
+    fig.add_hline(y=0, line_color="lightgray", line_width=1, secondary_y=False)
+    fig.add_hline(y=20, line_dash="dot", line_color="red",
+                  annotation_text="DG ON (20%)", secondary_y=True)
+    fig.add_hline(y=80, line_dash="dot", line_color="green",
+                  annotation_text="DG OFF (80%)", secondary_y=True)
+
+    fig.update_layout(
+        xaxis_title="Hour of Day",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        height=400,
+        xaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=1, griddash='dot', dtick=1)
+    )
+    fig.update_yaxes(title_text="Power (MW)", secondary_y=False)
+    fig.update_yaxes(title_text="SOC (%)", secondary_y=True, range=[0, 100])
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("""
+    **Orange**: Solar | **Red**: DG Output | **Blue**: BESS (negative=charging) | **Purple**: Total to Load | **Green dotted**: SOC %
+
+    **Scenario**: SOC drops to 20% → DG starts → DG+Solar charge battery → SOC reaches 80% → DG stops
+    """)
+
+    st.markdown("---")
+
+    st.markdown("### Merit Order Dispatch")
+    st.markdown("""
+    **For Load Serving (Priority Order):**
+    1. **Solar** - Always serves load first (free, clean energy)
+    2. **DG** - Serves remaining load when running (before BESS)
+    3. **BESS** - Discharges only if Solar + DG can't meet load
+
+    **For BESS Charging (Priority Order):**
+    1. **Excess Solar** - After load is met
+    2. **Excess DG** - When DG has spare capacity
+    """)
+
+    # Merit Order Flow Diagram
+    st.markdown("### Load Serving Flow Diagram")
+    st.graphviz_chart('''
+        digraph MeritOrder {
+            rankdir=TB;
+            node [shape=box, style="rounded,filled", fillcolor="#E8F4FD", fontname="Arial"];
+            edge [fontname="Arial", fontsize=10];
+
+            start [label="Start Hour", shape=ellipse, fillcolor="#90EE90"];
+            load [label="Load Demand\\n(e.g., 25 MW)"];
+            solar_first [label="1. Solar to Load\\nmin(solar, load)"];
+            calc_remaining [label="Calculate Remaining Load\\nremaining = load - solar_to_load"];
+            check_dg [label="DG Running?", shape=diamond, fillcolor="#FFE4B5"];
+            dg_serve [label="2. DG to Load\\nmin(dg_output, remaining)"];
+            update_remaining [label="Update Remaining\\nremaining -= dg_to_load"];
+            check_bess [label="Remaining > 0?", shape=diamond, fillcolor="#FFE4B5"];
+            bess_serve [label="3. BESS Discharge\\nmin(available, remaining)"];
+            final_check [label="Load Met?", shape=diamond, fillcolor="#FFE4B5"];
+            delivered [label="DELIVERY: Yes", fillcolor="#90EE90"];
+            not_delivered [label="DELIVERY: No", fillcolor="#FFB6C1"];
+            end_hour [label="End Hour", shape=ellipse, fillcolor="#D3D3D3"];
+
+            start -> load;
+            load -> solar_first;
+            solar_first -> calc_remaining;
+            calc_remaining -> check_dg;
+            check_dg -> dg_serve [label="Yes"];
+            check_dg -> check_bess [label="No"];
+            dg_serve -> update_remaining;
+            update_remaining -> check_bess;
+            check_bess -> bess_serve [label="Yes"];
+            check_bess -> delivered [label="No\\n(Load Met)"];
+            bess_serve -> final_check;
+            final_check -> delivered [label="Yes"];
+            final_check -> not_delivered [label="No"];
+            delivered -> end_hour;
+            not_delivered -> end_hour;
+        }
+    ''')
+
+    st.markdown("---")
+    st.markdown("### DG Hysteresis Control")
+
+    st.warning("""
+    **Hysteresis Control** prevents frequent DG start/stop cycles by using two SOC thresholds:
+    - **ON Threshold** (e.g., 20%): Start DG when SOC drops to this level
+    - **OFF Threshold** (e.g., 80%): Stop DG when SOC rises to this level
+    """)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("#### DG State Logic")
+        st.code("""
+# DG starts when SOC is low
+if dg_state == 'OFF':
+    if battery_soc <= SOC_ON_THRESHOLD:
+        dg_state = 'ON'
+        total_starts += 1
+
+# DG stops when SOC is high
+elif dg_state == 'ON':
+    if battery_soc >= SOC_OFF_THRESHOLD:
+        dg_state = 'OFF'
+        """, language='python')
+
+    with col2:
+        st.markdown("#### Hysteresis Band")
+        st.info("""
+        **Example with 20%/80% thresholds:**
+
+        - SOC drops to 20% → DG turns ON
+        - DG runs at full capacity
+        - SOC rises (from DG + Solar charging)
+        - SOC reaches 80% → DG turns OFF
+        - System runs on Solar + BESS
+        - Cycle repeats when SOC drops again
+        """)
+
+    # DG State Machine Diagram
+    st.markdown("### DG State Machine")
+    st.graphviz_chart('''
+        digraph DGStateMachine {
+            rankdir=LR;
+            node [shape=circle, style=filled, fontname="Arial", fontsize=12, width=1.5];
+            edge [fontname="Arial", fontsize=10];
+
+            OFF [fillcolor="#90EE90", label="DG OFF"];
+            ON [fillcolor="#FFB6C1", label="DG ON"];
+
+            OFF -> ON [label="SOC ≤ 20%\\n(Start DG)", color="red", penwidth=2];
+            ON -> OFF [label="SOC ≥ 80%\\n(Stop DG)", color="green", penwidth=2];
+            OFF -> OFF [label="SOC > 20%", style="dashed"];
+            ON -> ON [label="SOC < 80%", style="dashed"];
+        }
+    ''')
+
+    st.markdown("---")
+    st.markdown("### BESS Charging Priority")
+
+    st.markdown("""
+    When charging the BESS, excess energy is used in this order:
+
+    | Priority | Source | Condition |
+    |----------|--------|-----------|
+    | 1st | Excess Solar | Solar > Load demand |
+    | 2nd | Excess DG | DG output > Load remaining after solar |
+    """)
+
+    st.markdown("#### Charging Flow")
+    st.graphviz_chart('''
+        digraph ChargingFlow {
+            rankdir=TB;
+            node [shape=box, style="rounded,filled", fillcolor="#E8F4FD", fontname="Arial"];
+            edge [fontname="Arial", fontsize=10];
+
+            start [label="After Load Dispatch", shape=ellipse, fillcolor="#90EE90"];
+            calc_excess_solar [label="Calculate Excess Solar\\nexcess_solar = solar - solar_to_load"];
+            check_solar [label="Excess Solar > 0?", shape=diamond, fillcolor="#FFE4B5"];
+            charge_solar [label="1. Charge from Solar\\nbattery.charge(excess_solar)", fillcolor="#87CEEB"];
+            check_dg_excess [label="DG has Excess?", shape=diamond, fillcolor="#FFE4B5"];
+            charge_dg [label="2. Charge from DG\\nbattery.charge(excess_dg)", fillcolor="#DDA0DD"];
+            end_charge [label="Charging Complete", shape=ellipse, fillcolor="#D3D3D3"];
+
+            start -> calc_excess_solar;
+            calc_excess_solar -> check_solar;
+            check_solar -> charge_solar [label="Yes"];
+            check_solar -> check_dg_excess [label="No"];
+            charge_solar -> check_dg_excess;
+            check_dg_excess -> charge_dg [label="Yes"];
+            check_dg_excess -> end_charge [label="No"];
+            charge_dg -> end_charge;
+        }
+    ''')
+
+    st.markdown("---")
+    st.markdown("### DG Metrics Tracked")
+
+    metrics_data = {
+        'Metric': [
+            'DG Runtime (hours)',
+            'DG Starts',
+            'DG Energy Generated (MWh)',
+            'DG to Load (MWh)',
+            'DG to BESS (MWh)',
+            'DG Capacity Factor (%)'
+        ],
+        'Description': [
+            'Total hours DG was running',
+            'Number of times DG was started',
+            'Total energy produced by DG',
+            'DG energy used directly for load',
+            'DG energy used to charge battery',
+            'DG utilization = Runtime / 8760 hours'
+        ]
+    }
+    metrics_df = pd.DataFrame(metrics_data)
+    st.table(metrics_df)
+
+    st.markdown("### Complete DG Dispatch Example")
+    st.code("""
+# Hour-by-hour simulation with DG
+for hour in range(8760):
+    solar_mw = solar_profile[hour]
+
+    # Step 1: Update DG state based on current SOC (BEFORE dispatch)
+    dg.update_state(battery.soc)
+
+    remaining_load = LOAD_MW  # e.g., 25 MW
+
+    # Step 2: Merit Order Dispatch for LOAD
+
+    # Priority 1: Solar to Load
+    solar_to_load = min(solar_mw, remaining_load)
+    remaining_load -= solar_to_load
+    excess_solar = solar_mw - solar_to_load
+
+    # Priority 2: DG to Load (if DG is ON)
+    dg_to_load = 0
+    if dg.state == 'ON':
+        dg_output = dg.run()  # Full capacity when ON
+        dg_to_load = min(dg_output, remaining_load)
+        remaining_load -= dg_to_load
+        excess_dg = dg_output - dg_to_load
+
+    # Priority 3: BESS discharge (only if needed)
+    if remaining_load > 0:
+        bess_to_load = battery.discharge(remaining_load)
+        remaining_load -= bess_to_load
+
+    # Step 3: Charge BESS (Solar first, then DG)
+    if excess_solar > 0:
+        battery.charge(excess_solar)
+
+    if dg.state == 'ON' and excess_dg > 0:
+        battery.charge(excess_dg)
+
+    # Track delivery
+    if remaining_load <= 0.001:
+        hours_delivered += 1
+    """, language='python')
+
+with tab6:
     st.markdown("## Implementation Code Examples")
 
     st.markdown("### Core Simulation Loop")

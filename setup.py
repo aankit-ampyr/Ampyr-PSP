@@ -12,7 +12,7 @@ long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists
 
 setup(
     name="bess-sizing",
-    version="1.1.1",
+    version="1.2.0",
     description="Battery Energy Storage System (BESS) Sizing and Optimization Tool",
     long_description=long_description,
     long_description_content_type="text/markdown",

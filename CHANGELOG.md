@@ -5,6 +5,48 @@ All notable changes to the BESS Sizing Tool project will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-11-26
+
+### Added
+
+- **DG Simulation Page** ([pages/3_dg_simulation.py](pages/3_dg_simulation.py))
+  - New Solar+BESS+Diesel Generator hybrid simulation
+  - Configure DG capacity (MW), minimum runtime, and fuel consumption
+  - Priority dispatch logic: Solar → BESS → DG
+  - Track DG runtime hours, starts, and energy contribution
+  - Comprehensive metrics including DG capacity factor
+
+- **Interactive Power Flow Chart** ([pages/4_calculation_logic.py](pages/4_calculation_logic.py))
+  - Sample daily power flow visualization using Plotly
+  - Shows Solar (orange area), BESS (blue line), and Combined (red step line)
+  - Light gray dotted grid lines for hourly reference
+  - 25 MW target reference line
+  - Demonstrates correct BESS logic: charge when solar+BESS < 25, discharge when >= 25
+
+- **Graphviz Flow Diagrams** ([pages/4_calculation_logic.py](pages/4_calculation_logic.py))
+  - Hourly Decision Flow diagram showing binary delivery logic
+  - State Machine diagram for cycle counting transitions
+  - Optimization Algorithm flowchart showing marginal analysis process
+
+### Changed
+
+- **Page Reordering**
+  - Renamed `2_calculation_logic.py` → `4_calculation_logic.py`
+  - Renamed `3_optimization.py` → `2_optimization.py`
+  - Renamed `4_dg_simulation.py` → `3_dg_simulation.py`
+  - Calculation Logic now appears last in navigation for better UX flow
+
+- **Streamlit Version**
+  - Updated from 1.39.0 to 1.41.0 in requirements.txt
+
+### Documentation
+
+- Updated CLAUDE.md with "ASK BEFORE MODIFYING" section for critical deployment files
+- Added comprehensive BESS logic documentation in code comments
+- Sample data in power flow chart now accurately reflects the decision logic
+
+---
+
 ## [1.1.1] - 2025-11-24
 
 ### Fixed

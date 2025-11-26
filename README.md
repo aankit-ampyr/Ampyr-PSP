@@ -2,8 +2,8 @@
 
 A comprehensive Battery Energy Storage System (BESS) sizing optimization tool for solar+storage systems.
 
-> **Latest Version: 1.1.1** (2025-11-24)
-> Python 3.13 compatible with updated dependencies for Streamlit Cloud deployment.
+> **Latest Version: 1.2.0** (2025-11-26)
+> Added DG Simulation page, enhanced Calculation Logic with interactive flow diagrams.
 > See [CHANGELOG.md](CHANGELOG.md) for details.
 
 ## 🚀 Quick Start
@@ -23,23 +23,35 @@ Open browser at `http://localhost:8501`
 - **🔧 Configurable Parameters**: Adjust all system parameters through UI
 - **⚡ Real-time Simulation**: Test individual battery sizes instantly
 - **🎯 Optimization Algorithms**: High-Yield Knee & Marginal Improvement methods
-- **📊 Advanced Visualizations**: Interactive Plotly charts
+- **📊 Advanced Visualizations**: Interactive Plotly charts with power flow diagrams
 - **📈 Comprehensive Metrics**: Delivery hours, cycles, degradation tracking
 - **💾 Export Capabilities**: Download results as CSV
-- **📝 Professional Logging**: Structured logging with timestamps and module identification (NEW in v1.1.0)
-- **📦 Package Structure**: Clean imports with proper package initialization (NEW in v1.1.0)
+- **🔥 DG Simulation**: Solar+BESS+Diesel Generator hybrid simulation (NEW in v1.2.0)
+- **📐 Interactive Flow Diagrams**: Graphviz decision trees and state machine diagrams (NEW in v1.2.0)
+- **📝 Professional Logging**: Structured logging with timestamps and module identification
+- **📦 Package Structure**: Clean imports with proper package initialization
 
-## ✨ What's New in v1.1.1
+## ✨ What's New in v1.2.0
 
-### Python 3.13 Compatibility & Deployment Fix
+### New Pages & Enhanced Documentation
 
-- **Python 3.13 Support**: Full compatibility with latest Python version
-- **Updated Dependencies**: Modern package versions (NumPy 2.1.3, Streamlit 1.39.0, Pandas 2.2.3, Plotly 5.24.1)
-- **Streamlit Cloud Fix**: Resolved deployment errors caused by old numpy incompatibility with Python 3.13
-- **Production Ready**: Tested and verified on Streamlit Cloud with Python 3.13.9
+- **DG Simulation Page**: New Solar+BESS+Diesel Generator hybrid simulation
+  - Configure DG capacity, minimum runtime, and fuel consumption
+  - Track DG runtime hours, starts, and energy contribution
+  - Priority dispatch: Solar → BESS → DG
 
-### Previous Release (v1.1.0)
-- Professional Logging Framework, Pinned Dependencies, Enhanced Package Structure
+- **Enhanced Calculation Logic Page**:
+  - Interactive daily power flow chart (Solar, BESS, Combined)
+  - Graphviz decision flow diagrams
+  - State machine visualization for cycle counting
+  - Optimization algorithm flowchart
+
+- **Page Reordering**: Calculation Logic moved to last position for better UX flow
+
+### Previous Releases
+
+- **v1.1.1**: Python 3.13 compatibility, Streamlit Cloud deployment fix
+- **v1.1.0**: Professional logging framework, pinned dependencies
 
 See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 
@@ -49,23 +61,24 @@ See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 ├── app.py                    # Main entry point
 ├── setup.py                  # Package configuration
 ├── requirements.txt          # Dependencies (pinned versions)
-├── CHANGELOG.md             # Version history and changes
+├── CHANGELOG.md              # Version history and changes
 ├── pages/
-│   ├── 0_configurations.py  # System configuration
-│   ├── 1_simulation.py      # Battery simulation
-│   ├── 2_calculation_logic.py # Documentation
-│   └── 3_optimization.py    # Optimization analysis
+│   ├── 0_configurations.py   # System configuration
+│   ├── 1_simulation.py       # Battery simulation
+│   ├── 2_optimization.py     # Optimization analysis
+│   ├── 3_dg_simulation.py    # Solar+BESS+DG simulation (NEW)
+│   └── 4_calculation_logic.py # Documentation with flow diagrams
 ├── src/
-│   ├── __init__.py         # Package exports
-│   ├── battery_simulator.py # Core simulation engine
-│   ├── config.py           # Default configurations
-│   └── data_loader.py      # Data management (with logging)
+│   ├── __init__.py           # Package exports
+│   ├── battery_simulator.py  # Core simulation engine
+│   ├── config.py             # Default configurations
+│   └── data_loader.py        # Data management (with logging)
 └── utils/
-    ├── __init__.py         # Package exports
-    ├── logger.py           # Centralized logging (NEW)
-    ├── metrics.py          # Metrics calculations
-    ├── config_manager.py   # Config state management
-    └── validators.py       # Input validation
+    ├── __init__.py           # Package exports
+    ├── logger.py             # Centralized logging
+    ├── metrics.py            # Metrics calculations
+    ├── config_manager.py     # Config state management
+    └── validators.py         # Input validation
 ```
 
 ## 🎯 Key Specifications
@@ -107,7 +120,7 @@ Degradation: 0.448%
 
 - **Python 3.11+** (Python 3.13 recommended)
 - **Pinned Dependencies** (exact versions for reproducibility):
-  - Streamlit 1.39.0
+  - Streamlit 1.41.0
   - Pandas 2.2.3
   - NumPy 2.1.3 (Python 3.13 compatible)
   - Plotly 5.24.1
