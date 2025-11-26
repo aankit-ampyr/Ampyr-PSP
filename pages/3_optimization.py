@@ -9,16 +9,15 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
-import sys
+import os
 from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src.data_loader import load_solar_profile, get_solar_statistics
 from src.battery_simulator import simulate_bess_year
+from src.config import HOURS_PER_YEAR
 from utils.metrics import calculate_metrics_summary
 from utils.config_manager import get_config
+from utils.validators import validate_battery_config
 
 # Page config
 st.set_page_config(page_title="Optimization", page_icon="🎯", layout="wide")
@@ -127,15 +126,63 @@ def high_yield_knee_algorithm(all_results, performance_threshold=0.95):
 # Get configuration
 config = get_config()
 
-# Load solar profile
+# Load solar profile with hash-based caching
+# Bug #10 Fix: Cache invalidates when file is added/modified, + retry button
 @st.cache_data
-def get_solar_data():
-    """Load and cache solar profile data."""
+def get_solar_data(_file_modified_time):
+    """
+    Load and cache solar profile data.
+    Cache is invalidated when file modification time changes.
+
+    Args:
+        _file_modified_time: File modification timestamp (underscore prevents hashing)
+    """
     profile = load_solar_profile()
+    if profile is None:
+        return None, None
     stats = get_solar_statistics(profile)
     return profile, stats
 
-solar_profile, solar_stats = get_solar_data()
+# Check if solar file exists first
+solar_file = Path("Inputs/Solar Profile.csv")
+
+if not solar_file.exists():
+    st.error("🚫 **Cannot Run Optimization - Solar Profile Missing**")
+    st.warning(f"Required file not found: `{solar_file}`")
+
+    if st.button("🔄 Check Again"):
+        st.rerun()
+
+    st.info("📋 **What to do:**")
+    st.markdown("""
+    1. Ensure `Inputs/Solar Profile.csv` exists in the project directory
+    2. Verify the file contains 8760 hourly solar generation values
+    3. Click the '🔄 Check Again' button above after adding the file
+
+    **Note:** Future versions will support uploading custom solar profile files through the UI.
+    """)
+    st.stop()  # Stop page execution - don't show optimization controls
+
+# File exists, load it with hash-based caching
+file_modified_time = os.path.getmtime(solar_file)
+solar_profile, solar_stats = get_solar_data(file_modified_time)
+
+# Check if loading was successful (file exists but may be corrupted)
+if solar_profile is None:
+    st.error("🚫 **Error Loading Solar Profile**")
+    st.warning("The file exists but could not be loaded. It may be corrupted or in the wrong format.")
+
+    if st.button("🔄 Retry Loading"):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.info("📋 **What to do:**")
+    st.markdown("""
+    1. Verify the file contains 8760 hourly solar generation values
+    2. Check file format (CSV with proper headers)
+    3. Click '🔄 Retry Loading' button above
+    """)
+    st.stop()
 
 # Sidebar controls
 st.sidebar.markdown("### 🎯 Optimization Controls")
@@ -270,8 +317,43 @@ else:
 
     # Provide option to run new optimization if needed
     if st.sidebar.button("🚀 Run New Optimization", type="primary"):
-        with st.spinner("Running optimization analysis..."):
-            # Run simulations for all battery sizes
+        # Validate configuration before running optimization
+        is_valid, validation_errors = validate_battery_config(config)
+
+        if not is_valid:
+            st.error("❌ **Invalid Configuration - Cannot Run Optimization**")
+            st.error("Please fix the following issues in the Configuration page:")
+            for error in validation_errors:
+                st.error(f"  • {error}")
+            st.stop()
+
+        # Configuration is valid - proceed with optimization
+        # Calculate number of simulations
+        num_simulations = len(list(range(min_size, max_size + step_size, step_size)))
+
+        # Enforce resource limits
+        MAX_SIMULATIONS = 200
+        actual_step_size = step_size
+
+        if num_simulations > MAX_SIMULATIONS:
+            # Calculate adjusted step size to cap at 200 simulations
+            actual_step_size = (max_size - min_size) // MAX_SIMULATIONS + 1
+            actual_num_simulations = len(list(range(min_size, max_size + actual_step_size, actual_step_size)))
+
+            st.warning(f"⚠️ Configuration would run {num_simulations} simulations (exceeds limit of {MAX_SIMULATIONS})")
+            st.warning(f"🔄 Auto-adjusting step size from {step_size} MWh to {actual_step_size} MWh")
+            st.info(f"💡 Running {actual_num_simulations} simulations instead. To change this, adjust BATTERY_SIZE_STEP in Configuration page")
+
+            num_simulations = actual_num_simulations
+            step_size = actual_step_size
+
+        # Warn about estimated duration for longer runs
+        estimated_time_seconds = num_simulations * 0.5  # ~0.5 sec per simulation
+        if estimated_time_seconds > 30:
+            st.warning(f"⏱️ Running {num_simulations} simulations (estimated ~{estimated_time_seconds:.0f} seconds)")
+
+        with st.spinner(f"Running {num_simulations} simulations..."):
+            # Run simulations for all battery sizes with adjusted step
             battery_sizes = range(min_size, max_size + step_size, step_size)
             all_results = []
 
@@ -283,7 +365,7 @@ else:
                 results = simulate_bess_year(size, solar_profile, config)
                 metrics = calculate_metrics_summary(size, results)
                 all_results.append(metrics)
-                progress_bar.progress((i + 1) / len(battery_sizes))
+                progress_bar.progress((i + 1) / num_simulations)
 
             status_text.empty()
 
@@ -338,7 +420,7 @@ if 'optimization_results' in st.session_state:
             st.metric("📈 Total Cycles", f"{optimal.get('total_cycles', 'N/A')}")
 
     with col4:
-        delivery_rate = (optimal['delivery_hours'] / 87.6) if optimal['delivery_hours'] else 0
+        delivery_rate = (optimal['delivery_hours'] / (HOURS_PER_YEAR / 100)) if optimal['delivery_hours'] else 0
         st.metric("✅ Delivery Rate", f"{delivery_rate:.1f}%")
 
     # Algorithm reasoning

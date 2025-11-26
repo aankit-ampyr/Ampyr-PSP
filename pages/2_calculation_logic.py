@@ -5,12 +5,6 @@ Detailed explanation of BESS sizing calculations and algorithms
 
 import streamlit as st
 import pandas as pd
-import numpy as np
-import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src.config import (
     TARGET_DELIVERY_MW, MIN_SOC, MAX_SOC,
@@ -48,12 +42,23 @@ with tab1:
 
     st.markdown("### Hour-by-Hour Decision Tree")
 
+    st.warning("""
+    ⚠️ **Critical**: Battery availability must consider BOTH energy capacity AND C-rate power limits.
+    Energy (MWh) ≠ Power (MW). A 100 MWh battery with 1.0 C-rate can only deliver 100 MW,
+    even if it has 100 MWh of energy available.
+    """)
+
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("#### Step 1: Check Availability")
         st.code("""
-available_mw = solar_mw + battery_available_mw
+# Battery power limited by BOTH energy and C-rate
+battery_power_mw = min(
+    battery_energy_mwh,  # Energy for 1 hour
+    capacity_mwh * c_rate  # Power limit
+)
+available_mw = solar_mw + battery_power_mw
 can_deliver = available_mw >= 25 MW
         """, language='python')
 
@@ -259,6 +264,29 @@ with tab4:
    optimal = first size where marginal < 300 hours per 10 MWh
     """, language='text')
 
+    st.markdown("### Solar Wastage Calculation")
+    st.info("""
+    **Wastage Formula: Wasted Solar / Total Solar Available**
+
+    The wastage percentage represents solar energy that could not be used:
+    - **Numerator**: Solar wasted (MWh)
+    - **Denominator**: Total solar available = Solar charged + Solar wasted
+
+    **Important**: Battery discharge energy is NOT included in the denominator
+    as it's not solar energy.
+    """)
+
+    st.code("""
+# Correct wastage calculation
+total_solar_available = solar_charged_mwh + solar_wasted_mwh
+wastage_percent = (solar_wasted_mwh / total_solar_available) × 100
+
+# Example:
+# - 800 MWh solar charged to battery
+# - 200 MWh solar wasted
+# - Wastage = 200 / (800 + 200) = 20%
+    """, language='python')
+
     st.markdown("### Degradation Model")
     st.markdown(f"""
     **Degradation per cycle: {DEGRADATION_PER_CYCLE:.4%}**
@@ -274,9 +302,13 @@ with tab5:
     st.markdown("### Core Simulation Loop")
     st.code("""
 def simulate_hour(solar_mw, battery, target_mw=25):
-    # Check if we can deliver
-    battery_available = battery.get_available_energy()
-    can_deliver = (solar_mw + battery_available) >= target_mw
+    # Check if we can deliver (consider BOTH energy and power limits)
+    battery_energy_mwh = battery.get_available_energy()
+    battery_power_mw = min(
+        battery_energy_mwh,  # Energy available for 1 hour
+        battery.capacity * battery.c_rate_discharge  # C-rate power limit
+    )
+    can_deliver = (solar_mw + battery_power_mw) >= target_mw
 
     if can_deliver:
         # Deliver target power
@@ -384,10 +416,12 @@ total_delivered = 0
 
 # Hour-by-hour simulation
 for hour, solar in enumerate(solar_profile):
-    battery_available = (soc - 0.05) * BATTERY_SIZE
+    # Battery power limited by BOTH energy and C-rate
+    battery_energy = (soc - 0.05) * BATTERY_SIZE
+    battery_power = min(battery_energy, BATTERY_SIZE * 1.0)  # 1.0 C-rate
 
     # Can we deliver?
-    if solar + battery_available >= TARGET_MW:
+    if solar + battery_power >= TARGET_MW:
         # Yes - deliver
         delivered_hours += 1
         total_delivered += TARGET_MW
@@ -402,7 +436,7 @@ for hour, solar in enumerate(solar_profile):
         else:
             # Discharge to support
             needed = (TARGET_MW - solar) / EFFICIENCY
-            discharge = min(needed, battery_available)
+            discharge = min(needed, battery_energy, BATTERY_SIZE * 1.0)
             soc -= discharge / BATTERY_SIZE
             new_state = 'DISCHARGING'
     else:

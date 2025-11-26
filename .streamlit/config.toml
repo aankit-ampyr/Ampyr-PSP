@@ -7,7 +7,9 @@ font = "sans serif"
 
 [server]
 headless = true
-enableCORS = false
+# CORS enabled for production deployment (Streamlit Cloud, AWS, GCP)
+# Protects against cross-origin attacks when app is publicly accessible
+enableCORS = true
 enableXsrfProtection = true
 
 [browser]

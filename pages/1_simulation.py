@@ -6,11 +6,8 @@ Run battery sizing simulations and view results
 import streamlit as st
 import pandas as pd
 import numpy as np
-import sys
+import os
 from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src.data_loader import load_solar_profile, get_solar_statistics
 from src.battery_simulator import simulate_bess_year
@@ -19,6 +16,7 @@ from utils.metrics import (
     create_hourly_dataframe, format_results_for_export
 )
 from utils.config_manager import get_config
+from utils.validators import validate_battery_config
 
 
 # Page config
@@ -34,15 +32,63 @@ else:
 
 st.markdown("---")
 
-# Load solar profile
+# Load solar profile with hash-based caching
+# Bug #10 Fix: Cache invalidates when file is added/modified, + retry button
 @st.cache_data
-def get_solar_data():
-    """Load and cache solar profile data."""
+def get_solar_data(_file_modified_time):
+    """
+    Load and cache solar profile data.
+    Cache is invalidated when file modification time changes.
+
+    Args:
+        _file_modified_time: File modification timestamp (underscore prevents hashing)
+    """
     profile = load_solar_profile()
+    if profile is None:
+        return None, None
     stats = get_solar_statistics(profile)
     return profile, stats
 
-solar_profile, solar_stats = get_solar_data()
+# Check if solar file exists first
+solar_file = Path("Inputs/Solar Profile.csv")
+
+if not solar_file.exists():
+    st.error("🚫 **Cannot Run Simulations - Solar Profile Missing**")
+    st.warning(f"Required file not found: `{solar_file}`")
+
+    if st.button("🔄 Check Again"):
+        st.rerun()
+
+    st.info("📋 **What to do:**")
+    st.markdown("""
+    1. Ensure `Inputs/Solar Profile.csv` exists in the project directory
+    2. Verify the file contains 8760 hourly solar generation values
+    3. Click the '🔄 Check Again' button above after adding the file
+
+    **Note:** Future versions will support uploading custom solar profile files through the UI.
+    """)
+    st.stop()  # Stop page execution - don't show simulation controls
+
+# File exists, load it with hash-based caching
+file_modified_time = os.path.getmtime(solar_file)
+solar_profile, solar_stats = get_solar_data(file_modified_time)
+
+# Check if loading was successful (file exists but may be corrupted)
+if solar_profile is None:
+    st.error("🚫 **Error Loading Solar Profile**")
+    st.warning("The file exists but could not be loaded. It may be corrupted or in the wrong format.")
+
+    if st.button("🔄 Retry Loading"):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.info("📋 **What to do:**")
+    st.markdown("""
+    1. Verify the file contains 8760 hourly solar generation values
+    2. Check file format (CSV with proper headers)
+    3. Click '🔄 Retry Loading' button above
+    """)
+    st.stop()
 
 # Sidebar - Solar Profile Statistics
 st.sidebar.markdown("### 📊 Solar Profile Statistics")
@@ -89,6 +135,17 @@ with col1:
     )
 
     if st.button("🚀 Run Simulation", type="primary"):
+        # Validate configuration before running simulation
+        is_valid, validation_errors = validate_battery_config(config)
+
+        if not is_valid:
+            st.error("❌ **Invalid Configuration - Cannot Run Simulation**")
+            st.error("Please fix the following issues in the Configuration page:")
+            for error in validation_errors:
+                st.error(f"  • {error}")
+            st.stop()
+
+        # Configuration is valid - proceed with simulation
         with st.spinner(f"Simulating {battery_size} MWh battery..."):
             # Run simulation with config
             results = simulate_bess_year(battery_size, solar_profile, config)
@@ -104,22 +161,46 @@ with col1:
     st.markdown("### 📈 Optimization Analysis")
 
     if st.button("🔍 Find Optimal Size"):
-        with st.spinner("Running optimization analysis..."):
+        # Calculate number of simulations based on configuration
+        min_size = config['MIN_BATTERY_SIZE_MWH']
+        max_size = config['MAX_BATTERY_SIZE_MWH']
+        step_size = config['BATTERY_SIZE_STEP_MWH']
+
+        num_simulations = len(list(range(min_size, max_size + step_size, step_size)))
+
+        # Enforce resource limits
+        MAX_SIMULATIONS = 200
+        actual_step_size = step_size
+
+        if num_simulations > MAX_SIMULATIONS:
+            # Calculate adjusted step size to cap at 200 simulations
+            actual_step_size = (max_size - min_size) // MAX_SIMULATIONS + 1
+            actual_num_simulations = len(list(range(min_size, max_size + actual_step_size, actual_step_size)))
+
+            st.warning(f"⚠️ Configuration would run {num_simulations} simulations (exceeds limit of {MAX_SIMULATIONS})")
+            st.warning(f"🔄 Auto-adjusting step size from {step_size} MWh to {actual_step_size} MWh")
+            st.info(f"💡 Running {actual_num_simulations} simulations instead. To change this, adjust BATTERY_SIZE_STEP in Configuration page")
+
+            num_simulations = actual_num_simulations
+            step_size = actual_step_size
+
+        # Warn about estimated duration for longer runs
+        estimated_time_seconds = num_simulations * 0.5  # ~0.5 sec per simulation
+        if estimated_time_seconds > 30:
+            st.warning(f"⏱️ Running {num_simulations} simulations (estimated ~{estimated_time_seconds:.0f} seconds)")
+
+        with st.spinner(f"Running {num_simulations} simulations..."):
             all_results = []
             progress_bar = st.progress(0)
 
-            # Test all battery sizes
-            battery_sizes = range(
-                config['MIN_BATTERY_SIZE_MWH'],
-                config['MAX_BATTERY_SIZE_MWH'] + config['BATTERY_SIZE_STEP_MWH'],
-                config['BATTERY_SIZE_STEP_MWH']
-            )
+            # Test all battery sizes with adjusted step
+            battery_sizes = range(min_size, max_size + step_size, step_size)
 
             for i, size in enumerate(battery_sizes):
                 results = simulate_bess_year(size, solar_profile, config)
                 metrics = calculate_metrics_summary(size, results)
                 all_results.append(metrics)
-                progress_bar.progress((i + 1) / len(battery_sizes))
+                progress_bar.progress((i + 1) / num_simulations)
 
             # Find optimal size
             optimal = find_optimal_battery_size(all_results)
@@ -127,8 +208,6 @@ with col1:
             # Store in session state
             st.session_state['all_results'] = all_results
             st.session_state['optimal'] = optimal
-
-            st.success(f"✅ Optimal battery size: **{optimal['optimal_size_mwh']} MWh**")
 
 with col2:
     st.markdown("### 📊 Results")

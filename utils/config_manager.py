@@ -4,11 +4,6 @@ Handles session state configuration with fallback to defaults
 """
 
 import streamlit as st
-import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 # Import default configurations
 from src.config import (

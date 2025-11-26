@@ -1,8 +1,22 @@
 # BESS Sizing Tool - Complete Project Plan & Documentation
 
+> **Version 1.1.1** (2025-11-24) - Updated with Python 3.13 compatibility and deployment fixes
+>
+> See [CHANGELOG.md](CHANGELOG.md) for version history and recent updates.
+
 ## 📋 Executive Summary
 
 The Battery Energy Storage System (BESS) Sizing Tool is a comprehensive Streamlit-based application designed to optimize battery storage sizing for solar energy systems. The tool simulates year-long battery operations, enforces operational constraints, and provides advanced optimization algorithms to determine the ideal battery capacity for maximizing delivery hours while respecting technical limitations.
+
+**Recent Updates (v1.1.1):**
+
+- Python 3.13 compatibility with updated dependencies
+- Fixed Streamlit Cloud deployment errors (numpy 2.1.3, streamlit 1.39.0)
+- Removed editable install from requirements.txt for cloud compatibility
+- Updated all packages to latest stable versions
+
+**Previous (v1.1.0):**
+- Professional logging framework, pinned dependencies, enhanced package structure
 
 ---
 
@@ -28,30 +42,38 @@ The Battery Energy Storage System (BESS) Sizing Tool is a comprehensive Streamli
 
 ### Technology Stack
 ```
-Frontend:      Streamlit 1.28+
-Backend:       Python 3.8+
-Data Processing: Pandas 2.0+, NumPy 1.24+
-Visualization: Plotly 5.0+
+Frontend:        Streamlit 1.39.0 (pinned)
+Backend:         Python 3.11+ (3.13 recommended)
+Data Processing: Pandas 2.2.3 (pinned), NumPy 2.1.3 (pinned, Python 3.13 compatible)
+Visualization:   Plotly 5.24.1 (pinned)
+Logging:         Python logging module (built-in)
 ```
+
+**Note:** All dependencies are pinned to exact versions in `requirements.txt` for reproducible deployments and full Python 3.13 compatibility (v1.1.1+).
 
 ### Application Structure
 ```
 BESS-22-nov/
 │
 ├── app.py                     # Main application entry point
-├── requirements.txt           # Python dependencies
+├── setup.py                   # Python package configuration (enables proper imports)
+├── requirements.txt           # Python dependencies (pinned versions, Python 3.13 compatible)
+├── CHANGELOG.md              # Version history and changes (NEW in v1.1.0)
+├── BUG_REPORT_ANALYSIS.md    # Detailed bug tracking and fixes
 ├── PROJECT_PLAN.md           # This document
 │
-├── src/                      # Core business logic
-│   ├── __init__.py
+├── src/                      # Core business logic (installed as package)
+│   ├── __init__.py          # Package exports (enhanced in v1.1.0)
 │   ├── config.py            # Default configuration constants
 │   ├── battery_simulator.py # Battery operation simulation engine
-│   └── data_loader.py       # Solar profile data management
+│   └── data_loader.py       # Solar profile data management (with logging)
 │
-├── utils/                    # Utility functions
-│   ├── __init__.py
+├── utils/                    # Utility functions (installed as package)
+│   ├── __init__.py          # Package exports (enhanced in v1.1.0)
+│   ├── logger.py            # Centralized logging framework (NEW in v1.1.0)
 │   ├── metrics.py           # Metrics calculation and analysis
-│   └── config_manager.py   # Configuration state management
+│   ├── config_manager.py   # Configuration state management
+│   └── validators.py        # Configuration validation utilities
 │
 ├── pages/                    # Streamlit multipage app
 │   ├── 0_configurations.py  # Configuration management page
@@ -63,6 +85,12 @@ BESS-22-nov/
     └── Solar Profile.csv     # Hourly solar generation data
 
 ```
+
+**Package Structure Notes:**
+- `setup.py` defines the project as a proper Python package
+- `src/` and `utils/` are installed as importable packages
+- All pages can import from `src` and `utils` naturally (no sys.path manipulation)
+- Compatible with both local development and cloud deployment
 
 ---
 
@@ -242,12 +270,26 @@ Charge Headroom = (95% - SOC) × Capacity
 git clone [repository-url]
 cd "BESS 22 nov"
 
-# Install dependencies
+# Install dependencies and project as package
+# Note: This installs all dependencies AND the project itself as an editable package
+# This enables proper Python imports without sys.path manipulation
 pip install -r requirements.txt
 
 # Run application
 streamlit run app.py
 ```
+
+**Note on Package Installation:**
+The project uses a proper Python package structure with `setup.py`. When you run `pip install -r requirements.txt`, it:
+1. Installs all required dependencies (streamlit, pandas, numpy, plotly)
+2. Installs the project itself as an editable package (via `-e .` in requirements.txt)
+3. Makes all imports work naturally without sys.path manipulation
+
+This approach:
+- ✅ Works seamlessly on local development
+- ✅ Works on Streamlit Cloud deployment
+- ✅ Follows Python packaging best practices
+- ✅ Enables proper testing and distribution
 
 ### Workflow
 
@@ -273,6 +315,64 @@ streamlit run app.py
 - Check **Calculation Logic** page
 - Understand operational scenarios
 - Review cycle counting examples
+
+---
+
+## 📁 Data Requirements
+
+### Solar Profile Data
+
+**Required File:** `Inputs/Solar Profile.csv`
+
+The application **requires** a valid solar profile file to run simulations. This file must contain:
+- **8760 hourly values** (full year of data)
+- **Solar generation in MW** for each hour
+- **CSV format** with recognizable column names (e.g., "Solar_Generation_MW", "solar", "generation", "mw")
+
+**Example Format:**
+```csv
+timestamp,Solar_Generation_MW
+01-01-2024 00:00,0
+01-01-2024 01:00,0
+01-01-2024 06:00,15.2
+01-01-2024 12:00,64.8
+...
+```
+
+**Current Behavior:**
+- ✅ Loads from `Inputs/Solar Profile.csv` by default
+- ❌ **No synthetic data fallback** - real data is required
+- 🛑 Application stops execution if file is missing or invalid
+- ⚠️ Clear error messages displayed to users
+
+**Error Handling:**
+If the solar profile file is missing or cannot be loaded:
+1. User sees clear error message in the UI
+2. Instructions provided on how to fix the issue
+3. Page execution stops - no simulations can run
+4. No silent fallback to synthetic data
+
+### Future Enhancement: Solar Profile Upload
+
+**Status:** Planned for future version
+**Priority:** MEDIUM
+**Requirement:** User upload capability when default file is unavailable
+
+**Proposed Functionality:**
+- File upload widget in Simulation and Optimization pages
+- Validation of uploaded files (8760 hours, valid format, no negative values)
+- Session state caching of uploaded profiles
+- Support for CSV files with various column naming conventions
+- Clear upload instructions and file format requirements
+
+**Implementation Notes:**
+- Will use Streamlit's `st.file_uploader()` for secure, memory-based uploads
+- Uploaded profiles will be validated and cached in session state
+- No disk writes required (security benefit)
+- Reusable across all pages in same session
+
+**Current Workaround:**
+Users must ensure `Inputs/Solar Profile.csv` exists before running the application.
 
 ---
 
@@ -427,7 +527,19 @@ Reasoning: Marginal improvement below 300 hours per 10 MWh
 
 ## 📝 Version History
 
-### Version 1.0 (Current)
+### Version 1.1.1 (Current - 2025-11-24)
+- Python 3.13 compatibility
+- Updated dependencies (numpy 2.1.3, streamlit 1.39.0, pandas 2.2.3, plotly 5.24.1)
+- Fixed Streamlit Cloud deployment errors
+- Removed editable install from requirements.txt
+
+### Version 1.1.0 (2025-11-23)
+- Professional logging framework
+- Pinned dependency versions
+- Enhanced package structure
+- Code quality improvements
+
+### Version 1.0.0 (2024-11-22)
 - Full BESS sizing application
 - Binary delivery constraint
 - Cycle limit enforcement
@@ -453,6 +565,6 @@ This project is provided as-is for educational and commercial use. Users are enc
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: November 2024*
+*Document Version: 1.1.1*
+*Last Updated: November 24, 2025*
 *Generated with Claude Code*

@@ -8,7 +8,7 @@ from .config import (
     MIN_SOC, MAX_SOC, ONE_WAY_EFFICIENCY,
     C_RATE_CHARGE, C_RATE_DISCHARGE,
     INITIAL_SOC, TARGET_DELIVERY_MW,
-    DEGRADATION_PER_CYCLE
+    DEGRADATION_PER_CYCLE, DAYS_PER_YEAR
 )
 
 
@@ -93,6 +93,28 @@ class BatterySystem:
 
         return actual_charge / self.one_way_efficiency  # Return AC energy consumed
 
+    def _is_cycle_transition(self, new_state):
+        """
+        Determine if a state transition would count as a cycle.
+
+        A transition counts as 0.5 cycles when:
+        - Transitioning from IDLE/CHARGING to DISCHARGING
+        - Transitioning from IDLE/DISCHARGING to CHARGING
+
+        Args:
+            new_state: Proposed new state
+
+        Returns:
+            bool: True if this transition counts as 0.5 cycles
+        """
+        if self.state == new_state:
+            return False
+
+        return (
+            ((self.state == 'IDLE' or self.state == 'CHARGING') and new_state == 'DISCHARGING') or
+            ((self.state == 'IDLE' or self.state == 'DISCHARGING') and new_state == 'CHARGING')
+        )
+
     def discharge(self, energy_mwh):
         """
         Discharge the battery.
@@ -131,12 +153,9 @@ class BatterySystem:
             hour: Current simulation hour
         """
         # Track state transitions for cycle counting
-        if self.state != new_state:
-            # Count cycles on specific transitions
-            if ((self.state == 'IDLE' or self.state == 'CHARGING') and new_state == 'DISCHARGING') or \
-               ((self.state == 'IDLE' or self.state == 'DISCHARGING') and new_state == 'CHARGING'):
-                self.total_cycles += 0.5
-                self.current_day_cycles += 0.5
+        if self._is_cycle_transition(new_state):
+            self.total_cycles += 0.5
+            self.current_day_cycles += 0.5
 
         # Track daily cycles - reset at start of new day
         if hour > 0 and hour % 24 == 0:  # Start of new day
@@ -158,18 +177,16 @@ class BatterySystem:
             bool: True if transition is allowed, False if it would exceed daily limit
         """
         # Check if this transition would add cycles
-        if self.state != new_state:
-            if ((self.state == 'IDLE' or self.state == 'CHARGING') and new_state == 'DISCHARGING') or \
-               ((self.state == 'IDLE' or self.state == 'DISCHARGING') and new_state == 'CHARGING'):
-                # This transition would add 0.5 cycles
-                if self.current_day_cycles + 0.5 > self.max_daily_cycles:
-                    return False  # Would exceed daily limit
+        if self._is_cycle_transition(new_state):
+            # This transition would add 0.5 cycles
+            if self.current_day_cycles + 0.5 > self.max_daily_cycles:
+                return False  # Would exceed daily limit
         return True
 
     def get_avg_daily_cycles(self):
-        """Calculate average daily cycles."""
+        """Calculate average daily cycles over a full year (365 days)."""
         if self.daily_cycles:
-            return sum(self.daily_cycles) / len(self.daily_cycles)
+            return sum(self.daily_cycles) / DAYS_PER_YEAR
         return 0
 
     def get_max_daily_cycles(self):
@@ -217,7 +234,11 @@ def simulate_bess_year(battery_capacity_mwh, solar_profile, config=None):
         solar_mw = solar_profile[hour]
 
         # Check if we can deliver target power
-        battery_available_mw = battery.get_available_energy()
+        # Get actual power available from battery (MW), respecting C-rate
+        battery_available_mw = min(
+            battery.get_available_energy(),  # Energy limit (MWh = MW for 1 hour)
+            battery.capacity * battery.c_rate_discharge  # Power limit (MW)
+        )
 
         # Check basic ability to deliver
         can_deliver_resources = (solar_mw + battery_available_mw) >= target_delivery_mw
@@ -245,11 +266,13 @@ def simulate_bess_year(battery_capacity_mwh, solar_profile, config=None):
         }
 
         if can_deliver:
-            # Deliver target power
-            results['hours_delivered'] += 1
-            results['energy_delivered_mwh'] += target_delivery_mw
+            # Attempt to deliver target power
+            # Note: Will verify actual delivery success below before counting
 
             if solar_mw >= target_delivery_mw:
+                # Solar alone can meet target - delivery successful
+                results['hours_delivered'] += 1
+                results['energy_delivered_mwh'] += target_delivery_mw
                 # Excess solar available - charge battery
                 excess_mw = solar_mw - target_delivery_mw
                 if excess_mw > 0 and battery.get_charge_headroom() > 0:
@@ -293,15 +316,19 @@ def simulate_bess_year(battery_capacity_mwh, solar_profile, config=None):
                     # Calculate actual deficit (if battery couldn't fully support)
                     actual_delivered = solar_mw + discharged
                     hour_data['deficit_mw'] = max(0, target_delivery_mw - actual_delivered)
+
+                    # Only count as delivered if we actually met the target (within small tolerance)
+                    if actual_delivered >= target_delivery_mw - 0.01:
+                        results['hours_delivered'] += 1
+                        results['energy_delivered_mwh'] += target_delivery_mw
+                    else:
+                        # Couldn't fully deliver
+                        hour_data['delivery'] = 'No'
                 else:
                     # Cannot cycle - stay idle, cannot deliver
                     new_state = 'IDLE'
                     hour_data['bess_mw'] = 0
                     hour_data['deficit_mw'] = target_delivery_mw - solar_mw
-
-                    # Actually, we cannot deliver if we can't discharge
-                    results['hours_delivered'] -= 1  # Correct the count
-                    results['energy_delivered_mwh'] -= target_delivery_mw
                     hour_data['delivery'] = 'No'
         else:
             # Cannot deliver - charge battery with available solar

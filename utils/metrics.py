@@ -4,16 +4,12 @@ Metrics calculation utilities for BESS sizing analysis
 
 import pandas as pd
 import numpy as np
-import sys
-from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src.config import (
     MARGINAL_IMPROVEMENT_THRESHOLD,
     MARGINAL_INCREMENT_MWH,
-    BATTERY_SIZE_STEP_MWH
+    BATTERY_SIZE_STEP_MWH,
+    HOURS_PER_YEAR
 )
 
 
@@ -29,16 +25,17 @@ def calculate_metrics_summary(battery_capacity_mwh, simulation_results):
         dict: Formatted metrics
     """
     # Calculate wastage percentage
-    total_possible_solar = simulation_results.get('solar_charged_mwh', 0) + simulation_results.get('solar_wasted_mwh', 0) + simulation_results.get('energy_delivered_mwh', 0)
-    if total_possible_solar > 0:
-        wastage_percent = (simulation_results['solar_wasted_mwh'] / total_possible_solar) * 100
+    # Wastage = wasted solar / total solar available (excludes battery discharge energy)
+    total_solar_available = simulation_results.get('solar_charged_mwh', 0) + simulation_results.get('solar_wasted_mwh', 0)
+    if total_solar_available > 0:
+        wastage_percent = (simulation_results['solar_wasted_mwh'] / total_solar_available) * 100
     else:
         wastage_percent = 0
 
     metrics = {
         'Battery Size (MWh)': battery_capacity_mwh,
         'Delivery Hours': simulation_results['hours_delivered'],
-        'Delivery Rate (%)': round(simulation_results['hours_delivered'] / 87.6, 1),
+        'Delivery Rate (%)': round(simulation_results['hours_delivered'] / (HOURS_PER_YEAR / 100), 1),
         'Energy Delivered (GWh)': round(simulation_results['energy_delivered_mwh'] / 1000, 2),
         'Solar Charged (MWh)': round(simulation_results['solar_charged_mwh'], 1),
         'Solar Wasted (MWh)': round(simulation_results['solar_wasted_mwh'], 1),
@@ -103,7 +100,19 @@ def find_optimal_battery_size(all_results):
     optimal_size = marginal_improvements[optimal_idx]['size_mwh']
 
     # Get the actual result for optimal size
-    optimal_result = next(r for r in all_results if r['Battery Size (MWh)'] == optimal_size)
+    # Bug #9 Fix: Use default value to prevent StopIteration exception
+    optimal_result = next(
+        (r for r in all_results if r['Battery Size (MWh)'] == optimal_size),
+        None
+    )
+
+    if optimal_result is None:
+        available_sizes = sorted([r['Battery Size (MWh)'] for r in all_results])
+        raise ValueError(
+            f"Optimal size {optimal_size} MWh not found in simulation results. "
+            f"Available sizes: {available_sizes}. "
+            f"This may indicate a bug in the optimization algorithm or configuration mismatch."
+        )
 
     return {
         'optimal_size_mwh': optimal_size,

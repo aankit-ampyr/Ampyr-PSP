@@ -1,4 +1,8 @@
-streamlit>=1.28.0
-pandas>=2.0.0
-numpy>=1.24.0
-plotly>=5.0.0
+streamlit==1.39.0
+pandas==2.2.3
+numpy==2.1.3
+plotly==5.24.1
+
+# Note: No package installation needed for Streamlit Cloud
+# Streamlit Cloud automatically adds repository root to PYTHONPATH
+# For local development, you can optionally run: pip install -e .
