@@ -32,3 +32,9 @@ INITIAL_SOC = 0.5  # Initial state of charge (50%)
 
 # File Paths
 SOLAR_PROFILE_PATH = "Inputs/Solar Profile.csv"
+
+# Diesel Generator Parameters
+DG_CAPACITY_MW = 25.0  # DG rated capacity (MW)
+DG_SOC_ON_THRESHOLD = 0.20  # Start DG when SOC <= 20%
+DG_SOC_OFF_THRESHOLD = 0.80  # Stop DG when SOC >= 80%
+DG_LOAD_MW = 25.0  # Fixed load for DG scenario (MW)

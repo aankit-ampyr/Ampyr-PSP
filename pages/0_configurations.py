@@ -17,7 +17,8 @@ from src.config import (
     C_RATE_CHARGE, C_RATE_DISCHARGE,
     MIN_BATTERY_SIZE_MWH, MAX_BATTERY_SIZE_MWH, BATTERY_SIZE_STEP_MWH,
     MARGINAL_IMPROVEMENT_THRESHOLD, MARGINAL_INCREMENT_MWH,
-    DEGRADATION_PER_CYCLE, INITIAL_SOC
+    DEGRADATION_PER_CYCLE, INITIAL_SOC,
+    DG_CAPACITY_MW, DG_SOC_ON_THRESHOLD, DG_SOC_OFF_THRESHOLD, DG_LOAD_MW
 )
 
 # Page config
@@ -58,7 +59,13 @@ def initialize_config():
 
             # Operational Parameters
             'MAX_DAILY_CYCLES': 2.0,
-            'INITIAL_SOC': INITIAL_SOC
+            'INITIAL_SOC': INITIAL_SOC,
+
+            # Diesel Generator Parameters
+            'DG_CAPACITY_MW': DG_CAPACITY_MW,
+            'DG_SOC_ON_THRESHOLD': DG_SOC_ON_THRESHOLD,
+            'DG_SOC_OFF_THRESHOLD': DG_SOC_OFF_THRESHOLD,
+            'DG_LOAD_MW': DG_LOAD_MW
         }
         st.success("✅ Configuration initialized with default values")
 
@@ -243,6 +250,57 @@ with col3:
         help="Increment for marginal analysis calculations"
     )
 
+# Diesel Generator Configuration Section
+st.markdown("---")
+st.markdown("### Diesel Generator Parameters")
+st.markdown("Configure DG backup system for Solar+BESS+DG simulations")
+
+dg_col1, dg_col2 = st.columns(2)
+
+with dg_col1:
+    st.session_state.config['DG_LOAD_MW'] = st.number_input(
+        "Load (MW)",
+        min_value=1.0,
+        max_value=100.0,
+        value=float(st.session_state.config.get('DG_LOAD_MW', DG_LOAD_MW)),
+        step=1.0,
+        help="Fixed load demand for DG scenario"
+    )
+
+    st.session_state.config['DG_CAPACITY_MW'] = st.number_input(
+        "DG Capacity (MW)",
+        min_value=1.0,
+        max_value=100.0,
+        value=float(st.session_state.config.get('DG_CAPACITY_MW', DG_CAPACITY_MW)),
+        step=1.0,
+        help="Diesel generator rated capacity"
+    )
+
+with dg_col2:
+    dg_soc_on_percent = st.slider(
+        "DG ON Threshold (SOC %)",
+        min_value=5,
+        max_value=50,
+        value=int(st.session_state.config.get('DG_SOC_ON_THRESHOLD', DG_SOC_ON_THRESHOLD) * 100),
+        step=5,
+        help="Start DG when battery SOC drops to this level"
+    )
+    st.session_state.config['DG_SOC_ON_THRESHOLD'] = dg_soc_on_percent / 100
+
+    dg_soc_off_percent = st.slider(
+        "DG OFF Threshold (SOC %)",
+        min_value=50,
+        max_value=95,
+        value=int(st.session_state.config.get('DG_SOC_OFF_THRESHOLD', DG_SOC_OFF_THRESHOLD) * 100),
+        step=5,
+        help="Stop DG when battery SOC rises to this level"
+    )
+    st.session_state.config['DG_SOC_OFF_THRESHOLD'] = dg_soc_off_percent / 100
+
+    # Validate thresholds
+    if dg_soc_on_percent >= dg_soc_off_percent:
+        st.warning("ON threshold must be less than OFF threshold")
+
 # Configuration summary
 st.markdown("---")
 st.markdown("### 📋 Configuration Summary")
@@ -268,6 +326,16 @@ with sum_col3:
     st.text(f"Degradation: {st.session_state.config['DEGRADATION_PER_CYCLE']*100:.3f}%/cycle")
     st.text(f"Initial SOC: {st.session_state.config['INITIAL_SOC']*100:.0f}%")
 
+# DG Summary
+st.markdown("#### Diesel Generator")
+dg_sum_col1, dg_sum_col2 = st.columns(2)
+with dg_sum_col1:
+    st.text(f"Load: {st.session_state.config.get('DG_LOAD_MW', DG_LOAD_MW):.0f} MW")
+    st.text(f"DG Capacity: {st.session_state.config.get('DG_CAPACITY_MW', DG_CAPACITY_MW):.0f} MW")
+with dg_sum_col2:
+    st.text(f"DG ON: SOC ≤ {st.session_state.config.get('DG_SOC_ON_THRESHOLD', DG_SOC_ON_THRESHOLD)*100:.0f}%")
+    st.text(f"DG OFF: SOC ≥ {st.session_state.config.get('DG_SOC_OFF_THRESHOLD', DG_SOC_OFF_THRESHOLD)*100:.0f}%")
+
 # Action buttons
 st.markdown("---")
 col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
@@ -275,7 +343,6 @@ col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
 with col1:
     if st.button("💾 Save Configuration", type="primary"):
         st.success("✅ Configuration saved to session")
-        st.balloons()
 
 with col2:
     if st.button("🔄 Reset to Defaults"):
@@ -337,6 +404,12 @@ if st.session_state.config['DEGRADATION_PER_CYCLE'] > 0.005:
 
 if st.session_state.config['MAX_DAILY_CYCLES'] > 3:
     warnings.append("⚠️ Daily cycle limit is higher than typical battery warranty")
+
+if st.session_state.config.get('DG_SOC_ON_THRESHOLD', 0.20) >= st.session_state.config.get('DG_SOC_OFF_THRESHOLD', 0.80):
+    warnings.append("⚠️ DG ON threshold must be less than OFF threshold for proper hysteresis")
+
+if st.session_state.config.get('DG_CAPACITY_MW', 25) < st.session_state.config.get('DG_LOAD_MW', 25):
+    warnings.append("⚠️ DG capacity is less than load - may not be able to meet demand")
 
 if warnings:
     st.markdown("---")

@@ -209,3 +209,110 @@ def format_results_for_export(all_results):
     df = df[column_order]
 
     return df
+
+
+def calculate_dg_metrics_summary(battery_capacity_mwh, dg_capacity_mw, simulation_results):
+    """
+    Calculate summary metrics for Solar+BESS+DG simulation.
+
+    Args:
+        battery_capacity_mwh: Battery capacity in MWh
+        dg_capacity_mw: DG capacity in MW
+        simulation_results: Results from DG simulation
+
+    Returns:
+        dict: Formatted metrics including both BESS and DG
+    """
+    # Calculate wastage percentage
+    total_solar = (
+        simulation_results.get('solar_to_load_mwh', 0) +
+        simulation_results.get('solar_charged_mwh', 0) +
+        simulation_results.get('solar_wasted_mwh', 0)
+    )
+    if total_solar > 0:
+        wastage_percent = (simulation_results['solar_wasted_mwh'] / total_solar) * 100
+    else:
+        wastage_percent = 0
+
+    # Calculate DG capacity factor
+    dg_runtime = simulation_results.get('dg_runtime_hours', 0)
+    dg_capacity_factor = (dg_runtime / 8760) * 100 if dg_runtime > 0 else 0
+
+    metrics = {
+        # System sizes
+        'Battery Size (MWh)': battery_capacity_mwh,
+        'DG Size (MW)': dg_capacity_mw,
+
+        # Delivery metrics
+        'Delivery Hours': simulation_results['hours_delivered'],
+        'Delivery Rate (%)': round(simulation_results['hours_delivered'] / 87.6, 1),
+        'Energy Delivered (GWh)': round(simulation_results['energy_delivered_mwh'] / 1000, 2),
+
+        # Solar metrics
+        'Solar to Load (MWh)': round(simulation_results.get('solar_to_load_mwh', 0), 1),
+        'Solar Charged (MWh)': round(simulation_results['solar_charged_mwh'], 1),
+        'Solar Wasted (MWh)': round(simulation_results['solar_wasted_mwh'], 1),
+        'Solar Wastage (%)': round(wastage_percent, 1),
+
+        # BESS metrics
+        'Battery Discharged (MWh)': round(simulation_results['battery_discharged_mwh'], 1),
+        'Total Cycles': round(simulation_results['total_cycles'], 1),
+        'Avg Daily Cycles': round(simulation_results['avg_daily_cycles'], 2),
+        'Max Daily Cycles': round(simulation_results['max_daily_cycles'], 2),
+        'Degradation (%)': round(simulation_results['degradation_percent'], 3),
+
+        # DG metrics
+        'DG Runtime (hours)': simulation_results.get('dg_runtime_hours', 0),
+        'DG Starts': simulation_results.get('dg_starts', 0),
+        'DG Energy (MWh)': round(simulation_results.get('dg_energy_generated_mwh', 0), 1),
+        'DG to Load (MWh)': round(simulation_results.get('dg_to_load_mwh', 0), 1),
+        'DG to BESS (MWh)': round(simulation_results.get('dg_to_bess_mwh', 0), 1),
+        'DG Capacity Factor (%)': round(dg_capacity_factor, 1),
+    }
+
+    return metrics
+
+
+def create_dg_hourly_dataframe(hourly_data):
+    """
+    Create a DataFrame from hourly DG simulation data.
+
+    Args:
+        hourly_data: List of hourly data dicts from DG simulation
+
+    Returns:
+        pd.DataFrame: Formatted hourly data with DG columns
+    """
+    df = pd.DataFrame(hourly_data)
+
+    # Create date column (assuming simulation starts from Jan 1, 2024)
+    import datetime
+    start_date = datetime.date(2024, 1, 1)
+    df['date'] = pd.to_datetime(start_date) + pd.to_timedelta(df['hour'] // 24, unit='days')
+    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+
+    # Add hour of day
+    df['hour_of_day'] = df['hour'] % 24
+
+    # Create the final dataframe with DG-specific columns
+    result_df = pd.DataFrame({
+        'Date': df['date'],
+        'Hour of Day': df['hour_of_day'],
+        'Load (MW)': df['load_mw'].round(2),
+        'Solar (MW)': df['solar_mw'].round(2),
+        'Solar to Load (MW)': df['solar_to_load_mw'].round(2),
+        'BESS (MW)': df['bess_mw'].round(2),  # +ve discharge, -ve charge
+        'BESS to Load (MW)': df['bess_to_load_mw'].round(2),
+        'SOC (%)': df['soc_percent'].round(1),
+        'BESS State': df['bess_state'],
+        'DG State': df['dg_state'],
+        'DG Output (MW)': df['dg_output_mw'].round(2),
+        'DG to Load (MW)': df['dg_to_load_mw'].round(2),
+        'DG to BESS (MW)': df['dg_to_bess_mw'].round(2),
+        'Solar Charged (MWh)': df['solar_charged_mwh'].round(2),
+        'Solar Wasted (MWh)': df['solar_wasted_mwh'].round(2),
+        'Unmet Load (MW)': df['unmet_load_mw'].round(2),
+        'Delivery': df['delivery'],
+    })
+
+    return result_df

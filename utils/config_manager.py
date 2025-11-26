@@ -17,7 +17,8 @@ from src.config import (
     C_RATE_CHARGE, C_RATE_DISCHARGE,
     MIN_BATTERY_SIZE_MWH, MAX_BATTERY_SIZE_MWH, BATTERY_SIZE_STEP_MWH,
     MARGINAL_IMPROVEMENT_THRESHOLD, MARGINAL_INCREMENT_MWH,
-    DEGRADATION_PER_CYCLE, INITIAL_SOC
+    DEGRADATION_PER_CYCLE, INITIAL_SOC,
+    DG_CAPACITY_MW, DG_SOC_ON_THRESHOLD, DG_SOC_OFF_THRESHOLD, DG_LOAD_MW
 )
 
 
@@ -60,7 +61,13 @@ def get_config(key=None):
 
             # Operational Parameters
             'MAX_DAILY_CYCLES': 2.0,
-            'INITIAL_SOC': INITIAL_SOC
+            'INITIAL_SOC': INITIAL_SOC,
+
+            # Diesel Generator Parameters
+            'DG_CAPACITY_MW': DG_CAPACITY_MW,
+            'DG_SOC_ON_THRESHOLD': DG_SOC_ON_THRESHOLD,
+            'DG_SOC_OFF_THRESHOLD': DG_SOC_OFF_THRESHOLD,
+            'DG_LOAD_MW': DG_LOAD_MW
         }
 
     if key:
