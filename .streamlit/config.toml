@@ -7,10 +7,8 @@ font = "sans serif"
 
 [server]
 headless = true
-# CORS enabled for production deployment (Streamlit Cloud, AWS, GCP)
-# Protects against cross-origin attacks when app is publicly accessible
-enableCORS = true
-enableXsrfProtection = true
+# Note: CORS and XSRF settings removed - Streamlit Cloud handles these internally
+# Adding them can interfere with Streamlit Cloud's authentication
 
 [browser]
 gatherUsageStats = false
