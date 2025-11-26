@@ -33,57 +33,90 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 ])
 
 with tab1:
-    st.markdown("## Sample Daily Power Flow")
-    st.info("This illustrative chart shows how solar and battery power flow through a typical day to meet the 25 MW delivery target.")
+    st.markdown("## Sample Power Flow Over 2 Days (Realistic Solar Profile)")
+    st.info("""
+    This chart shows realistic power flow based on actual solar data (mean ~10 MW, peak ~35 MW).
+    Day 1 is a decent solar day, Day 2 is cloudy - demonstrating why BESS capacity is critical.
+    """)
 
-    # Sample data for a typical sunny day
-    # Scenario: Battery starts partially charged (30 MWh usable)
-    hours = list(range(24))
-    solar_mw = [0, 0, 0, 0, 0, 5, 15, 30, 45, 55, 60, 65, 67, 65, 60, 50, 35, 20, 10, 5, 0, 0, 0, 0]
+    # Realistic solar profile for 2 days (mean ~10 MW, matching actual data)
+    # Scenario: 100 MWh BESS, starts at 50% SOC (45 MWh usable)
+    hours = list(range(48))
 
-    # BESS logic (negative = charging, positive = discharging):
-    # Decision: If solar + battery_available >= 25 → DELIVER, else → CHARGE
-    #
-    # Hour 0: 0+30=30>=25 → Deliver, discharge 25 → BESS=+25 (battery: 30→5)
-    # Hour 1-4: 0+5<25 → Can't deliver, charge with solar(0) → BESS=0
-    # Hour 5: 5+5=10<25 → Can't deliver, charge with solar → BESS=-5 (battery: 5→10)
-    # Hour 6: 15+10=25>=25 → Deliver, discharge 10 → BESS=+10 (battery: 10→0)
-    # Hour 7: 30+0=30>=25 → Deliver (solar enough), charge excess → BESS=-5
-    # Hours 8-16: Solar>=25 → Deliver, charge excess → BESS=-(solar-25)
-    # Hours 17-21: Solar<25 → Deliver, discharge gap → BESS=+(25-solar)
-    # Hours 22-23: 0+0<25 → Can't deliver, no solar → BESS=0
-    bess_mw = [25, 0, 0, 0, 0, -5, 10, -5, -20, -30, -35, -40, -42, -40, -35, -25, -10, 5, 15, 20, 25, 25, 0, 0]
+    # Day 1: Decent solar (peak ~35 MW)
+    # Day 2: Cloudy day (peak ~12 MW) - worst case scenario
+    solar_mw = [
+        # Day 1 (decent day)
+        0, 0, 0, 0, 0, 0, 0, 2, 8, 15, 25, 32, 35, 32, 28, 20, 12, 5, 1, 0, 0, 0, 0, 0,
+        # Day 2 (cloudy day)
+        0, 0, 0, 0, 0, 0, 0, 1, 3, 6, 10, 12, 11, 9, 6, 3, 1, 0, 0, 0, 0, 0, 0, 0
+    ]
 
-    # Combined: Solar + BESS (net power delivered)
-    combined_mw = [s + b for s, b in zip(solar_mw, bess_mw)]
+    # BESS logic with realistic solar (negative = charging, positive = discharging):
+    # Day 1: BESS depletes early, recharges midday, depletes again at night
+    # Day 2: Cloudy - BESS can't fully recharge, more delivery failures
+    bess_mw = [
+        # Day 1: Start at 50% SOC
+        25, 25, 0, 0, 0, 0, 0,  # Hours 0-6: discharge then depleted
+        -2, -8,  # Hours 7-8: charging
+        10, 0,   # Hours 9-10: discharge/idle
+        -7, -10, -7, -3,  # Hours 11-14: charging excess
+        5, 13, 20, 24,  # Hours 15-18: discharging
+        25, 25, 25, 0, 0,  # Hours 19-23: discharge then depleted
+        # Day 2: Cloudy - BESS struggles
+        0, 0, 0, 0, 0, 0, 0,  # Hours 24-30: no delivery, no charge
+        -1, -3,  # Hours 31-32: minimal charging
+        19, 15, 13, 14, 16, 19, 22, 25,  # Hours 33-40: discharging (barely meeting load)
+        25, 25, 25, 0, 0, 0, 0  # Hours 41-47: discharge then depleted
+    ]
+
+    # Delivery: Binary - either 25 MW or 0 MW (no partial delivery)
+    # Day 1: 18/24 hours delivered (75%)
+    # Day 2: 8/24 hours delivered (33%) - cloudy day impact
+    delivery_mw = [
+        # Day 1
+        25, 25, 0, 0, 0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 0, 0,
+        # Day 2 (cloudy - much worse)
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 0, 0, 0
+    ]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=hours, y=solar_mw, name='Solar',
                              fill='tozeroy', line=dict(color='#FFA500', width=2)))
     fig.add_trace(go.Scatter(x=hours, y=bess_mw, name='BESS',
                              line=dict(color='#1f77b4', width=2)))
-    fig.add_trace(go.Scatter(x=hours, y=combined_mw, name='Solar + BESS',
-                             line=dict(color='red', width=3, shape='hv')))
+    fig.add_trace(go.Scatter(x=hours, y=delivery_mw, name='Delivery (25 or 0)',
+                             line=dict(color='purple', width=3, shape='hv')))
     fig.add_hline(y=25, line_dash="dash", line_color="green",
                   annotation_text="Target 25 MW")
     fig.add_hline(y=0, line_color="gray", line_width=1)
 
+    # Add day boundary marker
+    fig.add_vline(x=24, line_dash="dash", line_color="black", line_width=1,
+                  annotation_text="Day 2", annotation_position="top")
+
     fig.update_layout(
-        xaxis_title="Hour of Day",
+        xaxis_title="Hour (0-23: Day 1, 24-47: Day 2)",
         yaxis_title="Power (MW)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
-        height=350,
+        height=400,
         xaxis=dict(
             showgrid=True,
             gridcolor='lightgray',
             gridwidth=1,
             griddash='dot',
-            dtick=1  # Show grid line every hour
+            dtick=4,
+            tickvals=[0, 6, 12, 18, 24, 30, 36, 42, 47],
+            ticktext=['0', '6', '12', '18', '24', '30', '36', '42', '47']
         )
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.caption("**Orange area**: Solar | **Blue line**: BESS (negative=charging, positive=discharging) | **Red line**: Solar + BESS (net power)")
+    st.caption("""
+    **Orange area**: Solar (Day 1: peak ~35 MW | Day 2: peak ~12 MW) | **Blue line**: BESS (negative=charging, positive=discharging) | **Purple line**: Delivery (25 MW or 0)
+
+    **Key insight**: Day 1 achieves ~75% delivery, but Day 2 (cloudy) drops to ~50% - demonstrating why larger BESS or DG backup is needed for 100% delivery.
+    """)
     st.markdown("---")
 
     st.markdown("## Operational Decision Logic")
@@ -457,34 +490,62 @@ with tab5:
     """)
 
     # Sample DG Dispatch Graph
-    st.markdown("### Sample DG Dispatch Through a Day")
-    st.caption("This illustrative chart shows how Solar, DG, and BESS interact with SOC-triggered DG control.")
+    st.markdown("### Sample DG Dispatch Over 2 Days (Realistic Solar Profile)")
+    st.caption("""
+    Based on actual solar data: Mean ~10 MW, only 16% of hours have solar ≥ 25 MW.
+    This shows why BESS capacity matters more than DG size for 100% delivery.
+    """)
 
-    # Sample data for a day with DG activation
-    # Scenario: Battery starts at 30% SOC, DG ON threshold=20%, OFF threshold=80%
-    # Load = 25 MW, DG capacity = 25 MW
-    hours = list(range(24))
+    # Sample data for 2 days with DG activation
+    # Scenario: Realistic low-solar profile (mean ~10 MW, similar to actual data)
+    # Load = 25 MW, DG capacity = 25 MW, BESS = 100 MWh
+    # DG ON threshold = 20%, OFF threshold = 80%
+    hours = list(range(48))
 
-    # Solar profile (typical sunny day)
-    solar_mw = [0, 0, 0, 0, 0, 5, 15, 30, 45, 55, 60, 65, 67, 65, 60, 50, 35, 20, 10, 5, 0, 0, 0, 0]
+    # Realistic solar profile (mean ~10 MW, peak ~35 MW on good day, ~15 MW on cloudy day)
+    # Day 1: Decent solar day
+    # Day 2: Cloudy day (worst case)
+    solar_mw = [
+        # Day 1 (decent day, peak ~35 MW)
+        0, 0, 0, 0, 0, 0, 0, 2, 8, 15, 25, 32, 35, 32, 28, 20, 12, 5, 1, 0, 0, 0, 0, 0,
+        # Day 2 (cloudy day, peak only ~12 MW)
+        0, 0, 0, 0, 0, 0, 0, 1, 3, 6, 10, 12, 11, 9, 6, 3, 1, 0, 0, 0, 0, 0, 0, 0
+    ]
 
-    # SOC profile (starts at 30%, drops to 20% at hour 3, DG charges to 80% by hour 8)
-    # After DG off, solar maintains/charges, then depletes in evening
-    soc_pct = [30, 25, 22, 20, 35, 50, 65, 80, 85, 90, 92, 93, 93, 92, 90, 85, 75, 60, 45, 35, 28, 22, 20, 25]
+    # SOC profile for 2 days with 100 MWh BESS:
+    # Night: BESS discharges, SOC drops
+    # Day 1: Solar helps, but still need DG when SOC hits 20%
+    # Day 2 (cloudy): SOC drops faster, DG runs longer
+    soc_pct = [
+        # Day 1: Start at 50%, drops overnight to 20% by hour 5, DG charges to 80%
+        50, 42, 34, 28, 22, 20, 30, 42, 55, 68, 80, 85, 88, 85, 80, 72, 62, 50, 40, 32, 25, 20, 30, 42,
+        # Day 2 (cloudy): DG runs more, SOC struggles
+        55, 68, 80, 75, 68, 60, 52, 44, 36, 30, 25, 22, 20, 28, 38, 48, 58, 68, 78, 80, 72, 62, 52, 42
+    ]
 
     # DG state (ON when SOC hits 20%, OFF when SOC hits 80%)
-    # Hours 3-7: DG ON (SOC dropped to 20% at hour 3, reaches 80% at hour 7)
-    # Hours 22-23: DG ON again (SOC dropped to 20% at hour 22)
-    dg_output_mw = [0, 0, 0, 25, 25, 25, 25, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25]
+    # Day 1: Hours 5-10 (SOC hit 20% at hour 5, reaches 80% at hour 10)
+    # Day 2: Hours 12-18 (cloudy day, SOC dropped to 20% at hour 12)
+    dg_output_mw = [
+        # Day 1
+        0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25, 25,
+        # Day 2 (cloudy - more DG needed)
+        25, 25, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 25, 25, 0, 0, 0, 0
+    ]
 
     # BESS (negative=charging, positive=discharging)
-    # When DG ON: excess DG+Solar charges battery
-    # When DG OFF: battery discharges if solar < load, charges if solar > load
-    bess_mw = [25, 25, 25, -25, -30, -30, -40, -55, -20, -30, -35, -40, -42, -40, -35, -25, -10, 5, 15, 20, 25, 25, -25, -25]
+    # When DG ON + low solar: Most DG goes to load, some excess charges BESS
+    # When DG OFF: BESS discharges to cover (25 - solar)
+    bess_mw = [
+        # Day 1
+        25, 25, 25, 25, 25, -2, -9, -10, -8, -15, -30, -7, -10, -7, -3, 5, 13, 20, 24, 25, 25, -2, -9, -17,
+        # Day 2 (cloudy - BESS works harder)
+        -30, -43, -55, 25, 25, 25, 25, 24, 22, 19, 15, 13, -10, -9, -6, -3, -1, 0, -3, -5, 25, 25, 25, 25
+    ]
 
-    # Combined output to load: Solar + DG + BESS discharge (positive only)
-    # This represents total power delivered to the load
-    combined_mw = [s + d + max(0, b) for s, d, b in zip(solar_mw, dg_output_mw, bess_mw)]
+    # Delivery to load: Binary - either 25 MW (full delivery) or 0 MW (no delivery)
+    # If available power >= 25, deliver 25; otherwise deliver 0
+    combined_mw = [25 if (s + d + max(0, b)) >= 25 else 0 for s, d, b in zip(solar_mw, dg_output_mw, bess_mw)]
 
     # Create figure with secondary y-axis for SOC
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -511,7 +572,7 @@ with tab5:
         secondary_y=True
     )
     fig.add_trace(
-        go.Scatter(x=hours, y=combined_mw, name='Total to Load',
+        go.Scatter(x=hours, y=combined_mw, name='Delivery (25 or 0)',
                    line=dict(color='purple', width=3, shape='hv')),
         secondary_y=False
     )
@@ -525,11 +586,17 @@ with tab5:
     fig.add_hline(y=80, line_dash="dot", line_color="green",
                   annotation_text="DG OFF (80%)", secondary_y=True)
 
+    # Add vertical line at day boundary
+    fig.add_vline(x=24, line_dash="dash", line_color="black", line_width=1,
+                  annotation_text="Day 2", annotation_position="top")
+
     fig.update_layout(
-        xaxis_title="Hour of Day",
+        xaxis_title="Hour (0-23: Day 1, 24-47: Day 2)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
-        height=400,
-        xaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=1, griddash='dot', dtick=1)
+        height=450,
+        xaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=1, griddash='dot', dtick=4,
+                   tickvals=[0, 6, 12, 18, 24, 30, 36, 42, 47],
+                   ticktext=['0', '6', '12', '18', '24', '30', '36', '42', '47'])
     )
     fig.update_yaxes(title_text="Power (MW)", secondary_y=False)
     fig.update_yaxes(title_text="SOC (%)", secondary_y=True, range=[0, 100])
@@ -537,9 +604,11 @@ with tab5:
     st.plotly_chart(fig, use_container_width=True)
 
     st.caption("""
-    **Orange**: Solar | **Red**: DG Output | **Blue**: BESS (negative=charging) | **Purple**: Total to Load | **Green dotted**: SOC %
+    **Orange**: Solar | **Red**: DG Output | **Blue**: BESS (negative=charging) | **Purple**: Delivery (25 MW or 0) | **Green dotted**: SOC %
 
     **Scenario**: SOC drops to 20% → DG starts → DG+Solar charge battery → SOC reaches 80% → DG stops
+
+    **Binary Delivery**: Purple line shows 25 MW when resources are sufficient, 0 MW otherwise (no partial delivery)
     """)
 
     st.markdown("---")
