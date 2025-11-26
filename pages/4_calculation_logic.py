@@ -40,6 +40,41 @@ with tab1:
     - No partial delivery allowed
     """)
 
+    # Decision Flow Diagram
+    st.markdown("### Hourly Decision Flow Diagram")
+    st.graphviz_chart('''
+        digraph HourlyDecision {
+            rankdir=TB;
+            node [shape=box, style="rounded,filled", fillcolor="#E8F4FD", fontname="Arial"];
+            edge [fontname="Arial", fontsize=10];
+
+            start [label="Start Hour", shape=ellipse, fillcolor="#90EE90"];
+            calc_avail [label="Calculate Available Power\\nsolar + battery_power"];
+            check_avail [label="Available ≥ 25 MW?", shape=diamond, fillcolor="#FFE4B5"];
+            deliver_yes [label="DELIVER 25 MW", fillcolor="#90EE90"];
+            deliver_no [label="DELIVER 0 MW", fillcolor="#FFB6C1"];
+            check_solar [label="Solar ≥ 25 MW?", shape=diamond, fillcolor="#FFE4B5"];
+            charge_excess [label="CHARGE battery\\nwith (Solar - 25)", fillcolor="#87CEEB"];
+            discharge [label="DISCHARGE battery\\nfor (25 - Solar)", fillcolor="#DDA0DD"];
+            charge_all [label="CHARGE battery\\nwith all Solar", fillcolor="#87CEEB"];
+            update [label="Update SOC & Cycles"];
+            end_hour [label="End Hour", shape=ellipse, fillcolor="#D3D3D3"];
+
+            start -> calc_avail;
+            calc_avail -> check_avail;
+            check_avail -> deliver_yes [label="Yes"];
+            check_avail -> deliver_no [label="No"];
+            deliver_yes -> check_solar;
+            check_solar -> charge_excess [label="Yes\\n(Excess Solar)"];
+            check_solar -> discharge [label="No\\n(Need Battery)"];
+            deliver_no -> charge_all;
+            charge_excess -> update;
+            discharge -> update;
+            charge_all -> update;
+            update -> end_hour;
+        }
+    ''')
+
     st.markdown("### Hour-by-Hour Decision Tree")
 
     st.warning("""
@@ -106,6 +141,31 @@ with tab2:
     - Each transition between charging and discharging = +0.5 cycles
     - Transitions to/from IDLE may or may not increment cycles
     """)
+
+    # State Transition Diagram
+    st.markdown("### State Machine Diagram")
+    st.graphviz_chart('''
+        digraph StateMachine {
+            rankdir=LR;
+            node [shape=circle, style=filled, fontname="Arial", fontsize=12, width=1.2];
+            edge [fontname="Arial", fontsize=10];
+
+            IDLE [fillcolor="#E8E8E8", label="IDLE"];
+            CHARGING [fillcolor="#87CEEB", label="CHARGING"];
+            DISCHARGING [fillcolor="#DDA0DD", label="DISCHARGING"];
+
+            IDLE -> CHARGING [label="+0.5 cycles", color="blue"];
+            IDLE -> DISCHARGING [label="+0.5 cycles", color="purple"];
+            CHARGING -> IDLE [label="0 cycles", style="dashed"];
+            CHARGING -> DISCHARGING [label="+0.5 cycles", color="red", penwidth=2];
+            DISCHARGING -> IDLE [label="0 cycles", style="dashed"];
+            DISCHARGING -> CHARGING [label="+0.5 cycles", color="red", penwidth=2];
+            CHARGING -> CHARGING [label="0 cycles", style="dashed"];
+            DISCHARGING -> DISCHARGING [label="0 cycles", style="dashed"];
+        }
+    ''')
+
+    st.caption("**Red arrows**: Direct charge↔discharge transitions add 0.5 cycles each")
 
     st.markdown("### State Transition Table")
 
@@ -235,6 +295,41 @@ with tab4:
     The algorithm finds the battery size where adding more capacity provides
     diminishing returns below this threshold.
     """)
+
+    # Optimization Algorithm Flow Diagram
+    st.markdown("### Optimization Algorithm Flow")
+    st.graphviz_chart('''
+        digraph Optimization {
+            rankdir=TB;
+            node [shape=box, style="rounded,filled", fillcolor="#E8F4FD", fontname="Arial"];
+            edge [fontname="Arial", fontsize=10];
+
+            start [label="Start Optimization", shape=ellipse, fillcolor="#90EE90"];
+            init [label="Initialize\\nsize = MIN_SIZE\\nbest_hours = 0"];
+            simulate [label="Run Year Simulation\\nfor current size"];
+            calc_hours [label="Calculate\\ndelivery_hours"];
+            calc_marginal [label="Calculate Marginal Gain\\n(hours[i] - hours[i-1]) / step"];
+            check_threshold [label="Marginal Gain\\n< Threshold?", shape=diamond, fillcolor="#FFE4B5"];
+            found [label="OPTIMAL SIZE FOUND\\nPrevious size is optimal", fillcolor="#90EE90"];
+            increment [label="Increment size\\nsize += STEP"];
+            check_max [label="size > MAX?", shape=diamond, fillcolor="#FFE4B5"];
+            max_reached [label="MAX SIZE reached\\nUse largest tested", fillcolor="#FFB6C1"];
+            end_opt [label="Return Optimal Size", shape=ellipse, fillcolor="#D3D3D3"];
+
+            start -> init;
+            init -> simulate;
+            simulate -> calc_hours;
+            calc_hours -> calc_marginal;
+            calc_marginal -> check_threshold;
+            check_threshold -> found [label="Yes"];
+            check_threshold -> increment [label="No"];
+            increment -> check_max;
+            check_max -> simulate [label="No"];
+            check_max -> max_reached [label="Yes"];
+            found -> end_opt;
+            max_reached -> end_opt;
+        }
+    ''')
 
     st.markdown("### Example Optimization")
 
