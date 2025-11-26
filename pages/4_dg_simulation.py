@@ -6,11 +6,7 @@ Run simulations with diesel generator backup
 import streamlit as st
 import pandas as pd
 import numpy as np
-import sys
 from pathlib import Path
-
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 from src.data_loader import load_solar_profile, get_solar_statistics
 from src.dg_simulator import simulate_solar_bess_dg_year, find_optimal_dg_size
@@ -19,9 +15,9 @@ from utils.config_manager import get_config, update_config
 
 
 # Page config
-st.set_page_config(page_title="Solar+BESS+DG", page_icon="", layout="wide")
+st.set_page_config(page_title="Solar+BESS+DG", page_icon="⚡", layout="wide")
 
-st.title(" Solar + BESS + DG Simulation")
+st.title("⚡ Solar + BESS + DG Simulation")
 
 st.markdown("""
 This simulation models a hybrid system with:
@@ -140,7 +136,7 @@ with col1:
 
     st.markdown("---")
 
-    if st.button(" Run Simulation", type="primary"):
+    if st.button("🚀 Run Simulation", type="primary"):
         if dg_soc_on >= dg_soc_off:
             st.error("Please fix threshold values before running simulation.")
         else:
@@ -235,7 +231,7 @@ with col2:
 
             csv = hourly_df.to_csv(index=False)
             st.download_button(
-                label=" Download Hourly Data",
+                label="📥 Download Hourly Data",
                 data=csv,
                 file_name=f"solar_bess_dg_{dg_config['battery_mwh']}mwh_{dg_config['dg_mw']}mw_hourly.csv",
                 mime="text/csv"
