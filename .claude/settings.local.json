@@ -30,7 +30,9 @@
       "Bash(git -C \"c:\\repos\\bess-sizing\" mv pages/3_optimization.py pages/2_optimization.py)",
       "Bash(git -C \"c:\\repos\\bess-sizing\" mv pages/4_dg_simulation.py pages/3_dg_simulation.py)",
       "Bash(git -C \"c:\\repos\\bess-sizing\" mv pages/5_calculation_logic.py pages/4_calculation_logic.py)",
-      "Bash(streamlit cache clear:*)"
+      "Bash(streamlit cache clear:*)",
+      "Bash(git -C \"c:\\repos\\bess-sizing\" add pages/1_simulation.py pages/2_optimization.py pages/3_dg_simulation.py pages/4_calculation_logic.py pages/5_hourly_examples.py)",
+      "Bash(git -C \"c:\\repos\\bess-sizing\" commit -m \"$(cat <<''EOF''\nFix Streamlit deprecation warnings: use_container_width -> width\n\nReplace deprecated use_container_width=True with width=''stretch''\nacross all page files. The use_container_width parameter will be\nremoved from Streamlit after 2025-12-31.\n\nFiles updated:\n- pages/1_simulation.py\n- pages/2_optimization.py\n- pages/3_dg_simulation.py\n- pages/4_calculation_logic.py\n- pages/5_hourly_examples.py\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
     ],
     "deny": [],
     "ask": []
