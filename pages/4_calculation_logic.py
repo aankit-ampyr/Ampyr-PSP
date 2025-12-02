@@ -581,8 +581,8 @@ with tab4:
     opt_data = {
         'Battery Size (MWh)': [50, 60, 70, 80, 90, 100],
         'Delivery Hours': [3000, 3500, 3900, 4200, 4400, 4500],
-        'Marginal Hours': ['-', 500, 400, 300, 200, 100],
-        'Hours per 10 MWh': ['-', 500, 400, 300, 200, 100],
+        'Marginal Hours': ['-', '500', '400', '300', '200', '100'],
+        'Hours per 10 MWh': ['-', '500', '400', '300', '200', '100'],
         'Decision': ['', '', '', 'Optimal ✓', 'Below threshold', 'Below threshold']
     }
 
