@@ -645,91 +645,142 @@ with tab5:
     frequent start/stop cycling.
     """)
 
-    # Sample DG Dispatch Graph
-    st.markdown("### Sample DG Dispatch Over 2 Days (Realistic Solar Profile)")
+    # Computed Simulation Graph (using actual solar data)
+    st.markdown("### 📈 DG Dispatch Graph — June 15-16, 2024")
     st.caption("""
-    Based on actual solar data: Mean ~10 MW, only 16% of hours have solar ≥ 25 MW.
-    This shows why BESS capacity matters more than DG size for 100% delivery.
+    **Computed from actual solar profile data** | 100 MWh BESS | 25 MW DG | 25 MW Load | Initial SOC: 50%
     """)
 
-    # Sample data for 2 days with DG activation
-    # Scenario: Realistic low-solar profile (mean ~10 MW, similar to actual data)
-    # Load = 25 MW, DG capacity = 25 MW, BESS = 100 MWh
-    # DG ON threshold = 20%, OFF threshold = 80%
-    hours = list(range(48))
+    # Load and compute simulation data for the graph
+    @st.cache_data
+    def compute_graph_data():
+        """Compute 48-hour simulation data for graph."""
+        from src.battery_simulator import BatterySystem
 
-    # Realistic solar profile (mean ~10 MW, peak ~35 MW on good day, ~15 MW on cloudy day)
-    # Day 1: Decent solar day
-    # Day 2: Cloudy day (worst case)
-    solar_mw = [
-        # Day 1 (decent day, peak ~35 MW)
-        0, 0, 0, 0, 0, 0, 0, 2, 8, 15, 25, 32, 35, 32, 28, 20, 12, 5, 1, 0, 0, 0, 0, 0,
-        # Day 2 (cloudy day, peak only ~12 MW)
-        0, 0, 0, 0, 0, 0, 0, 1, 3, 6, 10, 12, 11, 9, 6, 3, 1, 0, 0, 0, 0, 0, 0, 0
-    ]
+        # Load June 15-16 solar data
+        solar_df = pd.read_csv('Inputs/Solar Profile.csv')
+        june_15_start = 24 * (31 + 28 + 31 + 30 + 31 + 14)
+        solar_data = solar_df['Solar_Generation_MW'].iloc[june_15_start:june_15_start+48].values
 
-    # SOC profile for 2 days with 100 MWh BESS:
-    # Night: BESS discharges, SOC drops
-    # Day 1: Solar helps, but still need DG when SOC hits 20%
-    # Day 2 (cloudy): SOC drops faster, DG runs longer
-    soc_pct = [
-        # Day 1: Start at 50%, drops overnight to 20% by hour 5, DG charges to 80%
-        50, 42, 34, 28, 22, 20, 30, 42, 55, 68, 80, 85, 88, 85, 80, 72, 62, 50, 40, 32, 25, 20, 30, 42,
-        # Day 2 (cloudy): DG runs more, SOC struggles
-        55, 68, 80, 75, 68, 60, 52, 44, 36, 30, 25, 22, 20, 28, 38, 48, 58, 68, 78, 80, 72, 62, 52, 42
-    ]
+        config = {
+            'MIN_SOC': 0.05, 'MAX_SOC': 0.95,
+            'ONE_WAY_EFFICIENCY': 0.87 ** 0.5,
+            'C_RATE_CHARGE': 1.0, 'C_RATE_DISCHARGE': 1.0,
+            'INITIAL_SOC': 0.50,
+            'MAX_DAILY_CYCLES': 2.0
+        }
 
-    # DG state (ON when SOC hits 20%, OFF when SOC hits 80%)
-    # Day 1: Hours 5-10 (SOC hit 20% at hour 5, reaches 80% at hour 10)
-    # Day 2: Hours 12-18 (cloudy day, SOC dropped to 20% at hour 12)
-    dg_output_mw = [
-        # Day 1
-        0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25, 25,
-        # Day 2 (cloudy - more DG needed)
-        25, 25, 25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 25, 25, 25, 25, 25, 25, 25, 0, 0, 0, 0
-    ]
+        battery = BatterySystem(100, config)
+        load_mw, dg_capacity = 25, 25
+        dg_on = False
 
-    # BESS (negative=charging, positive=discharging)
-    # When DG ON + low solar: Most DG goes to load, some excess charges BESS
-    # When DG OFF: BESS discharges to cover (25 - solar)
-    bess_mw = [
-        # Day 1
-        25, 25, 25, 25, 25, -2, -9, -10, -8, -15, -30, -7, -10, -7, -3, 5, 13, 20, 24, 25, 25, -2, -9, -17,
-        # Day 2 (cloudy - BESS works harder)
-        -30, -43, -55, 25, 25, 25, 25, 24, 22, 19, 15, 13, -10, -9, -6, -3, -1, 0, -3, -5, 25, 25, 25, 25
-    ]
+        hours_list = []
+        solar_list = []
+        dg_list = []
+        bess_list = []
+        soc_list = []
+        bess_energy_list = []
+        delivery_list = []
 
-    # Delivery to load: Binary - either 25 MW (full delivery) or 0 MW (no delivery)
-    # If available power >= 25, deliver 25; otherwise deliver 0
-    combined_mw = [25 if (s + d + max(0, b)) >= 25 else 0 for s, d, b in zip(solar_mw, dg_output_mw, bess_mw)]
+        for hour in range(48):
+            solar_mw = solar_data[hour]
+            remaining_load = load_mw
+
+            # Record SOC and BESS energy at start of hour
+            soc_list.append(battery.soc * 100)
+            bess_energy_list.append(battery.soc * 100)  # 100 MWh battery, so SOC% = MWh
+
+            # SOC-triggered DG control
+            if not dg_on and battery.soc <= 0.20:
+                dg_on = True
+            elif dg_on and battery.soc >= 0.80:
+                dg_on = False
+
+            # Merit order dispatch
+            solar_to_load = min(solar_mw, remaining_load)
+            remaining_load -= solar_to_load
+            excess_solar = solar_mw - solar_to_load
+
+            dg_output, dg_to_load, excess_dg = 0, 0, 0
+            if dg_on:
+                dg_output = dg_capacity
+                dg_to_load = min(dg_output, remaining_load)
+                remaining_load -= dg_to_load
+                excess_dg = dg_output - dg_to_load
+
+            bess_to_load = 0
+            if remaining_load > 0 and battery.get_available_energy() > 0:
+                bess_to_load = battery.discharge(remaining_load)
+                remaining_load -= bess_to_load
+
+            # Charging
+            solar_charged, dg_charged = 0, 0
+            if excess_solar > 0 and battery.get_charge_headroom() > 0:
+                solar_charged = battery.charge(excess_solar)
+            if excess_dg > 0 and battery.get_charge_headroom() > 0:
+                dg_charged = battery.charge(excess_dg)
+
+            total_charged = solar_charged + dg_charged
+
+            # BESS power (negative=charging, positive=discharging)
+            if bess_to_load > 0:
+                bess_power = bess_to_load
+            elif total_charged > 0:
+                bess_power = -total_charged
+            else:
+                bess_power = 0
+
+            # Delivery
+            delivery = 25 if remaining_load <= 0.001 else 0
+
+            hours_list.append(hour)
+            solar_list.append(solar_mw)
+            dg_list.append(dg_output)
+            bess_list.append(bess_power)
+            delivery_list.append(delivery)
+
+        return hours_list, solar_list, dg_list, bess_list, soc_list, bess_energy_list, delivery_list
+
+    hours, solar_mw, dg_output_mw, bess_mw, soc_pct, bess_energy_mwh, delivery_mw = compute_graph_data()
 
     # Create figure with secondary y-axis for SOC
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # Add traces
+    # Add traces with hover templates showing units
     fig.add_trace(
         go.Scatter(x=hours, y=solar_mw, name='Solar', fill='tozeroy',
-                   line=dict(color='#FFA500', width=2)),
+                   line=dict(color='#FFA500', width=2),
+                   hovertemplate='Hour %{x}<br>Solar: %{y:.1f} MW<extra></extra>'),
         secondary_y=False
     )
     fig.add_trace(
         go.Scatter(x=hours, y=dg_output_mw, name='DG Output', fill='tozeroy',
-                   line=dict(color='#DC143C', width=2), fillcolor='rgba(220,20,60,0.3)'),
+                   line=dict(color='#DC143C', width=2, shape='hv'), fillcolor='rgba(220,20,60,0.3)',
+                   hovertemplate='Hour %{x}<br>DG Output: %{y} MW<extra></extra>'),
         secondary_y=False
     )
     fig.add_trace(
         go.Scatter(x=hours, y=bess_mw, name='BESS',
-                   line=dict(color='#1f77b4', width=2)),
+                   line=dict(color='#1f77b4', width=2, shape='hv'),
+                   hovertemplate='Hour %{x}<br>BESS: %{y:.1f} MWh<extra></extra>'),
         secondary_y=False
     )
     fig.add_trace(
         go.Scatter(x=hours, y=soc_pct, name='SOC %',
-                   line=dict(color='#2E8B57', width=2, dash='dot')),
+                   line=dict(color='#2E8B57', width=2, dash='dot', shape='hv'),
+                   hovertemplate='Hour %{x}<br>SOC: %{y:.1f}%<extra></extra>'),
         secondary_y=True
     )
     fig.add_trace(
-        go.Scatter(x=hours, y=combined_mw, name='Delivery (25 or 0)',
-                   line=dict(color='purple', width=3, shape='hv')),
+        go.Scatter(x=hours, y=bess_energy_mwh, name='BESS Energy (MWh)',
+                   line=dict(color='#4169E1', width=2, dash='dash', shape='hv'),
+                   hovertemplate='Hour %{x}<br>BESS Energy: %{y:.1f} MWh<extra></extra>'),
+        secondary_y=True
+    )
+    fig.add_trace(
+        go.Scatter(x=hours, y=delivery_mw, name='Delivery (25 or 0)',
+                   line=dict(color='purple', width=3, shape='hv'),
+                   hovertemplate='Hour %{x}<br>Delivery: %{y} MW<extra></extra>'),
         secondary_y=False
     )
 
@@ -744,27 +795,197 @@ with tab5:
 
     # Add vertical line at day boundary
     fig.add_vline(x=24, line_dash="dash", line_color="black", line_width=1,
-                  annotation_text="Day 2", annotation_position="top")
+                  annotation_text="June 16", annotation_position="top")
+
+    # Add dotted vertical lines for every hour
+    for h in range(48):
+        fig.add_vline(x=h, line_dash="dot", line_color="lightgray", line_width=1)
 
     fig.update_layout(
-        xaxis_title="Hour (0-23: Day 1, 24-47: Day 2)",
+        xaxis_title="Hour (0-23: June 15 | 24-47: June 16)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
         height=450,
-        xaxis=dict(showgrid=True, gridcolor='lightgray', gridwidth=1, griddash='dot', dtick=4,
+        xaxis=dict(showgrid=False,
                    tickvals=[0, 6, 12, 18, 24, 30, 36, 42, 47],
                    ticktext=['0', '6', '12', '18', '24', '30', '36', '42', '47'])
     )
     fig.update_yaxes(title_text="Power (MW)", secondary_y=False)
-    fig.update_yaxes(title_text="SOC (%)", secondary_y=True, range=[0, 100])
+    fig.update_yaxes(title_text="SOC (%) / BESS Energy (MWh)", secondary_y=True, range=[0, 100])
 
     st.plotly_chart(fig, width='stretch')
 
     st.caption("""
-    **Orange**: Solar | **Red**: DG Output | **Blue**: BESS (negative=charging) | **Purple**: Delivery (25 MW or 0) | **Green dotted**: SOC %
+    **Orange**: Solar | **Red**: DG Output | **Blue**: BESS Power (negative=charging) | **Purple**: Delivery (25 MW or 0)
 
-    **Scenario**: SOC drops to 20% → DG starts → DG+Solar charge battery → SOC reaches 80% → DG stops
+    **Green dotted**: SOC % | **Royal Blue dashed**: BESS Energy (MWh)
 
-    **Binary Delivery**: Purple line shows 25 MW when resources are sufficient, 0 MW otherwise (no partial delivery)
+    **Data Source**: Computed from `Inputs/Solar Profile.csv` — June 15-16 (Hours 3960-4007)
+
+    **DG Control**: Hysteresis - ON when SOC ≤ 20%, OFF when SOC ≥ 80%
+    """)
+
+    st.markdown("---")
+
+    # Computed Simulation Table (like Hourly Examples page)
+    st.markdown("### 📊 Computed 48-Hour Simulation (SOC-Triggered DG)")
+
+    st.info("""
+    **Configuration:** 100 MWh BESS | 25 MW DG | 25 MW Load | Initial SOC: 50%
+
+    **DG Control:** Hysteresis - ON when SOC ≤ 20% | OFF when SOC ≥ 80%
+
+    This table is computed dynamically using actual June 15-16 solar data and the app's simulation logic.
+    """)
+
+    @st.cache_data
+    def compute_dg_simulation_table():
+        """Compute 48-hour DG simulation using SOC-triggered logic."""
+        from src.battery_simulator import BatterySystem
+
+        # Load June 15-16 solar data (48 hours)
+        solar_df = pd.read_csv('Inputs/Solar Profile.csv')
+        june_15_start = 24 * (31 + 28 + 31 + 30 + 31 + 14)
+        solar_data = solar_df['Solar_Generation_MW'].iloc[june_15_start:june_15_start+48].values
+
+        # Configuration
+        config = {
+            'MIN_SOC': 0.05, 'MAX_SOC': 0.95,
+            'ONE_WAY_EFFICIENCY': 0.87 ** 0.5,
+            'C_RATE_CHARGE': 1.0, 'C_RATE_DISCHARGE': 1.0,
+            'INITIAL_SOC': 0.50,
+            'MAX_DAILY_CYCLES': 2.0
+        }
+
+        battery = BatterySystem(100, config)  # 100 MWh BESS
+        load_mw, dg_capacity = 25, 25
+        dg_on = False
+        results = []
+
+        for hour in range(48):
+            solar_mw = solar_data[hour]
+            remaining_load = load_mw
+
+            # SOC-triggered DG control (hysteresis)
+            if not dg_on and battery.soc <= 0.20:
+                dg_on = True
+            elif dg_on and battery.soc >= 0.80:
+                dg_on = False
+
+            # Merit order dispatch: Solar → DG → BESS
+            solar_to_load = min(solar_mw, remaining_load)
+            remaining_load -= solar_to_load
+            excess_solar = solar_mw - solar_to_load
+
+            dg_output, dg_to_load, excess_dg = 0, 0, 0
+            if dg_on:
+                dg_output = dg_capacity
+                dg_to_load = min(dg_output, remaining_load)
+                remaining_load -= dg_to_load
+                excess_dg = dg_output - dg_to_load
+
+            bess_to_load = 0
+            if remaining_load > 0 and battery.get_available_energy() > 0:
+                bess_to_load = battery.discharge(remaining_load)
+                remaining_load -= bess_to_load
+
+            # Charging: excess solar first, then excess DG
+            solar_charged, dg_charged = 0, 0
+            if excess_solar > 0 and battery.get_charge_headroom() > 0:
+                solar_charged = battery.charge(excess_solar)
+            if excess_dg > 0 and battery.get_charge_headroom() > 0:
+                dg_charged = battery.charge(excess_dg)
+
+            total_charged = solar_charged + dg_charged
+
+            # Determine BESS state and power
+            if bess_to_load > 0:
+                bess_state, bess_power = 'Discharging', bess_to_load
+            elif total_charged > 0:
+                bess_state, bess_power = 'Charging', -total_charged
+            else:
+                bess_state, bess_power = 'Idle', 0
+
+            # Charging source
+            if total_charged > 0:
+                if solar_charged > 0 and dg_charged > 0:
+                    charge_source = 'Solar+DG'
+                elif solar_charged > 0:
+                    charge_source = 'Solar'
+                else:
+                    charge_source = 'DG'
+            else:
+                charge_source = '-'
+
+            deficit = remaining_load if remaining_load > 0.001 else 0
+            wastage = (excess_solar - solar_charged) + (excess_dg - dg_charged)
+
+            results.append({
+                'Hour': hour,
+                'Day': 1 if hour < 24 else 2,
+                'HoD': hour % 24,
+                'Solar_MW': round(solar_mw, 1),
+                'DG_State': 'ON' if dg_on else 'OFF',
+                'DG_MW': dg_output,
+                'BESS_MW': round(bess_power, 1),
+                'SoC_%': round(battery.soc * 100, 1),
+                'BESS_State': bess_state,
+                'Charge_From': charge_source,
+                'Load_MW': load_mw,
+                'Deficit_MW': round(deficit, 1),
+                'Delivery': 'Yes' if deficit == 0 else 'No',
+                'Solar→Load': round(solar_to_load, 1),
+                'DG→Load': round(dg_to_load, 1),
+                'BESS→Load': round(bess_to_load, 1),
+                'Wastage_MW': round(max(0, wastage), 1)
+            })
+
+        return pd.DataFrame(results)
+
+    df_computed = compute_dg_simulation_table()
+
+    # Summary metrics
+    total_deficit = df_computed['Deficit_MW'].sum()
+    delivery_hours = (df_computed['Deficit_MW'] == 0).sum()
+    dg_hours = (df_computed['DG_MW'] > 0).sum()
+    total_dg_energy = df_computed['DG_MW'].sum()
+    total_wastage = df_computed['Wastage_MW'].sum()
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Delivery Hours", f"{delivery_hours}/48", f"{delivery_hours/48*100:.1f}%")
+    col2.metric("Total Deficit", f"{total_deficit:.1f} MWh")
+    col3.metric("DG Runtime", f"{dg_hours} hours")
+    col4.metric("DG Energy", f"{total_dg_energy:.0f} MWh")
+    col5.metric("Solar Wastage", f"{total_wastage:.1f} MWh")
+
+    # Styling function for rows
+    def style_dg_sim_row(row):
+        if row['Deficit_MW'] > 0:
+            return ['background-color: #FFB6C1'] * len(row)  # Pink for deficit
+        if row['DG_MW'] > 0:
+            return ['background-color: #FFFACD'] * len(row)  # Yellow for DG running
+        if row['BESS_State'] == 'Discharging':
+            return ['background-color: #E6E6FA'] * len(row)  # Lavender for discharge
+        if row['BESS_State'] == 'Charging':
+            return ['background-color: #90EE90'] * len(row)  # Green for charging
+        return [''] * len(row)
+
+    display_cols = ['Hour', 'Day', 'HoD', 'Solar_MW', 'DG_State', 'DG_MW', 'BESS_MW',
+                    'SoC_%', 'BESS_State', 'Charge_From', 'Load_MW', 'Deficit_MW',
+                    'Delivery', 'Solar→Load', 'DG→Load', 'BESS→Load', 'Wastage_MW']
+
+    st.dataframe(
+        df_computed[display_cols].style.apply(style_dg_sim_row, axis=1),
+        width='stretch',
+        height=500
+    )
+
+    st.caption("""
+    **Color Legend:** 🟥 Pink = Deficit | 🟨 Yellow = DG Running | 🟪 Lavender = BESS Discharging | 🟩 Green = BESS Charging
+
+    **Key Observations:**
+    - DG turns ON when SOC drops to 20%, OFF when SOC reaches 80%
+    - Solar serves load first, then DG (if ON), then BESS discharge
+    - Excess energy charges BESS: solar excess first, then DG excess
     """)
 
     st.markdown("---")

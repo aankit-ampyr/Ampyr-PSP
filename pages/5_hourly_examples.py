@@ -7,8 +7,100 @@ Computed dynamically using the app's implemented logic
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from src.battery_simulator import BatterySystem
+
+
+def create_scenario_graph(df, scenario_name):
+    """Create a standard dispatch graph from simulation dataframe."""
+    hours = df['Hour'].tolist()
+    solar_mw = df['Solar_MW'].tolist()
+    dg_mw = df['DG_MW'].tolist()
+    bess_mw = df['BESS_Power_MW'].tolist()
+    soc_pct = df['SoC_%'].tolist()
+    bess_energy_mwh = df['BESS_Energy_MWh'].tolist()
+    delivery_mw = [25 if d == 0 else 0 for d in df['Deficit_MW'].tolist()]
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # Solar (orange fill)
+    fig.add_trace(
+        go.Scatter(x=hours, y=solar_mw, name='Solar', fill='tozeroy',
+                   line=dict(color='#FFA500', width=2),
+                   hovertemplate='Hour %{x}<br>Solar: %{y:.1f} MW<extra></extra>'),
+        secondary_y=False
+    )
+
+    # DG Output (red fill) - only if DG is used
+    if any(d > 0 for d in dg_mw):
+        fig.add_trace(
+            go.Scatter(x=hours, y=dg_mw, name='DG Output', fill='tozeroy',
+                       line=dict(color='#DC143C', width=2, shape='hv'),
+                       fillcolor='rgba(220,20,60,0.3)',
+                       hovertemplate='Hour %{x}<br>DG Output: %{y} MW<extra></extra>'),
+            secondary_y=False
+        )
+
+    # BESS Power (blue solid)
+    fig.add_trace(
+        go.Scatter(x=hours, y=bess_mw, name='BESS Power',
+                   line=dict(color='#1f77b4', width=2, shape='hv'),
+                   hovertemplate='Hour %{x}<br>BESS: %{y:.1f} MW<extra></extra>'),
+        secondary_y=False
+    )
+
+    # SOC % (green dotted)
+    fig.add_trace(
+        go.Scatter(x=hours, y=soc_pct, name='SOC %',
+                   line=dict(color='#2E8B57', width=2, dash='dot', shape='hv'),
+                   hovertemplate='Hour %{x}<br>SOC: %{y:.1f}%<extra></extra>'),
+        secondary_y=True
+    )
+
+    # BESS Energy (royal blue dashed)
+    fig.add_trace(
+        go.Scatter(x=hours, y=bess_energy_mwh, name='BESS Energy (MWh)',
+                   line=dict(color='#4169E1', width=2, dash='dash', shape='hv'),
+                   hovertemplate='Hour %{x}<br>BESS Energy: %{y:.1f} MWh<extra></extra>'),
+        secondary_y=True
+    )
+
+    # Delivery (purple thick)
+    fig.add_trace(
+        go.Scatter(x=hours, y=delivery_mw, name='Delivery',
+                   line=dict(color='purple', width=3, shape='hv'),
+                   hovertemplate='Hour %{x}<br>Delivery: %{y} MW<extra></extra>'),
+        secondary_y=False
+    )
+
+    # Reference lines
+    fig.add_hline(y=25, line_dash="dash", line_color="gray",
+                  annotation_text="Load 25 MW", secondary_y=False)
+    fig.add_hline(y=0, line_color="lightgray", line_width=1, secondary_y=False)
+
+    # Day boundary
+    fig.add_vline(x=24, line_dash="dash", line_color="black", line_width=1,
+                  annotation_text="Day 2", annotation_position="top")
+
+    # Hourly grid
+    for h in range(48):
+        fig.add_vline(x=h, line_dash="dot", line_color="lightgray", line_width=1)
+
+    # Layout
+    fig.update_layout(
+        title=f"{scenario_name} — June 15-16 Dispatch",
+        xaxis_title="Hour (0-23: June 15 | 24-47: June 16)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        height=400,
+        xaxis=dict(showgrid=False,
+                   tickvals=[0, 6, 12, 18, 24, 30, 36, 42, 47],
+                   ticktext=['0', '6', '12', '18', '24', '30', '36', '42', '47'])
+    )
+    fig.update_yaxes(title_text="Power (MW)", secondary_y=False)
+    fig.update_yaxes(title_text="SOC (%) / BESS Energy (MWh)", secondary_y=True, range=[0, 100])
+
+    return fig
 
 # Page config
 st.set_page_config(page_title="Hourly Examples", page_icon="📊", layout="wide")
@@ -331,6 +423,11 @@ with main_tab2:
             height=600
         )
 
+        # Graph
+        st.markdown("#### Dispatch Graph")
+        fig_t0 = create_scenario_graph(df_t0, "T0: Solar + BESS Only")
+        st.plotly_chart(fig_t0, width='stretch')
+
     # -------------------------------------------------------------------------
     # T1: Green Priority
     # -------------------------------------------------------------------------
@@ -409,6 +506,11 @@ with main_tab2:
             width='stretch',
             height=600
         )
+
+        # Graph
+        st.markdown("#### Dispatch Graph")
+        fig_t1 = create_scenario_graph(df_t1, "T1: Green Priority")
+        st.plotly_chart(fig_t1, width='stretch')
 
     # -------------------------------------------------------------------------
     # T2: DG Night Charge
@@ -501,6 +603,11 @@ with main_tab2:
             height=600
         )
 
+        # Graph
+        st.markdown("#### Dispatch Graph")
+        fig_t2 = create_scenario_graph(df_t2, "T2: DG Night Charge")
+        st.plotly_chart(fig_t2, width='stretch')
+
     # -------------------------------------------------------------------------
     # T3: DG Blackout
     # -------------------------------------------------------------------------
@@ -583,6 +690,11 @@ with main_tab2:
             width='stretch',
             height=600
         )
+
+        # Graph
+        st.markdown("#### Dispatch Graph")
+        fig_t3 = create_scenario_graph(df_t3, "T3: DG Blackout")
+        st.plotly_chart(fig_t3, width='stretch')
 
     # -------------------------------------------------------------------------
     # T4: DG Emergency
@@ -668,6 +780,11 @@ with main_tab2:
             width='stretch',
             height=600
         )
+
+        # Graph
+        st.markdown("#### Dispatch Graph")
+        fig_t4 = create_scenario_graph(df_t4, "T4: DG Emergency")
+        st.plotly_chart(fig_t4, width='stretch')
 
     # -------------------------------------------------------------------------
     # T5: DG Day Charge
@@ -760,6 +877,11 @@ with main_tab2:
             height=600
         )
 
+        # Graph
+        st.markdown("#### Dispatch Graph")
+        fig_t5 = create_scenario_graph(df_t5, "T5: DG Day Charge")
+        st.plotly_chart(fig_t5, width='stretch')
+
     # -------------------------------------------------------------------------
     # T6: DG Night SoC
     # -------------------------------------------------------------------------
@@ -851,8 +973,15 @@ with main_tab2:
             height=600
         )
 
+        # Graph
+        st.markdown("#### Dispatch Graph")
+        fig_t6 = create_scenario_graph(df_t6, "T6: DG Night SoC")
+        st.plotly_chart(fig_t6, width='stretch')
+
     st.caption("""
     **Color Legend:** Pink = Deficit | Yellow = DG Running | Lavender = BESS Discharging | Green = BESS Charging
+
+    **Graph Legend:** Orange = Solar | Red = DG | Blue = BESS Power | Purple = Delivery | Green dotted = SOC% | Royal Blue dashed = BESS Energy
     """)
 
 # =============================================================================
