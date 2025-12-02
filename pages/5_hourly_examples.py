@@ -327,7 +327,7 @@ with main_tab2:
 
         st.dataframe(
             df_t0[display_cols].style.apply(style_scenario_row, axis=1),
-            use_container_width=True,
+            width='stretch',
             height=600
         )
 
@@ -406,7 +406,7 @@ with main_tab2:
 
         st.dataframe(
             df_t1[display_cols].style.apply(style_scenario_row, axis=1),
-            use_container_width=True,
+            width='stretch',
             height=600
         )
 
@@ -497,7 +497,7 @@ with main_tab2:
 
         st.dataframe(
             df_t2[display_cols].style.apply(style_scenario_row, axis=1),
-            use_container_width=True,
+            width='stretch',
             height=600
         )
 
@@ -580,7 +580,7 @@ with main_tab2:
 
         st.dataframe(
             df_t3[display_cols].style.apply(style_scenario_row, axis=1),
-            use_container_width=True,
+            width='stretch',
             height=600
         )
 
@@ -665,7 +665,7 @@ with main_tab2:
 
         st.dataframe(
             df_t4[display_cols].style.apply(style_scenario_row, axis=1),
-            use_container_width=True,
+            width='stretch',
             height=600
         )
 
@@ -756,7 +756,7 @@ with main_tab2:
 
         st.dataframe(
             df_t5[display_cols].style.apply(style_scenario_row, axis=1),
-            use_container_width=True,
+            width='stretch',
             height=600
         )
 
@@ -847,7 +847,7 @@ with main_tab2:
 
         st.dataframe(
             df_t6[display_cols].style.apply(style_scenario_row, axis=1),
-            use_container_width=True,
+            width='stretch',
             height=600
         )
 
@@ -894,7 +894,7 @@ with main_tab3:
     summary_df = build_summary()
 
     st.markdown("### Performance Metrics")
-    st.dataframe(summary_df, use_container_width=True)
+    st.dataframe(summary_df, width='stretch')
 
     st.markdown("---")
 
@@ -918,7 +918,7 @@ with main_tab3:
             yaxis_title='Deficit (MWh)',
             height=400
         )
-        st.plotly_chart(fig_deficit, use_container_width=True)
+        st.plotly_chart(fig_deficit, width='stretch')
 
     with col2:
         fig_dg = go.Figure(data=[
@@ -936,7 +936,7 @@ with main_tab3:
             yaxis_title='DG Energy (MWh)',
             height=400
         )
-        st.plotly_chart(fig_dg, use_container_width=True)
+        st.plotly_chart(fig_dg, width='stretch')
 
     st.markdown("### Key Insights")
 

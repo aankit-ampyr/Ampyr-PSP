@@ -130,7 +130,7 @@ with tab1:
             ticktext=['0', '6', '12', '18', '24', '30', '36', '42', '47']
         )
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     st.caption("""
     **Orange area**: Solar (Day 1: peak ~35 MW | Day 2: peak ~12 MW) | **Blue line**: BESS (negative=charging, positive=discharging) | **Purple line**: Delivery (25 MW or 0)
@@ -362,7 +362,7 @@ else:
 
     st.dataframe(
         df_solar_bess[display_cols].style.apply(style_row_solar_bess, axis=1),
-        use_container_width=True,
+        width='stretch',
         height=600
     )
 
@@ -757,7 +757,7 @@ with tab5:
     fig.update_yaxes(title_text="Power (MW)", secondary_y=False)
     fig.update_yaxes(title_text="SOC (%)", secondary_y=True, range=[0, 100])
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     st.caption("""
     **Orange**: Solar | **Red**: DG Output | **Blue**: BESS (negative=charging) | **Purple**: Delivery (25 MW or 0) | **Green dotted**: SOC %
@@ -1113,7 +1113,7 @@ for hour in range(8760):
 
     st.dataframe(
         df_june15_16[display_cols].style.apply(style_dg_row, axis=1),
-        use_container_width=True,
+        width='stretch',
         height=600
     )
 

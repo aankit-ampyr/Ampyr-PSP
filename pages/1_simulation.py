@@ -227,7 +227,7 @@ with col2:
         # Detailed metrics table
         st.markdown("##### Detailed Metrics")
         metrics_df = pd.DataFrame([metrics])
-        st.dataframe(metrics_df, use_container_width=True)
+        st.dataframe(metrics_df, width='stretch')
 
         # Download hourly data
         if 'hourly_data' in st.session_state:
@@ -258,7 +258,7 @@ with col2:
         all_df = format_results_for_export(st.session_state['all_results'])
         st.dataframe(
             all_df,
-            use_container_width=True,
+            width='stretch',
             height=400
         )
 
@@ -277,5 +277,5 @@ with col2:
             marginal_df = pd.DataFrame(optimal['marginal_improvements'])
             st.line_chart(
                 data=marginal_df.set_index('size_mwh')['marginal_hours_per_10mwh'],
-                use_container_width=True
+                width='stretch'
             )

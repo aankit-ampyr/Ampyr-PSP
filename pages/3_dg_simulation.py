@@ -236,7 +236,7 @@ with col2:
         st.markdown("#### All Metrics")
         with st.expander("View detailed metrics"):
             metrics_df = pd.DataFrame([metrics])
-            st.dataframe(metrics_df.T.rename(columns={0: 'Value'}), use_container_width=True)
+            st.dataframe(metrics_df.T.rename(columns={0: 'Value'}), width='stretch')
 
         # Download hourly data
         st.markdown("---")
@@ -245,7 +245,7 @@ with col2:
 
             # Show sample of hourly data
             with st.expander("Preview hourly data (first 48 hours)"):
-                st.dataframe(hourly_df.head(48), use_container_width=True)
+                st.dataframe(hourly_df.head(48), width='stretch')
 
             csv = hourly_df.to_csv(index=False)
             st.download_button(
@@ -399,7 +399,7 @@ if 'dg_optimization' in st.session_state:
         return [''] * len(row)
 
     styled_df = results_df.style.apply(highlight_optimal, axis=1)
-    st.dataframe(styled_df, use_container_width=True)
+    st.dataframe(styled_df, width='stretch')
 
     # Chart: DG Size vs Delivery Hours
     st.markdown("#### DG Size vs Delivery Hours")

@@ -617,7 +617,7 @@ if 'optimization_results' in st.session_state:
     fig.update_xaxes(title_text="Battery Size (MWh)", row=2, col=2)
     fig.update_yaxes(title_text="Hours per MWh", row=2, col=2)
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Detailed comparison table
     st.markdown("---")
@@ -643,7 +643,7 @@ if 'optimization_results' in st.session_state:
         candidates_df = pd.DataFrame(candidates_data)
         st.dataframe(
             candidates_df,
-            use_container_width=True,
+            width='stretch',
             hide_index=True
         )
 
@@ -651,7 +651,7 @@ if 'optimization_results' in st.session_state:
     with st.expander("📊 View All Results"):
         st.dataframe(
             df,
-            use_container_width=True,
+            width='stretch',
             height=400
         )
 
