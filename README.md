@@ -61,19 +61,24 @@ See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 ├── app.py                    # Main entry point
 ├── setup.py                  # Package configuration
 ├── requirements.txt          # Dependencies (pinned versions)
-├── CHANGELOG.md              # Version history and changes
+├── CHANGELOG.md              # Version history
+├── PROJECT_PLAN.md           # Technical documentation
+├── TESTING_GUIDE.md          # Testing framework
+├── docs/
+│   ├── DATA_FORMATS.md       # Input/output specifications
+│   └── archive/              # Historical documentation
 ├── pages/
 │   ├── 0_configurations.py   # System configuration
 │   ├── 1_simulation.py       # Battery simulation
 │   ├── 2_optimization.py     # Optimization analysis
 │   ├── 3_dg_simulation.py    # Solar+BESS+DG simulation
 │   ├── 4_calculation_logic.py # Documentation with flow diagrams
-│   └── 5_hourly_examples.py  # Hourly operation examples & DG scenarios
+│   └── 5_hourly_examples.py  # Hourly operation examples
 ├── src/
 │   ├── __init__.py           # Package exports
 │   ├── battery_simulator.py  # Core simulation engine
 │   ├── config.py             # Default configurations
-│   └── data_loader.py        # Data management (with logging)
+│   └── data_loader.py        # Data management
 └── utils/
     ├── __init__.py           # Package exports
     ├── logger.py             # Centralized logging
@@ -131,13 +136,10 @@ All dependencies are pinned to exact versions in `requirements.txt` to ensure co
 ## 📄 Documentation
 
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and recent changes
-- **[BUG_REPORT_ANALYSIS.md](BUG_REPORT_ANALYSIS.md)** - Detailed bug tracking and fixes
-- **[PROJECT_PLAN.md](PROJECT_PLAN.md)** - Comprehensive technical documentation including:
-  - Detailed technical specifications
-  - Algorithm explanations
-  - Configuration options
-  - Usage instructions
-  - System architecture
+- **[PROJECT_PLAN.md](PROJECT_PLAN.md)** - Comprehensive technical documentation
+- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Testing framework and validation
+- **[docs/DATA_FORMATS.md](docs/DATA_FORMATS.md)** - Input/output specifications
+- **[docs/archive/](docs/archive/)** - Historical documentation (bug reports, scenarios)
 
 ## 🤝 Contributing
 
