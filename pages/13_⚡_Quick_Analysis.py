@@ -522,7 +522,7 @@ st.markdown(f"""
 """)
 
 # Run simulation button
-run_btn = st.button("🚀 Run Full Year Simulation", type="primary", use_container_width=True)
+run_btn = st.button("🚀 Run Full Year Simulation", type="primary", width='stretch')
 
 st.divider()
 
@@ -686,7 +686,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             bargroupgap=0.1
         )
 
-        st.plotly_chart(fig_monthly, use_container_width=True)
+        st.plotly_chart(fig_monthly, width='stretch')
 
         # Monthly breakdown table
         st.markdown("#### Monthly Breakdown")
@@ -715,7 +715,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
 
         st.dataframe(
             monthly_table,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config={
                 'Month': st.column_config.TextColumn('Month'),
@@ -796,7 +796,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         soc_on = rules.get('soc_on_threshold', 30)
         soc_off = rules.get('soc_off_threshold', 80)
         fig = create_dispatch_graph(hourly_df, setup['load_mw'], bess_capacity, soc_on, soc_off)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         st.caption("""
         **Orange**: Solar | **Red**: DG Output | **Blue**: BESS Power (negative=charging) | **Purple**: Delivery
@@ -831,7 +831,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             ]
 
             styled_df = display_df[display_cols].style.apply(style_hourly_row, axis=1)
-            st.dataframe(styled_df, use_container_width=True, height=400)
+            st.dataframe(styled_df, width='stretch', height=400)
 
             st.markdown("""
             **Row Colors:** 🟢 Green = Charging | 🟣 Lavender = Discharging | 🟡 Yellow = DG Running | 🔴 Pink = Unmet Load
@@ -844,7 +844,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             data=csv_data,
             file_name=f"quick_analysis_{bess_capacity}mwh_{duration}hr_{start_date}_to_{end_date}.csv",
             mime="text/csv",
-            use_container_width=True
+            width='stretch'
         )
 
         st.divider()
@@ -994,7 +994,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
 
         st.dataframe(
             ten_year_df,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config={
                 'Year': st.column_config.NumberColumn('Year', format='%d'),
@@ -1034,7 +1034,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 data=ten_year_csv,
                 file_name=f"10year_projection_{bess_capacity}mwh_{duration}hr.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
         with col_20yr:
@@ -1044,7 +1044,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 data=twenty_year_csv,
                 file_name=f"20year_projection_{bess_capacity}mwh_{duration}hr.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
         # ===========================================
@@ -1062,7 +1062,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             data=monthly_20yr_csv,
             file_name=f"20year_monthly_{bess_capacity}mwh_{duration}hr.csv",
             mime="text/csv",
-            use_container_width=True
+            width='stretch'
         )
 
         st.caption(f"Contains {len(monthly_20yr_df)} rows (12 months × 20 years) with actual simulation results.")
@@ -1130,7 +1130,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         }
 
         summary_df = pd.DataFrame(summary_data)
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        st.dataframe(summary_df, width='stretch', hide_index=True)
 
         # Energy balance verification
         balance_check = abs(missing + total_bess_losses)
@@ -1166,7 +1166,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    if st.button("← Back to Step 1", use_container_width=True):
+    if st.button("← Back to Step 1", width='stretch'):
         st.switch_page("pages/8_🚀_Step1_Setup.py")
 
     st.markdown("---")

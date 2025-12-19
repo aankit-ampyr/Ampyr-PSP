@@ -22,7 +22,7 @@ The new wizard provides a streamlined 5-step process for BESS & DG sizing:
 
 """)
 
-if st.button("🚀 Start New Sizing Wizard", type="primary", use_container_width=True):
+if st.button("🚀 Start New Sizing Wizard", type="primary", width='stretch'):
     st.switch_page("pages/8_🚀_Step1_Setup.py")
 
 st.markdown("---")

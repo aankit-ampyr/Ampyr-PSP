@@ -467,7 +467,7 @@ if view_mode == 'table':
 
     st.dataframe(
         display_df,
-        use_container_width=True,
+        width='stretch',
         height=400,
         hide_index=True
     )
@@ -575,7 +575,7 @@ elif view_mode == 'detail':
         # Key metrics
         st.markdown("### Key Metrics")
         charts = create_detail_charts(row)
-        st.plotly_chart(charts['metrics'], use_container_width=True)
+        st.plotly_chart(charts['metrics'], width='stretch')
 
         # Detailed metrics table
         col1, col2 = st.columns(2)
@@ -636,7 +636,7 @@ elif view_mode == 'compare':
         # Comparison chart
         fig = create_comparison_chart(selected, results_df)
         if fig:
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         # Side-by-side metrics
         st.markdown("### Metrics Comparison")
@@ -680,11 +680,11 @@ st.divider()
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Edit Sizing Range", use_container_width=True):
+    if st.button("← Edit Sizing Range", width='stretch'):
         st.switch_page("pages/10_📐_Step3_Sizing.py")
 
 with col2:
-    if st.button("🔍 Detailed Analysis →", type="primary", use_container_width=True):
+    if st.button("🔍 Detailed Analysis →", type="primary", width='stretch'):
         # Store best config index for pre-selection in Step 5
         if len(results_df) > 0:
             best_idx = results_df['delivery_pct'].idxmax()
@@ -692,7 +692,7 @@ with col2:
         st.switch_page("pages/12_🔍_Step5_Analysis.py")
 
 with col3:
-    if st.button("🔄 New Analysis", use_container_width=True):
+    if st.button("🔄 New Analysis", width='stretch'):
         st.switch_page("pages/8_🚀_Step1_Setup.py")
 
 

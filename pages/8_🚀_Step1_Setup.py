@@ -255,7 +255,7 @@ if load_source == 'builder':
     col2.metric("Peak Load", f"{stats['peak_mw']:.1f} MW")
     col3.metric("Load Hours", f"{stats['load_hours']:,}/8760")
 
-    st.plotly_chart(create_load_preview_chart(load_profile), use_container_width=True)
+    st.plotly_chart(create_load_preview_chart(load_profile), width='stretch')
 
 else:
     # CSV Upload Mode
@@ -285,7 +285,7 @@ else:
                 col2.metric("Peak Load", f"{stats['peak_mw']:.1f} MW")
                 col3.metric("Load Hours", f"{stats['load_hours']:,}")
 
-                st.plotly_chart(create_load_preview_chart(load_profile), use_container_width=True)
+                st.plotly_chart(create_load_preview_chart(load_profile), width='stretch')
             else:
                 st.error(message)
         except Exception as e:
@@ -378,7 +378,7 @@ if active_solar_profile is not None and len(active_solar_profile) > 0:
     col3.metric("Avg Generation", f"{stats['mean_mw']:.1f} MW")
     col4.metric("Generation Hours", f"{stats['generation_hours']:,}/8760")
 
-    st.plotly_chart(create_solar_preview_chart(active_solar_profile), use_container_width=True)
+    st.plotly_chart(create_solar_preview_chart(active_solar_profile), width='stretch')
 
     # Store the active solar profile for use in simulation
     if solar_source == 'default':
@@ -538,13 +538,13 @@ if errors:
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col2:
-    if st.button("⚡ Quick Analysis", disabled=not is_valid, use_container_width=True,
+    if st.button("⚡ Quick Analysis", disabled=not is_valid, width='stretch',
                  help="Skip the wizard - configure and analyze in one page"):
         mark_step_completed(1)
         st.switch_page("pages/13_⚡_Quick_Analysis.py")
 
 with col3:
-    if st.button("Next → Dispatch Rules", type="primary", disabled=not is_valid, use_container_width=True):
+    if st.button("Next → Dispatch Rules", type="primary", disabled=not is_valid, width='stretch'):
         mark_step_completed(1)
         st.switch_page("pages/9_📋_Step2_Rules.py")
 

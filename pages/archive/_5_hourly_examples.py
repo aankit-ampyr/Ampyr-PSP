@@ -500,14 +500,14 @@ with main_tab2:
             # Data table
             st.dataframe(
                 df[display_cols].style.apply(style_row, axis=1),
-                use_container_width=True,
+                width='stretch',
                 height=500
             )
 
             # Graph
             st.markdown("#### Dispatch Graph")
             fig = create_dispatch_graph(df, f"{t['name']} — June 15-16 Dispatch")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
 
 # =============================================================================
@@ -567,7 +567,7 @@ with main_tab3:
 
     # Summary table
     st.markdown("### Performance Metrics")
-    st.dataframe(summary_df, use_container_width=True)
+    st.dataframe(summary_df, width='stretch')
 
     # Charts
     st.markdown("### Visual Comparison")
@@ -589,7 +589,7 @@ with main_tab3:
             yaxis_title='Hours',
             height=400
         )
-        st.plotly_chart(fig_delivery, use_container_width=True)
+        st.plotly_chart(fig_delivery, width='stretch')
 
     with col2:
         fig_dg = go.Figure(data=[
@@ -607,7 +607,7 @@ with main_tab3:
             yaxis_title='MWh',
             height=400
         )
-        st.plotly_chart(fig_dg, use_container_width=True)
+        st.plotly_chart(fig_dg, width='stretch')
 
     # Insights
     st.markdown("### Key Insights")

@@ -355,7 +355,7 @@ template_info = get_template_info(template_id)
 st.markdown(f"**Dispatch Strategy:** {template_info['name']}")
 
 # Run Analysis button
-run_analysis = st.button("🚀 Load Analysis", type="primary", use_container_width=True)
+run_analysis = st.button("🚀 Load Analysis", type="primary", width='stretch')
 
 st.divider()
 
@@ -474,7 +474,7 @@ if run_analysis or 'analysis_hourly_data' in st.session_state:
         soc_on = rules.get('soc_on_threshold', 30)
         soc_off = rules.get('soc_off_threshold', 80)
         fig = create_dispatch_graph(hourly_df, setup['load_mw'], selected_bess, soc_on, soc_off)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         # Graph legend
         st.caption("""
@@ -522,7 +522,7 @@ if run_analysis or 'analysis_hourly_data' in st.session_state:
 
         st.dataframe(
             styled_df,
-            use_container_width=True,
+            width='stretch',
             height=500
         )
 
@@ -543,7 +543,7 @@ if run_analysis or 'analysis_hourly_data' in st.session_state:
             data=csv_data,
             file_name=f"analysis_{selected_bess}mwh_{selected_duration}hr_{selected_dg}mw_{start_date}_to_{end_date}.csv",
             mime="text/csv",
-            use_container_width=True
+            width='stretch'
         )
 
 else:
@@ -559,7 +559,7 @@ st.divider()
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("← Back to Results", use_container_width=True):
+    if st.button("← Back to Results", width='stretch'):
         st.switch_page("pages/11_📊_Step4_Results.py")
 
 # Sidebar summary

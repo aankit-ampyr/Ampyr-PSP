@@ -449,7 +449,7 @@ if errors:
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Rules", use_container_width=True):
+    if st.button("← Back to Rules", width='stretch'):
         st.switch_page("pages/9_📋_Step2_Rules.py")
 
 with col3:
@@ -457,7 +457,7 @@ with col3:
         "🚀 Run Simulation",
         type="primary",
         disabled=not is_valid,
-        use_container_width=True
+        width='stretch'
     )
 
 if run_button:
