@@ -364,7 +364,7 @@ if view_mode == 'table':
         # Best by delivery
         best_row = filtered_df.loc[filtered_df['delivery_pct'].idxmax()]
 
-        metric_cols = st.columns(3)
+        metric_cols = st.columns(4)
 
         with metric_cols[0]:
             delivery_color = get_delivery_color(best_row['delivery_pct'])
@@ -390,11 +390,27 @@ if view_mode == 'table':
                 border: 2px solid {wastage_color};
             ">
                 <h1 style="color: {wastage_color}; margin: 0;">{best_row['wastage_pct']:.1f}%</h1>
-                <p style="margin: 5px 0;">Wastage</p>
+                <p style="margin: 5px 0;">Total Wastage</p>
             </div>
             """, unsafe_allow_html=True)
 
         with metric_cols[2]:
+            # Wastage during load periods only
+            wastage_load_pct = best_row.get('wastage_load_pct', best_row['wastage_pct'])
+            wastage_load_color = get_wastage_color(wastage_load_pct)
+            st.markdown(f"""
+            <div style="
+                text-align: center;
+                padding: 20px;
+                border-radius: 10px;
+                border: 2px solid {wastage_load_color};
+            ">
+                <h1 style="color: {wastage_load_color}; margin: 0;">{wastage_load_pct:.1f}%</h1>
+                <p style="margin: 5px 0;">Load Period Wastage</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with metric_cols[3]:
             power_mw = best_row.get('power_mw', best_row['bess_mwh'] / best_row['duration_hrs'])
             st.markdown(f"""
             <div style="
@@ -429,30 +445,52 @@ if view_mode == 'table':
     # Results table
     st.markdown("### All Configurations")
 
-    # Format display columns
-    display_df = filtered_df[[
-        'bess_mwh', 'duration_hrs', 'power_mw', 'dg_mw',
-        'delivery_pct', 'wastage_pct', 'delivery_hours',
-        'dg_hours', 'bess_cycles'
-    ]].copy()
+    # Format display columns - check if wastage_load_pct exists
+    has_load_wastage = 'wastage_load_pct' in filtered_df.columns
+
+    if has_load_wastage:
+        display_df = filtered_df[[
+            'bess_mwh', 'duration_hrs', 'power_mw', 'dg_mw',
+            'delivery_pct', 'wastage_pct', 'wastage_load_pct', 'delivery_hours',
+            'dg_hours', 'bess_cycles'
+        ]].copy()
+    else:
+        display_df = filtered_df[[
+            'bess_mwh', 'duration_hrs', 'power_mw', 'dg_mw',
+            'delivery_pct', 'wastage_pct', 'delivery_hours',
+            'dg_hours', 'bess_cycles'
+        ]].copy()
 
     # Add combined BESS Size column (MW × hr format)
     display_df.insert(0, 'BESS Size',
         display_df.apply(lambda r: f"{r['power_mw']:.0f} MW × {r['duration_hrs']:.0f}-hr", axis=1))
 
-    display_df.columns = [
-        'BESS Size', 'Capacity (MWh)', 'Duration (hrs)', 'Power (MW)', 'DG (MW)',
-        'Delivery %', 'Wastage %', 'Delivery Hours',
-        'DG Hours', 'BESS Cycles'
-    ]
+    if has_load_wastage:
+        display_df.columns = [
+            'BESS Size', 'Capacity (MWh)', 'Duration (hrs)', 'Power (MW)', 'DG (MW)',
+            'Delivery %', 'Total Wastage %', 'Load Wastage %', 'Delivery Hours',
+            'DG Hours', 'BESS Cycles'
+        ]
+    else:
+        display_df.columns = [
+            'BESS Size', 'Capacity (MWh)', 'Duration (hrs)', 'Power (MW)', 'DG (MW)',
+            'Delivery %', 'Wastage %', 'Delivery Hours',
+            'DG Hours', 'BESS Cycles'
+        ]
 
     # Round values
-    display_df = display_df.round({
+    round_dict = {
         'Delivery %': 1,
-        'Wastage %': 1,
         'Power (MW)': 1,
         'BESS Cycles': 0,
-    })
+    }
+    if has_load_wastage:
+        round_dict['Total Wastage %'] = 1
+        round_dict['Load Wastage %'] = 1
+    else:
+        round_dict['Wastage %'] = 1
+
+    display_df = display_df.round(round_dict)
 
     # Sortable dataframe
     sort_col = st.selectbox(
@@ -591,8 +629,11 @@ elif view_mode == 'detail':
         with col2:
             st.markdown("#### Performance")
             st.metric("Delivery Rate", f"{row['delivery_pct']:.1f}%")
-            st.metric("Delivery Hours", f"{row['delivery_hours']:,} / 8,760")
-            st.metric("Wastage", f"{row['wastage_pct']:.1f}%")
+            load_hours = row.get('load_hours', 8760)
+            st.metric("Delivery Hours", f"{row['delivery_hours']:,} / {load_hours:,}")
+            st.metric("Total Wastage", f"{row['wastage_pct']:.1f}%")
+            if 'wastage_load_pct' in results_df.columns:
+                st.metric("Load Period Wastage", f"{row['wastage_load_pct']:.1f}%")
             st.metric("BESS Cycles", f"{row['bess_cycles']:.0f}")
             if setup['dg_enabled']:
                 st.metric("DG Runtime", f"{row['dg_hours']:,} hours")
@@ -659,7 +700,11 @@ elif view_mode == 'compare':
                 dg_suffix = " ✓" if is_best_dg else ""
 
                 st.metric("Delivery %", f"{row['delivery_pct']:.1f}%{delivery_suffix}")
-                st.metric("Wastage %", f"{row['wastage_pct']:.1f}%{wastage_suffix}")
+                st.metric("Total Wastage %", f"{row['wastage_pct']:.1f}%{wastage_suffix}")
+                if 'wastage_load_pct' in results_df.columns:
+                    is_best_load_wastage = row['wastage_load_pct'] == results_df.iloc[selected]['wastage_load_pct'].min()
+                    load_wastage_suffix = " ✓" if is_best_load_wastage else ""
+                    st.metric("Load Wastage %", f"{row['wastage_load_pct']:.1f}%{load_wastage_suffix}")
                 st.metric("BESS Cycles", f"{row['bess_cycles']:.0f}")
                 st.metric("DG Hours", f"{row['dg_hours']:,}{dg_suffix}")
 

@@ -266,7 +266,7 @@ def convert_results_to_dataframe(hourly_results):
         'dg_curtailed': h.dg_curtailed,
         'bess_to_load': h.bess_to_load,
         'unmet_mw': h.unserved,
-        'delivery': 'Yes' if h.unserved == 0 else 'No',
+        'delivery': 'Yes' if (h.load > 0 and h.unserved < 0.001) else 'No',
         'solar_curtailed': h.solar_curtailed,
     } for h in hourly_results])
 
@@ -463,7 +463,7 @@ with col_config1:
     st.markdown("**BESS Capacity (MWh)**")
     bess_capacity = st.slider(
         "BESS MWh",
-        min_value=10.0, max_value=500.0,
+        min_value=10.0, max_value=800.0,
         value=qa_state['bess_capacity'],
         step=10.0,
         key='qa_bess_slider',
@@ -471,7 +471,7 @@ with col_config1:
     )
     bess_capacity = st.number_input(
         "Fine-tune",
-        min_value=10.0, max_value=500.0,
+        min_value=10.0, max_value=800.0,
         value=bess_capacity,
         step=5.0,
         key='qa_bess_input'
@@ -562,6 +562,11 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 'end': setup.get('load_day_end', 18),
                 'windows': setup.get('load_windows', []),
                 'data': setup.get('load_csv_data'),
+                # Seasonal parameters
+                'start_month': setup.get('load_season_start', 4),
+                'end_month': setup.get('load_season_end', 10),
+                'day_start': setup.get('load_season_day_start', 8),
+                'day_end': setup.get('load_season_day_end', 0),
             }
             load_profile = build_load_profile(setup['load_mode'], load_params)
 
@@ -598,9 +603,15 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         # PART A: FULL YEAR SUMMARY
         # ===========================================
 
-        st.subheader("📊 Full Year Summary (8760 hours)")
+        # Count hours with actual load (for seasonal patterns)
+        load_hours = (full_year_df['load_mw'] > 0).sum()
+        total_hours = load_hours if load_hours > 0 else 8760
 
-        total_hours = 8760
+        if load_hours < 8760:
+            st.subheader(f"📊 Full Year Summary ({load_hours:,} load hours)")
+        else:
+            st.subheader("📊 Full Year Summary (8760 hours)")
+
         delivery_hours = (full_year_df['delivery'] == 'Yes').sum()
         dg_hours = (full_year_df['dg_state'] == 'ON').sum()
         total_solar = full_year_df['solar_mw'].sum()
@@ -608,21 +619,27 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         wastage_pct = (solar_curtailed / total_solar * 100) if total_solar > 0 else 0
         avg_soc = full_year_df['soc_percent'].mean()
 
-        metric_cols = st.columns(5)
-        metric_cols[0].metric("Delivery Hours", f"{delivery_hours:,}", f"{delivery_hours/total_hours*100:.1f}%")
-        metric_cols[1].metric("DG Runtime", f"{dg_hours:,} hrs", f"{dg_hours/total_hours*100:.1f}%")
+        # Calculate load period wastage (only during hours with load)
+        load_hours_df = full_year_df[full_year_df['load_mw'] > 0]
+        load_solar = load_hours_df['solar_mw'].sum()
+        load_curtailed = load_hours_df['solar_curtailed'].sum()
+        load_wastage_pct = (load_curtailed / load_solar * 100) if load_solar > 0 else 0
+
+        metric_cols = st.columns(6)
+        metric_cols[0].metric("Delivery Hours", f"{delivery_hours:,} / {total_hours:,}", f"{delivery_hours/total_hours*100:.1f}%")
+        metric_cols[1].metric("DG Runtime", f"{dg_hours:,} hrs", f"{dg_hours/8760*100:.1f}%")
         metric_cols[2].metric("Avg SOC", f"{avg_soc:.0f}%")
         metric_cols[3].metric("Solar Curtailed", f"{solar_curtailed:,.0f} MWh")
-        metric_cols[4].metric("Wastage", f"{wastage_pct:.1f}%")
+        metric_cols[4].metric("Total Wastage", f"{wastage_pct:.1f}%")
+        metric_cols[5].metric("Load Period Wastage", f"{load_wastage_pct:.1f}%", help="Wastage during load hours only")
 
         # Monthly delivery chart
         st.markdown("#### Monthly Delivery Performance")
 
         # Calculate monthly stats
-        full_year_df['month'] = (full_year_df['hour'] // 24 // 30).clip(0, 11)  # Approximate month
-        # More accurate month calculation using day of year
+        # Calculate month from hour index using non-leap year (2023) to match 8760 hours / 365 days
         full_year_df['month'] = full_year_df['hour'].apply(
-            lambda h: min(11, (date(2024, 1, 1) + timedelta(hours=h)).month - 1)
+            lambda h: min(11, (date(2023, 1, 1) + timedelta(hours=h)).month - 1)
         )
 
         month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -631,59 +648,85 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         monthly_stats = full_year_df.groupby('month').agg({
             'delivery': lambda x: (x == 'Yes').sum(),
             'dg_state': lambda x: (x == 'ON').sum(),
+            'solar_to_load': lambda x: (x > 0).sum(),
+            'bess_to_load': lambda x: (x > 0).sum(),
+            'dg_to_load': lambda x: (x > 0).sum(),
+            'load_mw': lambda x: (x > 0).sum(),  # Count hours with actual load
             'hour': 'count'
         }).reset_index()
-        monthly_stats.columns = ['month', 'delivery_hours', 'dg_hours', 'total_hours']
-        monthly_stats['delivery_pct'] = (monthly_stats['delivery_hours'] / monthly_stats['total_hours'] * 100)
-        monthly_stats['dg_pct'] = (monthly_stats['dg_hours'] / monthly_stats['total_hours'] * 100)
+        monthly_stats.columns = ['month', 'delivery_hours', 'dg_runtime_hours', 'solar_hrs', 'bess_hrs', 'dg_hrs', 'load_hours', 'total_hours']
+        # Calculate delivery % based on load hours (not total hours) for seasonal patterns
+        monthly_stats['effective_hours'] = monthly_stats['load_hours'].apply(lambda x: x if x > 0 else 1)
+        monthly_stats['delivery_pct'] = (monthly_stats['delivery_hours'] / monthly_stats['effective_hours'] * 100).clip(0, 100)
         monthly_stats['month_name'] = monthly_stats['month'].apply(lambda x: month_names[x])
 
-        # Create bar chart
+        # Create stacked bar chart for energy sources
         fig_monthly = go.Figure()
 
-        # Delivery hours bars
+        # Solar hours (bottom of stack - orange)
         fig_monthly.add_trace(go.Bar(
             x=monthly_stats['month_name'],
-            y=monthly_stats['delivery_hours'],
-            name='Delivery Hours',
-            marker_color='#2ecc71',
-            text=monthly_stats['delivery_pct'].apply(lambda x: f'{x:.0f}%'),
-            textposition='outside',
-            hovertemplate='%{x}<br>Delivery: %{y} hrs (%{text})<extra></extra>'
+            y=monthly_stats['solar_hrs'],
+            name='Solar Hours',
+            marker_color='#FFA500',
+            hovertemplate='%{x}<br>Solar: %{y} hrs<extra></extra>'
         ))
 
-        # DG hours bars
+        # BESS hours (middle of stack - blue)
         fig_monthly.add_trace(go.Bar(
             x=monthly_stats['month_name'],
-            y=monthly_stats['dg_hours'],
+            y=monthly_stats['bess_hrs'],
+            name='BESS Hours',
+            marker_color='#1f77b4',
+            hovertemplate='%{x}<br>BESS: %{y} hrs<extra></extra>'
+        ))
+
+        # DG hours (top of stack - red)
+        fig_monthly.add_trace(go.Bar(
+            x=monthly_stats['month_name'],
+            y=monthly_stats['dg_hrs'],
             name='DG Hours',
             marker_color='#e74c3c',
-            text=monthly_stats['dg_pct'].apply(lambda x: f'{x:.0f}%'),
-            textposition='outside',
-            hovertemplate='%{x}<br>DG: %{y} hrs (%{text})<extra></extra>'
+            hovertemplate='%{x}<br>DG: %{y} hrs<extra></extra>'
         ))
 
-        # Reference line for max possible (approximate month hours)
-        hours_per_month = [744, 696, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]  # 2024 is leap year
+        # Delivery % line overlay with load hours context
+        # Build custom hover text showing delivery/load hours
+        monthly_stats['hover_text'] = monthly_stats.apply(
+            lambda r: f"{r['month_name']}<br>Delivery: {r['delivery_hours']}/{r['load_hours']} hrs ({r['delivery_pct']:.0f}%)",
+            axis=1
+        )
         fig_monthly.add_trace(go.Scatter(
             x=monthly_stats['month_name'],
-            y=hours_per_month[:len(monthly_stats)],
-            name='Max Hours',
-            mode='lines+markers',
-            line=dict(color='gray', dash='dash'),
-            marker=dict(size=6),
-            hovertemplate='%{x}<br>Max: %{y} hrs<extra></extra>'
+            y=monthly_stats['delivery_pct'],
+            name='Delivery %',
+            mode='lines+markers+text',
+            line=dict(color='#2ecc71', width=3),
+            marker=dict(size=8),
+            text=monthly_stats['delivery_pct'].apply(lambda x: f'{x:.0f}%'),
+            textposition='top center',
+            yaxis='y2',
+            hovertemplate='%{customdata}<extra></extra>',
+            customdata=monthly_stats['hover_text']
         ))
 
+        # Hours per month for non-leap year (matches 8760 hours / 365 days)
+        hours_per_month = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
+
         fig_monthly.update_layout(
-            height=350,
+            height=400,
             xaxis_title="Month",
-            yaxis_title="Hours",
+            yaxis_title="Hours Contributing to Load",
+            yaxis2=dict(
+                title='Delivery %',
+                overlaying='y',
+                side='right',
+                range=[0, 110]
+            ),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
             margin=dict(l=50, r=50, t=50, b=50),
-            barmode='group',
-            bargap=0.2,
-            bargroupgap=0.1
+            barmode='stack',
+            bargap=0.2
         )
 
         st.plotly_chart(fig_monthly, width='stretch')
@@ -778,6 +821,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
 
         # Period metrics
         period_hours = len(hourly_df)
+        period_load_hours = (hourly_df['load_mw'] > 0).sum()
         period_delivery = (hourly_df['delivery'] == 'Yes').sum()
         period_dg = (hourly_df['dg_state'] == 'ON').sum()
         period_soc = hourly_df['soc_percent'].mean()
@@ -785,12 +829,23 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         period_solar = hourly_df['solar_mw'].sum()
         period_wastage = (period_curtailed / period_solar * 100) if period_solar > 0 else 0
 
-        pm_cols = st.columns(5)
-        pm_cols[0].metric("Delivery", f"{period_delivery}/{period_hours}", f"{period_delivery/period_hours*100:.1f}%")
+        # Calculate load period wastage (only during hours with load)
+        period_load_df = hourly_df[hourly_df['load_mw'] > 0]
+        period_load_solar = period_load_df['solar_mw'].sum()
+        period_load_curtailed = period_load_df['solar_curtailed'].sum()
+        period_load_wastage = (period_load_curtailed / period_load_solar * 100) if period_load_solar > 0 else 0
+
+        # Use load hours for delivery % if there are load hours
+        effective_period_hours = period_load_hours if period_load_hours > 0 else period_hours
+        delivery_pct = (period_delivery / effective_period_hours * 100) if effective_period_hours > 0 else 0
+
+        pm_cols = st.columns(6)
+        pm_cols[0].metric("Delivery", f"{period_delivery}/{effective_period_hours}", f"{delivery_pct:.1f}%")
         pm_cols[1].metric("DG Hours", f"{period_dg}", f"{period_dg/period_hours*100:.1f}%")
         pm_cols[2].metric("Avg SOC", f"{period_soc:.0f}%")
         pm_cols[3].metric("Curtailed", f"{period_curtailed:.1f} MWh")
-        pm_cols[4].metric("Wastage", f"{period_wastage:.1f}%")
+        pm_cols[4].metric("Total Wastage", f"{period_wastage:.1f}%")
+        pm_cols[5].metric("Load Wastage", f"{period_load_wastage:.1f}%", help="Wastage during load hours only")
 
         # Dispatch graph
         soc_on = rules.get('soc_on_threshold', 30)
@@ -890,9 +945,9 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             # Convert to DataFrame for analysis
             year_df = convert_results_to_dataframe(year_results)
 
-            # Add month column
+            # Add month column (use non-leap year to match 8760 hours / 365 days)
             year_df['month'] = year_df['hour'].apply(
-                lambda h: min(11, (date(2024, 1, 1) + timedelta(hours=h)).month - 1)
+                lambda h: min(11, (date(2023, 1, 1) + timedelta(hours=h)).month - 1)
             )
 
             # Calculate year totals for summary
@@ -909,10 +964,17 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
 
             # Calculate year-level metrics
             year_delivery_hrs = (year_df['delivery'] == 'Yes').sum()
+            year_load_hrs = (year_df['load_mw'] > 0).sum()  # Hours with actual load demand
             year_dg_hrs = (year_df['dg_state'] == 'ON').sum()
             year_solar_hrs = (year_df['solar_to_load'] > 0).sum()
             year_bess_hrs = (year_df['bess_to_load'] > 0).sum()
             year_wastage_pct = (year_curtailed / year_solar_gen * 100) if year_solar_gen > 0 else 0
+
+            # Calculate load period wastage (only during hours with load)
+            year_load_df = year_df[year_df['load_mw'] > 0]
+            year_load_solar = year_load_df['solar_mw'].sum()
+            year_load_curtailed = year_load_df['solar_curtailed'].sum()
+            year_load_wastage_pct = (year_load_curtailed / year_load_solar * 100) if year_load_solar > 0 else 0
 
             yearly_totals.append({
                 'year': year,
@@ -921,22 +983,31 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 'dg_gen': year_dg_gen,
                 'curtailed': year_curtailed,
                 'load_met': year_load_met,
+                'load_hrs': year_load_hrs,  # Track actual load hours per year
+                'load_solar': year_load_solar,  # Solar during load hours
+                'load_curtailed': year_load_curtailed,  # Curtailment during load hours
                 'charging_loss': year_charging_loss,
                 'discharging_loss': year_discharging_loss,
             })
 
             # Build 10-year/20-year annual projection table data
+            # Use actual load hours for delivery % (important for seasonal loads)
+            effective_load_hrs = year_load_hrs if year_load_hrs > 0 else 8760
+            # Cap delivery % at 100% (delivery hours cannot exceed load hours)
+            delivery_pct = min(100.0, round(year_delivery_hrs / effective_load_hrs * 100, 1))
             yearly_projection_data.append({
                 'Year': year,
                 'Capacity (MWh)': round(effective_capacity, 1),
                 'Capacity %': round(capacity_factor * 100, 1),
                 'Delivery Hrs': year_delivery_hrs,
-                'Delivery %': round(year_delivery_hrs / 8760 * 100, 1),
+                'Load Hrs': year_load_hrs,
+                'Delivery %': delivery_pct,
                 'DG Hrs': year_dg_hrs,
                 'Solar Hrs': year_solar_hrs,
                 'BESS Hrs': year_bess_hrs,
                 'Curtailed (MWh)': round(year_curtailed, 0),
-                'Wastage %': round(year_wastage_pct, 1),
+                'Total Wastage %': round(year_wastage_pct, 1),
+                'Load Wastage %': round(year_load_wastage_pct, 1),
                 'BESS Loss (MWh)': round(year_charging_loss + year_discharging_loss, 0),
             })
 
@@ -1001,12 +1072,14 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 'Capacity (MWh)': st.column_config.NumberColumn('Capacity', format='%.1f'),
                 'Capacity %': st.column_config.NumberColumn('Cap %', format='%.1f%%'),
                 'Delivery Hrs': st.column_config.NumberColumn('Delivery Hrs', format='%d'),
+                'Load Hrs': st.column_config.NumberColumn('Load Hrs', format='%d'),
                 'Delivery %': st.column_config.NumberColumn('Delivery %', format='%.1f%%'),
                 'DG Hrs': st.column_config.NumberColumn('DG Hrs', format='%d'),
                 'Solar Hrs': st.column_config.NumberColumn('Solar Hrs', format='%d'),
                 'BESS Hrs': st.column_config.NumberColumn('BESS Hrs', format='%d'),
                 'Curtailed (MWh)': st.column_config.NumberColumn('Curtailed', format='%d'),
-                'Wastage %': st.column_config.NumberColumn('Wastage %', format='%.1f%%'),
+                'Total Wastage %': st.column_config.NumberColumn('Total Wastage %', format='%.1f%%'),
+                'Load Wastage %': st.column_config.NumberColumn('Load Wastage %', format='%.1f%%', help='Wastage during load hours only'),
                 'BESS Loss (MWh)': st.column_config.NumberColumn('BESS Loss', format='%d'),
             }
         )
@@ -1079,21 +1152,31 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         total_dg_gen = sum(y['dg_gen'] for y in yearly_totals)
         total_curtailed = sum(y['curtailed'] for y in yearly_totals)
         total_load_met = sum(y['load_met'] for y in yearly_totals)
+        total_load_hrs = sum(y['load_hrs'] for y in yearly_totals)  # Total load hours across 20 years
+        total_load_solar = sum(y['load_solar'] for y in yearly_totals)  # Solar during load hours
+        total_load_curtailed = sum(y['load_curtailed'] for y in yearly_totals)  # Curtailment during load hours
         total_charging_loss = sum(y['charging_loss'] for y in yearly_totals)
         total_discharging_loss = sum(y['discharging_loss'] for y in yearly_totals)
         total_bess_losses = total_charging_loss + total_discharging_loss
+
+        # Calculate average load hours per year for display
+        avg_load_hrs_per_year = total_load_hrs / 20
+
+        # Load period wastage percentage (curtailment during load hours only)
+        load_wastage_pct = (total_load_curtailed / total_load_solar * 100) if total_load_solar > 0 else 0
 
         # Calculate "Missing" per user formula
         net_supply = total_solar_gen + total_dg_gen - total_curtailed
         missing = total_load_met - net_supply
 
         # Display summary metrics
-        summary_cols = st.columns(5)
+        summary_cols = st.columns(6)
         summary_cols[0].metric("Total Solar", f"{total_solar_gen:,.0f} MWh")
         summary_cols[1].metric("Total DG", f"{total_dg_gen:,.0f} MWh")
-        summary_cols[2].metric("Total Curtailed", f"{total_curtailed:,.0f} MWh")
-        summary_cols[3].metric("Total Load Met", f"{total_load_met:,.0f} MWh")
-        summary_cols[4].metric("BESS Losses", f"{total_bess_losses:,.0f} MWh")
+        summary_cols[2].metric("Total Curtailed", f"{total_curtailed:,.0f} MWh", f"{total_curtailed/total_solar_gen*100:.1f}%")
+        summary_cols[3].metric("Load Period Wastage", f"{total_load_curtailed:,.0f} MWh", f"{load_wastage_pct:.1f}%")
+        summary_cols[4].metric("Total Load Met", f"{total_load_met:,.0f} MWh")
+        summary_cols[5].metric("BESS Losses", f"{total_bess_losses:,.0f} MWh")
 
         # Create detailed summary table
         summary_data = {
@@ -1101,6 +1184,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 '1. Total Solar Generated',
                 '2. Total DG Generated',
                 '3. Total Curtailed (Solar Wastage)',
+                '3a. Load Period Wastage',
                 '4. Total Load Met',
                 '5. Total BESS Losses',
                 '',
@@ -1111,6 +1195,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 f"{total_solar_gen:,.1f}",
                 f"{total_dg_gen:,.1f}",
                 f"{total_curtailed:,.1f}",
+                f"{total_load_curtailed:,.1f}",
                 f"{total_load_met:,.1f}",
                 f"{total_bess_losses:,.1f}",
                 '',
@@ -1120,8 +1205,9 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             'Notes': [
                 f"{total_solar_gen/20:,.0f} MWh/year avg",
                 f"{total_dg_gen/20:,.0f} MWh/year avg",
-                f"{total_curtailed/total_solar_gen*100:.1f}% wastage rate",
-                f"8,760 × {setup['load_mw']} MW × 20 years",
+                f"{total_curtailed/total_solar_gen*100:.1f}% total wastage rate",
+                f"{load_wastage_pct:.1f}% wastage during load hours",
+                f"{avg_load_hrs_per_year:,.0f} hrs × {setup['load_mw']} MW × 20 years",
                 f"Charging: {total_charging_loss:,.0f} + Discharging: {total_discharging_loss:,.0f}",
                 '',
                 'Energy available for consumption',

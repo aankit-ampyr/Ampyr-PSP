@@ -26,7 +26,8 @@ from src.wizard_state import (
 from src.load_builder import (
     build_load_profile, analyze_load_profile, validate_load_csv,
     validate_solar_csv, analyze_solar_profile,
-    get_load_sparkline_data, LOAD_PRESETS
+    get_load_sparkline_data, LOAD_PRESETS,
+    calculate_seasonal_stats, MONTH_NAMES_FULL
 )
 from src.data_loader import load_solar_profile
 
@@ -160,13 +161,19 @@ if load_source == 'builder':
     col1, col2 = st.columns([1, 1])
 
     with col1:
+        load_options = ['constant', 'day_only', 'night_only', 'seasonal', 'custom']
+        current_mode = setup.get('load_mode', 'constant')
+        current_index = load_options.index(current_mode) if current_mode in load_options else 0
+
         load_mode = st.selectbox(
             "Load Pattern",
-            options=['constant', 'day_only', 'night_only', 'custom'],
+            options=load_options,
+            index=current_index,
             format_func=lambda x: {
                 'constant': 'Constant (24/7)',
                 'day_only': 'Day Only',
                 'night_only': 'Night Only',
+                'seasonal': 'Seasonal Pattern',
                 'custom': 'Custom Windows'
             }.get(x, x),
             key='load_mode_select'
@@ -216,6 +223,53 @@ if load_source == 'builder':
             update_wizard_state('setup', 'load_night_start', night_start)
             update_wizard_state('setup', 'load_night_end', night_end)
 
+        elif load_mode == 'seasonal':
+            st.markdown("**Active Months:**")
+            season_start = st.selectbox(
+                "From",
+                options=list(range(1, 13)),
+                format_func=lambda x: MONTH_NAMES_FULL[x-1],
+                index=setup.get('load_season_start', 4) - 1,
+                key='season_start_select'
+            )
+            season_end = st.selectbox(
+                "To",
+                options=list(range(1, 13)),
+                format_func=lambda x: MONTH_NAMES_FULL[x-1],
+                index=setup.get('load_season_end', 10) - 1,
+                key='season_end_select'
+            )
+            update_wizard_state('setup', 'load_season_start', season_start)
+            update_wizard_state('setup', 'load_season_end', season_end)
+
+            st.markdown("**Daily Window:**")
+            # Time options with readable labels
+            hour_options = list(range(24))
+            day_start_hour = st.selectbox(
+                "Start Time",
+                options=hour_options,
+                format_func=lambda x: f"{x:02d}:00",
+                index=setup.get('load_season_day_start', 8),
+                key='season_day_start_select'
+            )
+            # End time: 1-23 plus 0 (midnight) at the end
+            end_options = list(range(1, 24)) + [0]
+            current_end = setup.get('load_season_day_end', 0)
+            end_index = end_options.index(current_end) if current_end in end_options else len(end_options) - 1
+            day_end_hour = st.selectbox(
+                "End Time",
+                options=end_options,
+                format_func=lambda x: "Midnight (00:00)" if x == 0 else f"{x:02d}:00",
+                index=end_index,
+                key='season_day_end_select'
+            )
+            update_wizard_state('setup', 'load_season_day_start', day_start_hour)
+            update_wizard_state('setup', 'load_season_day_end', day_end_hour)
+
+            # Preview stats
+            stats = calculate_seasonal_stats(season_start, season_end, day_start_hour, day_end_hour)
+            st.info(f"**{stats['description']}**")
+
         elif load_mode == 'custom':
             st.info("Define custom time windows below")
             # Simplified: use two windows
@@ -240,6 +294,14 @@ if load_source == 'builder':
         params = {'mw': load_mw, 'start': setup['load_day_start'], 'end': setup['load_day_end']}
     elif load_mode == 'night_only':
         params = {'mw': load_mw, 'start': setup['load_night_start'], 'end': setup['load_night_end']}
+    elif load_mode == 'seasonal':
+        params = {
+            'mw': load_mw,
+            'start_month': setup.get('load_season_start', 4),
+            'end_month': setup.get('load_season_end', 10),
+            'day_start': setup.get('load_season_day_start', 8),
+            'day_end': setup.get('load_season_day_end', 0)
+        }
     elif load_mode == 'custom':
         params = {'windows': setup['load_windows']}
     else:
@@ -253,7 +315,12 @@ if load_source == 'builder':
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Energy", f"{stats['total_energy_mwh']:,.0f} MWh/yr")
     col2.metric("Peak Load", f"{stats['peak_mw']:.1f} MW")
-    col3.metric("Load Hours", f"{stats['load_hours']:,}/8760")
+    # Show load hours with context (for seasonal loads, show vs 8760)
+    if stats['load_hours'] < 8760:
+        load_pct = stats['load_hours'] / 87.6
+        col3.metric("Load Hours", f"{stats['load_hours']:,}", f"{load_pct:.1f}% of year")
+    else:
+        col3.metric("Load Hours", f"{stats['load_hours']:,}", "24/7")
 
     st.plotly_chart(create_load_preview_chart(load_profile), width='stretch')
 

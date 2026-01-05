@@ -398,6 +398,11 @@ if run_analysis or 'analysis_hourly_data' in st.session_state:
                 'end': setup.get('load_day_end', 18),
                 'windows': setup.get('load_windows', []),
                 'data': setup.get('load_csv_data'),
+                # Seasonal parameters
+                'start_month': setup.get('load_season_start', 4),
+                'end_month': setup.get('load_season_end', 10),
+                'day_start': setup.get('load_season_day_start', 8),
+                'day_end': setup.get('load_season_day_end', 0),
             }
             load_profile = build_load_profile(setup['load_mode'], load_params)
 

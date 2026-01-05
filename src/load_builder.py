@@ -2,12 +2,34 @@
 Load Profile Builder Module
 
 Generates 8760-hour load profiles from user selections.
-Supports constant, day-only, night-only, custom windows, and CSV upload.
+Supports constant, day-only, night-only, seasonal, custom windows, and CSV upload.
 """
 
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 import pandas as pd
+
+
+# =============================================================================
+# MONTH CONSTANTS
+# =============================================================================
+
+# Month boundaries (day of year, 1-indexed, non-leap year)
+MONTH_DAY_START = {
+    1: 1, 2: 32, 3: 60, 4: 91, 5: 121, 6: 152,
+    7: 182, 8: 213, 9: 244, 10: 274, 11: 305, 12: 335
+}
+
+MONTH_DAY_END = {
+    1: 31, 2: 59, 3: 90, 4: 120, 5: 151, 6: 181,
+    7: 212, 8: 243, 9: 273, 10: 304, 11: 334, 12: 365
+}
+
+MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+MONTH_NAMES_FULL = ['January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December']
 
 
 # =============================================================================
@@ -27,12 +49,17 @@ def build_load_profile(
             - 'constant': Fixed MW all hours
             - 'day_only': MW during day hours, 0 at night
             - 'night_only': MW during night hours, 0 during day
+            - 'seasonal': MW during specific months and daily time window
             - 'custom': User-defined time windows
             - 'csv': Load from uploaded data
         params: Mode-specific parameters
-            - mw: Load value in MW (for constant/day_only/night_only)
+            - mw: Load value in MW (for constant/day_only/night_only/seasonal)
             - start: Start hour (for day_only/night_only)
             - end: End hour (for day_only/night_only)
+            - start_month: Start month 1-12 (for seasonal)
+            - end_month: End month 1-12 (for seasonal)
+            - day_start: Daily start hour 0-23 (for seasonal)
+            - day_end: Daily end hour 0-23, 0=midnight (for seasonal)
             - windows: List of {start, end, mw} dicts (for custom)
             - data: numpy array (for csv)
         num_hours: Number of hours to generate (default 8760)
@@ -46,6 +73,9 @@ def build_load_profile(
 
         >>> build_load_profile('day_only', {'mw': 25, 'start': 6, 'end': 18})
         array([0., 0., 0., 0., 0., 0., 25., 25., ...])
+
+        >>> build_load_profile('seasonal', {'mw': 25, 'start_month': 4, 'end_month': 10, 'day_start': 8, 'day_end': 0})
+        # 25 MW from April to October, 8 AM to midnight daily
     """
     load = np.zeros(num_hours)
 
@@ -72,6 +102,25 @@ def build_load_profile(
             hour_of_day = hour % 24
             if _is_in_range(hour_of_day, start, end):
                 load[hour] = mw
+
+    elif mode == 'seasonal':
+        mw = params.get('mw', 25.0)
+        start_month = params.get('start_month', 4)   # Default April
+        end_month = params.get('end_month', 10)      # Default October
+        day_start = params.get('day_start', 8)       # Default 8 AM
+        day_end = params.get('day_end', 0)           # Default midnight (0)
+
+        # Normalize midnight: 0 means end of day (24:00)
+        effective_day_end = 24 if day_end == 0 else day_end
+
+        for hour in range(num_hours):
+            day_of_year = (hour // 24) + 1  # 1-365
+            hour_of_day = hour % 24         # 0-23
+
+            # Check if in active month range AND active time window
+            if _is_in_month_range(day_of_year, start_month, end_month):
+                if _is_in_range(hour_of_day, day_start, effective_day_end):
+                    load[hour] = mw
 
     elif mode == 'custom':
         windows = params.get('windows', [])
@@ -120,6 +169,86 @@ def _is_in_range(hour: int, start: int, end: int) -> bool:
     else:
         # start == end means no hours
         return False
+
+
+def _is_in_month_range(day_of_year: int, start_month: int, end_month: int) -> bool:
+    """
+    Check if day_of_year falls within the month range.
+
+    Args:
+        day_of_year: Day of year (1-365)
+        start_month: Start month (1-12)
+        end_month: End month (1-12)
+
+    Returns:
+        True if day is in range
+
+    Handles wraparound (e.g., October to March crossing year boundary).
+    """
+    start_day = MONTH_DAY_START[start_month]
+    end_day = MONTH_DAY_END[end_month]
+
+    if start_month <= end_month:
+        # Normal range (e.g., April to October)
+        return start_day <= day_of_year <= end_day
+    else:
+        # Crosses year boundary (e.g., October to March)
+        return day_of_year >= start_day or day_of_year <= end_day
+
+
+def calculate_seasonal_stats(start_month: int, end_month: int,
+                             day_start: int, day_end: int) -> Dict[str, Any]:
+    """
+    Calculate statistics for a seasonal pattern preview.
+
+    Args:
+        start_month: Start month (1-12)
+        end_month: End month (1-12)
+        day_start: Daily start hour (0-23)
+        day_end: Daily end hour (0-23, 0 = midnight)
+
+    Returns:
+        Dict with active_months, hours_per_day, total_active_hours, description
+    """
+    # Count active months
+    if start_month <= end_month:
+        active_months = end_month - start_month + 1
+    else:
+        active_months = (12 - start_month + 1) + end_month
+
+    # Count active hours per day
+    effective_end = 24 if day_end == 0 else day_end
+    if day_start < effective_end:
+        hours_per_day = effective_end - day_start
+    else:
+        # Crosses midnight (e.g., 22:00 to 06:00)
+        hours_per_day = (24 - day_start) + effective_end
+
+    # Calculate total active days using actual month day counts
+    total_days = 0
+    if start_month <= end_month:
+        # Normal range (e.g., March to October)
+        for month in range(start_month, end_month + 1):
+            days_in_month = MONTH_DAY_END[month] - MONTH_DAY_START[month] + 1
+            total_days += days_in_month
+    else:
+        # Crosses year boundary (e.g., October to March)
+        for month in range(start_month, 13):  # start_month to December
+            days_in_month = MONTH_DAY_END[month] - MONTH_DAY_START[month] + 1
+            total_days += days_in_month
+        for month in range(1, end_month + 1):  # January to end_month
+            days_in_month = MONTH_DAY_END[month] - MONTH_DAY_START[month] + 1
+            total_days += days_in_month
+
+    total_active_hours = total_days * hours_per_day
+
+    return {
+        'active_months': active_months,
+        'hours_per_day': hours_per_day,
+        'total_days': total_days,
+        'total_active_hours': total_active_hours,
+        'description': f"{active_months} months, {hours_per_day} hrs/day ({total_active_hours:,} hrs/yr)"
+    }
 
 
 # =============================================================================

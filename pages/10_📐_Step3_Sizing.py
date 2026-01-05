@@ -91,6 +91,11 @@ def run_batch_simulation(progress_bar, status_text):
         'end': setup.get('load_day_end', 18),
         'windows': setup.get('load_windows', []),
         'data': setup.get('load_csv_data'),
+        # Seasonal parameters
+        'start_month': setup.get('load_season_start', 4),
+        'end_month': setup.get('load_season_end', 10),
+        'day_start': setup.get('load_season_day_start', 8),
+        'day_end': setup.get('load_season_day_end', 0),
     }
     load_profile = build_load_profile(setup['load_mode'], load_params)
 
@@ -215,7 +220,9 @@ def run_batch_simulation(progress_bar, status_text):
             'dg_mw': config['dg_capacity'],
             'delivery_pct': metrics.pct_full_delivery,
             'wastage_pct': metrics.pct_solar_curtailed,
+            'wastage_load_pct': metrics.pct_solar_curtailed_load_hours,  # Wastage during load hours only
             'delivery_hours': metrics.hours_full_delivery,
+            'load_hours': metrics.hours_with_load,  # Total hours with load demand
             'green_hours': metrics.hours_green_delivery,
             'dg_hours': metrics.dg_runtime_hours,
             'dg_starts': metrics.dg_starts,
@@ -295,10 +302,11 @@ if mode == 'sizing':
         )
         update_wizard_state('sizing', 'capacity_max', cap_max)
 
+        step_options = [5.0, 10.0, 25.0, 50.0, 100.0]
         cap_step = st.selectbox(
             "Step Size (MWh)",
-            options=[10.0, 25.0, 50.0, 100.0],
-            index=[10.0, 25.0, 50.0, 100.0].index(sizing['capacity_step']) if sizing['capacity_step'] in [10.0, 25.0, 50.0, 100.0] else 1,
+            options=step_options,
+            index=step_options.index(sizing['capacity_step']) if sizing['capacity_step'] in step_options else 1,
             key='cap_step_select'
         )
         update_wizard_state('sizing', 'capacity_step', cap_step)

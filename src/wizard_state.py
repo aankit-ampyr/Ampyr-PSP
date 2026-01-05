@@ -31,6 +31,12 @@ DEFAULT_WIZARD_STATE = {
         'load_windows': [],  # List of {'start': int, 'end': int, 'mw': float}
         'load_csv_data': None,  # numpy array if CSV uploaded
 
+        # Seasonal load pattern
+        'load_season_start': 4,      # Start month (1-12), default April
+        'load_season_end': 10,       # End month (1-12), default October
+        'load_season_day_start': 8,  # Daily start hour (0-23)
+        'load_season_day_end': 0,    # Daily end hour (0-23, 0 = midnight)
+
         # Solar profile
         'solar_capacity_mw': 100.0,
         'solar_source': 'default',  # 'default' or 'uploaded'

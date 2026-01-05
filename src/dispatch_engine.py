@@ -158,6 +158,7 @@ class SummaryMetrics:
     total_dg_curtailed: float = 0
     total_unserved: float = 0
 
+    hours_with_load: int = 0  # Hours where load > 0 (for seasonal patterns)
     hours_full_delivery: int = 0
     hours_green_delivery: int = 0
     hours_with_dg: int = 0
@@ -166,6 +167,11 @@ class SummaryMetrics:
     pct_green_delivery: float = 0
     pct_unserved: float = 0
     pct_solar_curtailed: float = 0
+
+    # Load-period-only metrics (for seasonal loads)
+    solar_during_load_hours: float = 0
+    solar_curtailed_during_load_hours: float = 0
+    pct_solar_curtailed_load_hours: float = 0  # Wastage % during load periods only
 
     dg_runtime_hours: int = 0
     dg_starts: int = 0
@@ -1005,18 +1011,34 @@ def calculate_metrics(results: List[HourlyResult], params: SimulationParams) -> 
     metrics.total_dg_curtailed = sum(r.dg_curtailed for r in results)
     metrics.total_unserved = sum(r.unserved for r in results)
 
-    metrics.hours_full_delivery = sum(1 for r in results if r.unserved < 0.001)
-    metrics.hours_green_delivery = sum(1 for r in results if r.unserved < 0.001 and not r.dg_running)
+    # Count hours with actual load demand (important for seasonal patterns)
+    metrics.hours_with_load = sum(1 for r in results if r.load > 0)
+
+    # Delivery hours: only count hours where there was load AND it was fully served
+    metrics.hours_full_delivery = sum(1 for r in results if r.load > 0 and r.unserved < 0.001)
+    metrics.hours_green_delivery = sum(1 for r in results if r.load > 0 and r.unserved < 0.001 and not r.dg_running)
     metrics.hours_with_dg = sum(1 for r in results if r.dg_running)
 
-    num_hours = len(results)
-    metrics.pct_full_delivery = metrics.hours_full_delivery / num_hours * 100 if num_hours > 0 else 0
-    metrics.pct_green_delivery = metrics.hours_green_delivery / num_hours * 100 if num_hours > 0 else 0
+    # Calculate percentages against hours with load (not total hours)
+    if metrics.hours_with_load > 0:
+        metrics.pct_full_delivery = metrics.hours_full_delivery / metrics.hours_with_load * 100
+        metrics.pct_green_delivery = metrics.hours_green_delivery / metrics.hours_with_load * 100
+    else:
+        metrics.pct_full_delivery = 100.0  # No load = 100% delivery by default
+        metrics.pct_green_delivery = 100.0
 
     if metrics.total_load > 0:
         metrics.pct_unserved = metrics.total_unserved / metrics.total_load * 100
     if metrics.total_solar_generation > 0:
         metrics.pct_solar_curtailed = metrics.total_solar_curtailed / metrics.total_solar_generation * 100
+
+    # Calculate wastage during load hours only (for seasonal loads)
+    metrics.solar_during_load_hours = sum(r.solar for r in results if r.load > 0)
+    metrics.solar_curtailed_during_load_hours = sum(r.solar_curtailed for r in results if r.load > 0)
+    if metrics.solar_during_load_hours > 0:
+        metrics.pct_solar_curtailed_load_hours = (
+            metrics.solar_curtailed_during_load_hours / metrics.solar_during_load_hours * 100
+        )
 
     metrics.dg_runtime_hours = metrics.hours_with_dg
     metrics.dg_starts = sum(1 for i, r in enumerate(results)
