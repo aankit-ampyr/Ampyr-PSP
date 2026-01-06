@@ -117,6 +117,20 @@ DEFAULT_WIZARD_STATE = {
         'dg_min': 0.0,  # MW
         'dg_max': 20.0,  # MW
         'dg_step': 5.0,  # MW
+
+        # Optimization Goals
+        'optimization_goal': {
+            # Delivery requirement
+            'delivery_mode': 'maximize',  # 'maximize', 'at_least', 'exactly'
+            'delivery_target_pct': 95.0,  # Target % when mode is 'at_least' or 'exactly'
+
+            # Optimization priority (what to minimize when multiple configs meet delivery requirement)
+            'optimize_for': 'min_bess_size',  # 'min_bess_size', 'min_wastage', 'min_dg_hours', 'min_cycles'
+
+            # Secondary constraints (optional filters)
+            'max_wastage_pct': None,  # If set, exclude configs above this wastage %
+            'max_dg_hours': None,  # If set, exclude configs above this DG runtime
+        },
     },
 
     # Step 4: Results

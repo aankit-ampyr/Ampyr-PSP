@@ -306,85 +306,120 @@ view_mode = st.radio(
 
 ranked_recommendations = results_state.get('ranked_recommendations')
 
-if ranked_recommendations and ranked_recommendations.get('recommended'):
-    recommended = ranked_recommendations['recommended']
-    alternatives = ranked_recommendations.get('alternatives', [])
+if ranked_recommendations:
+    # Show goal summary and filtering info
+    goal_summary = ranked_recommendations.get('goal_summary', '')
+    filtered_count = ranked_recommendations.get('filtered_count', 0)
+    excluded_count = ranked_recommendations.get('excluded_count', 0)
+    total_tested = ranked_recommendations.get('total_configs_tested', len(results_df))
 
     st.markdown("---")
 
-    # Hero section
-    st.markdown("## 🎯 RECOMMENDED CONFIGURATION")
+    # Goal info bar
+    if goal_summary:
+        st.info(f"🎯 **Optimization Goal:** {goal_summary}")
 
-    # Main recommendation
-    rec_col1, rec_col2 = st.columns([2, 3])
+    if excluded_count > 0:
+        st.caption(f"Filtered: {filtered_count} of {total_tested} configs meet criteria ({excluded_count} excluded)")
 
-    with rec_col1:
-        st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, #1a5f7a 0%, #2ecc71 100%);
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            color: white;
-        ">
-            <h1 style="margin: 0; font-size: 3rem;">{recommended['power_mw']:.0f} MW × {recommended['duration_hrs']}-hr</h1>
-            <h2 style="margin: 10px 0; font-size: 2rem;">{recommended['bess_mwh']:.0f} MWh</h2>
-            <p style="margin: 10px 0; font-size: 1rem; opacity: 0.9;">
-                {recommended.get('reasoning', 'Highest delivery hours with optimal marginal gain')}
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Check if we have a recommended config
+    recommended = ranked_recommendations.get('recommended')
 
-    with rec_col2:
-        # Key metrics grid
-        m_cols = st.columns(4)
+    if recommended is None:
+        # No configs meet the criteria
+        st.error(f"""
+        **No configurations meet your criteria.**
 
-        with m_cols[0]:
-            delivery_hours = recommended.get('delivery_hours', 0)
-            load_hours = recommended.get('load_hours', 8760)
-            delivery_pct = (delivery_hours / load_hours * 100) if load_hours > 0 else 0
-            st.metric("Delivery Hours", f"{delivery_hours:,}", f"{delivery_pct:.1f}%")
+        {ranked_recommendations.get('goal_summary', '')}
 
-        with m_cols[1]:
-            cycles = recommended.get('bess_cycles', 0)
-            st.metric("Total Cycles", f"{cycles:,.0f}")
+        **Suggestions:**
+        - Lower the delivery target percentage
+        - Increase max wastage or DG hours constraints
+        - Expand the BESS capacity range in Step 3
+        """)
+        st.markdown("---")
 
-        with m_cols[2]:
-            wastage = recommended.get('wastage_pct', 0)
-            st.metric("Solar Wastage", f"{wastage:.1f}%")
+    else:
+        alternatives = ranked_recommendations.get('alternatives', [])
 
-        with m_cols[3]:
-            dg_hours = recommended.get('dg_hours', 0)
-            if setup['dg_enabled']:
-                st.metric("DG Runtime", f"{dg_hours:,} hrs")
-            else:
-                green_hours = recommended.get('green_hours', delivery_hours)
-                st.metric("Green Hours", f"{green_hours:,}")
+        # Hero section
+        st.markdown("## 🎯 RECOMMENDED CONFIGURATION")
 
-        # Fuel consumption if available
-        fuel_consumed = recommended.get('fuel_consumed', 0)
-        if fuel_consumed > 0:
-            st.info(f"**Estimated Fuel:** {fuel_consumed:,.0f} L/year")
+        # Main recommendation
+        rec_col1, rec_col2 = st.columns([2, 3])
 
-    # Alternatives table
-    if alternatives:
-        st.markdown("### 📊 Top Alternatives")
+        with rec_col1:
+            st.markdown(f"""
+            <div style="
+                background: linear-gradient(135deg, #1a5f7a 0%, #2ecc71 100%);
+                padding: 30px;
+                border-radius: 15px;
+                text-align: center;
+                color: white;
+            ">
+                <h1 style="margin: 0; font-size: 3rem;">{recommended['power_mw']:.0f} MW × {recommended['duration_hrs']}-hr</h1>
+                <h2 style="margin: 10px 0; font-size: 2rem;">{recommended['bess_mwh']:.0f} MWh</h2>
+                <p style="margin: 10px 0; font-size: 1rem; opacity: 0.9;">
+                    {recommended.get('reasoning', 'Highest delivery hours with optimal marginal gain')}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        alt_data = []
-        for alt in alternatives[:4]:  # Show top 4 alternatives
-            alt_data.append({
-                'Rank': f"#{alt.get('rank', '-')}",
-                'Configuration': f"{alt.get('power_mw', 0):.0f} MW × {alt.get('duration_hrs', 0)}-hr",
-                'Capacity': f"{alt.get('bess_mwh', 0):.0f} MWh",
-                'Delivery Hours': f"{alt.get('delivery_hours', 0):,}",
-                'vs Recommended': alt.get('vs_recommended', ''),
-            })
+        with rec_col2:
+            # Key metrics grid
+            m_cols = st.columns(4)
 
-        if alt_data:
-            alt_df = pd.DataFrame(alt_data)
-            st.dataframe(alt_df, hide_index=True, width='stretch')
+            with m_cols[0]:
+                delivery_hours = recommended.get('delivery_hours', 0)
+                delivery_pct = recommended.get('delivery_pct', 0)
+                st.metric("Delivery Hours", f"{delivery_hours:,}", f"{delivery_pct:.1f}%")
 
-    st.markdown("---")
+            with m_cols[1]:
+                cycles = recommended.get('total_cycles', 0)
+                st.metric("Total Cycles", f"{cycles:,.0f}")
+
+            with m_cols[2]:
+                wastage = recommended.get('wastage_pct', 0)
+                st.metric("Solar Wastage", f"{wastage:.1f}%")
+
+            with m_cols[3]:
+                dg_hours = recommended.get('dg_hours', 0)
+                if setup['dg_enabled']:
+                    st.metric("DG Runtime", f"{dg_hours:,} hrs")
+                else:
+                    green_hours = recommended.get('green_hours', delivery_hours)
+                    st.metric("Green Hours", f"{green_hours:,}")
+
+            # Fuel consumption if available
+            fuel_consumed = recommended.get('fuel_consumed', 0)
+            if fuel_consumed > 0:
+                st.info(f"**Estimated Fuel:** {fuel_consumed:,.0f} L/year")
+
+        # Alternatives table
+        if alternatives:
+            st.markdown("### 📊 Top Alternatives")
+
+            alt_data = []
+            for alt in alternatives[:4]:  # Show top 4 alternatives
+                vs_rec = alt.get('vs_recommended', {})
+                hours_diff = vs_rec.get('hours_diff', 0) if isinstance(vs_rec, dict) else 0
+                diff_str = f"{hours_diff:+,} hrs" if hours_diff != 0 else "same"
+
+                alt_data.append({
+                    'Rank': f"#{alt.get('rank', '-')}",
+                    'Configuration': f"{alt.get('power_mw', 0):.0f} MW × {alt.get('duration_hrs', 0)}-hr",
+                    'Capacity': f"{alt.get('bess_mwh', 0):.0f} MWh",
+                    'Delivery %': f"{alt.get('delivery_pct', 0):.1f}%",
+                    'Wastage %': f"{alt.get('wastage_pct', 0):.1f}%",
+                    'DG Hours': f"{alt.get('dg_hours', 0):,}",
+                    'vs Rec': diff_str,
+                })
+
+            if alt_data:
+                alt_df = pd.DataFrame(alt_data)
+                st.dataframe(alt_df, hide_index=True, width='stretch')
+
+        st.markdown("---")
 
 else:
     # Fallback: No ranked recommendations available - will use legacy top config display

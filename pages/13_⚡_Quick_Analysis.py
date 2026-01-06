@@ -228,11 +228,19 @@ def style_hourly_row(row):
     return [''] * len(row)
 
 
-def run_simulation(bess_mwh, duration, dg_mw, template_id, setup, rules, solar_profile, load_profile):
-    """Run simulation for full year and return hourly data."""
+def run_simulation(bess_mwh, duration, dg_mw, template_id, setup, rules, solar_profile, load_profile, initial_soc_override=None):
+    """Run simulation for full year and return hourly data.
+
+    Args:
+        initial_soc_override: If provided, use this SOC % instead of setup value.
+                              Used for multi-year simulations to carry over SOC.
+    """
     from src.dispatch_engine import SimulationParams, run_simulation as dispatch_run
 
     power_mw = bess_mwh / duration
+
+    # Use override if provided (for year-to-year SOC carryover)
+    initial_soc = initial_soc_override if initial_soc_override is not None else setup['bess_initial_soc']
 
     params = SimulationParams(
         load_profile=load_profile if isinstance(load_profile, list) else load_profile.tolist(),
@@ -243,7 +251,7 @@ def run_simulation(bess_mwh, duration, dg_mw, template_id, setup, rules, solar_p
         bess_efficiency=setup['bess_efficiency'],
         bess_min_soc=setup['bess_min_soc'],
         bess_max_soc=setup['bess_max_soc'],
-        bess_initial_soc=setup['bess_initial_soc'],
+        bess_initial_soc=initial_soc,
         bess_daily_cycle_limit=setup['bess_daily_cycle_limit'],
         bess_enforce_cycle_limit=setup['bess_enforce_cycle_limit'],
         dg_enabled=setup['dg_enabled'],
@@ -976,6 +984,9 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         # Store yearly totals for summary
         yearly_totals = []
 
+        # Track SOC carryover between years (in MWh of stored energy)
+        carryover_energy_mwh = None  # Will be set after Year 1
+
         for year in range(1, 21):
             progress_bar.progress(year / 20, text=f"Simulating Year {year}...")
 
@@ -984,11 +995,23 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             effective_capacity = bess_capacity * capacity_factor
             effective_power = power_mw * capacity_factor
 
+            # Calculate initial SOC for this year
+            if year == 1:
+                # Year 1: Use configured initial SOC
+                year_initial_soc = None  # Use default from setup
+            else:
+                # Years 2-20: Convert carryover energy to SOC % for this year's capacity
+                # Carryover energy from previous year → SOC % for current degraded capacity
+                carryover_soc_pct = (carryover_energy_mwh / effective_capacity) * 100
+                # Clamp to valid SOC range
+                year_initial_soc = max(setup['bess_min_soc'], min(setup['bess_max_soc'], carryover_soc_pct))
+
             # Run actual simulation for this year
             year_results = run_simulation(
                 effective_capacity, duration, dg_capacity,
                 template_id, setup, rules,
-                solar_profile, load_profile
+                solar_profile, load_profile,
+                initial_soc_override=year_initial_soc
             )
 
             # Convert to DataFrame for analysis
@@ -1001,15 +1024,27 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
 
             # Calculate year totals for summary
             year_solar_gen = year_df['solar_mw'].sum()
-            year_dg_gen = year_df['dg_to_load'].sum()
-            year_curtailed = year_df['solar_curtailed'].sum()
-            year_load_met = (year_df['delivery'] == 'Yes').sum() * setup['load_mw']
+            # DG total output = what goes to load + what goes to BESS + what's curtailed
+            year_dg_to_load = year_df['dg_to_load'].sum()
+            year_dg_to_bess = year_df['dg_to_bess'].sum()
+            year_dg_curtailed = year_df['dg_curtailed'].sum()
+            year_dg_gen = year_dg_to_load + year_dg_to_bess + year_dg_curtailed  # Total DG output
+            year_solar_curtailed = year_df['solar_curtailed'].sum()
+            year_delivery_met = (year_df['delivery'] == 'Yes').sum() * setup['load_mw']
 
-            # BESS losses
+            # Actual energy delivered to load (for energy balance)
+            year_solar_to_load = year_df['solar_to_load'].sum()
+            year_bess_to_load = year_df['bess_to_load'].sum()
+            year_energy_to_load = year_solar_to_load + year_bess_to_load + year_dg_to_load
+
+            # Get final SOC at end of year (last hour's SOC)
+            year_final_soc_pct = year_df.iloc[-1]['soc_percent'] / 100  # Convert to fraction
+
+            # BESS losses (using correct sqrt-split efficiency model)
             charging_energy = year_df[year_df['bess_mw'] < 0]['bess_mw'].abs().sum()
             discharging_energy = year_df[year_df['bess_mw'] > 0]['bess_mw'].sum()
-            year_charging_loss = charging_energy * loss_factor
-            year_discharging_loss = discharging_energy * loss_factor
+            year_charging_loss = charging_energy * loss_factor  # = charging * (1 - one_way_eff)
+            year_discharging_loss = discharging_energy * loss_factor / one_way_eff  # = discharge * (1 - eff) / eff
 
             # Calculate year-level metrics
             year_delivery_hrs = (year_df['delivery'] == 'Yes').sum()
@@ -1017,7 +1052,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             year_dg_hrs = (year_df['dg_state'] == 'ON').sum()
             year_solar_hrs = (year_df['solar_to_load'] > 0).sum()
             year_bess_hrs = (year_df['bess_to_load'] > 0).sum()
-            year_wastage_pct = (year_curtailed / year_solar_gen * 100) if year_solar_gen > 0 else 0
+            year_wastage_pct = (year_solar_curtailed / year_solar_gen * 100) if year_solar_gen > 0 else 0
 
             # Calculate load period wastage (only during hours with load)
             year_load_df = year_df[year_df['load_mw'] > 0]
@@ -1029,15 +1064,26 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 'year': year,
                 'capacity': effective_capacity,
                 'solar_gen': year_solar_gen,
-                'dg_gen': year_dg_gen,
-                'curtailed': year_curtailed,
-                'load_met': year_load_met,
+                'dg_gen': year_dg_gen,  # Total DG output
+                'dg_to_load': year_dg_to_load,
+                'dg_to_bess': year_dg_to_bess,
+                'dg_curtailed': year_dg_curtailed,
+                'solar_curtailed': year_solar_curtailed,
+                'delivery_met': year_delivery_met,  # Binary delivery MWh
+                'energy_to_load': year_energy_to_load,  # Actual energy to load
+                'solar_to_load': year_solar_to_load,
+                'bess_to_load': year_bess_to_load,
                 'load_hrs': year_load_hrs,  # Track actual load hours per year
                 'load_solar': year_load_solar,  # Solar during load hours
                 'load_curtailed': year_load_curtailed,  # Curtailment during load hours
                 'charging_loss': year_charging_loss,
                 'discharging_loss': year_discharging_loss,
+                'final_soc_pct': year_final_soc_pct,  # End-of-year SOC fraction
+                'initial_soc_pct': (year_initial_soc / 100) if year_initial_soc else (setup['bess_initial_soc'] / 100),
             })
+
+            # Save carryover energy for next year (final SOC → energy in MWh)
+            carryover_energy_mwh = effective_capacity * year_final_soc_pct
 
             # Build 10-year/20-year annual projection table data
             # Use actual load hours for delivery % (important for seasonal loads)
@@ -1054,7 +1100,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 'DG Hrs': year_dg_hrs,
                 'Solar Hrs': year_solar_hrs,
                 'BESS Hrs': year_bess_hrs,
-                'Curtailed (MWh)': round(year_curtailed, 0),
+                'Curtailed (MWh)': round(year_solar_curtailed, 0),
                 'Total Wastage %': round(year_wastage_pct, 1),
                 'Load Wastage %': round(year_load_wastage_pct, 1),
                 'BESS Loss (MWh)': round(year_charging_loss + year_discharging_loss, 0),
@@ -1074,11 +1120,11 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
                 month_solar_gen = month_data['solar_mw'].sum()
                 month_wastage_pct = (month_curtailed / month_solar_gen * 100) if month_solar_gen > 0 else 0
 
-                # BESS losses for month
+                # BESS losses for month (using correct sqrt-split efficiency model)
                 month_charging = month_data[month_data['bess_mw'] < 0]['bess_mw'].abs().sum()
                 month_discharging = month_data[month_data['bess_mw'] > 0]['bess_mw'].sum()
-                month_charging_loss = month_charging * loss_factor
-                month_discharging_loss = month_discharging * loss_factor
+                month_charging_loss = month_charging * loss_factor  # = charging * (1 - one_way_eff)
+                month_discharging_loss = month_discharging * loss_factor / one_way_eff  # = discharge * (1 - eff) / eff
 
                 monthly_20yr_data.append({
                     'Year': year,
@@ -1198,9 +1244,15 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
 
         # Calculate totals from yearly data
         total_solar_gen = sum(y['solar_gen'] for y in yearly_totals)
-        total_dg_gen = sum(y['dg_gen'] for y in yearly_totals)
-        total_curtailed = sum(y['curtailed'] for y in yearly_totals)
-        total_load_met = sum(y['load_met'] for y in yearly_totals)
+        total_dg_gen = sum(y['dg_gen'] for y in yearly_totals)  # Total DG output
+        total_dg_curtailed = sum(y['dg_curtailed'] for y in yearly_totals)
+        total_solar_curtailed = sum(y['solar_curtailed'] for y in yearly_totals)
+        total_curtailed = total_solar_curtailed + total_dg_curtailed  # All curtailment
+        total_delivery_met = sum(y['delivery_met'] for y in yearly_totals)  # Binary delivery MWh
+        total_energy_to_load = sum(y['energy_to_load'] for y in yearly_totals)  # Actual energy to load
+        total_solar_to_load = sum(y['solar_to_load'] for y in yearly_totals)
+        total_bess_to_load = sum(y['bess_to_load'] for y in yearly_totals)
+        total_dg_to_load = sum(y['dg_to_load'] for y in yearly_totals)
         total_load_hrs = sum(y['load_hrs'] for y in yearly_totals)  # Total load hours across 20 years
         total_load_solar = sum(y['load_solar'] for y in yearly_totals)  # Solar during load hours
         total_load_curtailed = sum(y['load_curtailed'] for y in yearly_totals)  # Curtailment during load hours
@@ -1208,59 +1260,95 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         total_discharging_loss = sum(y['discharging_loss'] for y in yearly_totals)
         total_bess_losses = total_charging_loss + total_discharging_loss
 
+        # Calculate initial BESS energy (energy already in battery at start of Year 1)
+        initial_soc_pct = setup['bess_initial_soc'] / 100  # Convert from % to fraction
+        initial_bess_energy = bess_capacity * initial_soc_pct  # MWh at Year 1 start
+
+        # Calculate final BESS energy (what's left at end of Year 20)
+        # Use Year 20's effective capacity and final SOC
+        year_20_capacity = yearly_totals[-1]['capacity'] if yearly_totals else bess_capacity
+        year_20_final_soc = yearly_totals[-1]['final_soc_pct'] if yearly_totals else initial_soc_pct
+        final_bess_energy = year_20_capacity * year_20_final_soc
+
         # Calculate average load hours per year for display
         avg_load_hrs_per_year = total_load_hrs / 20
 
         # Load period wastage percentage (curtailment during load hours only)
         load_wastage_pct = (total_load_curtailed / total_load_solar * 100) if total_load_solar > 0 else 0
 
-        # Calculate "Missing" per user formula
-        net_supply = total_solar_gen + total_dg_gen - total_curtailed
-        missing = total_load_met - net_supply
+        # Energy balance calculation (using actual energy flows)
+        # IN: Solar + DG + Initial BESS = All energy sources
+        # OUT: Energy to Load + Curtailed + BESS Losses + Final BESS = All energy sinks
+        total_energy_in = total_solar_gen + total_dg_gen + initial_bess_energy
+        total_energy_out = total_energy_to_load + total_solar_curtailed + total_dg_curtailed + total_bess_losses + final_bess_energy
+        balance_difference = total_energy_in - total_energy_out
 
         # Display summary metrics
         summary_cols = st.columns(6)
         summary_cols[0].metric("Total Solar", f"{total_solar_gen:,.0f} MWh")
         summary_cols[1].metric("Total DG", f"{total_dg_gen:,.0f} MWh")
-        summary_cols[2].metric("Total Curtailed", f"{total_curtailed:,.0f} MWh", f"{total_curtailed/total_solar_gen*100:.1f}%")
+        summary_cols[2].metric("Total Curtailed", f"{total_curtailed:,.0f} MWh", f"{total_curtailed/total_solar_gen*100:.1f}%" if total_solar_gen > 0 else "N/A")
         summary_cols[3].metric("Load Period Wastage", f"{total_load_curtailed:,.0f} MWh", f"{load_wastage_pct:.1f}%")
-        summary_cols[4].metric("Total Load Met", f"{total_load_met:,.0f} MWh")
+        summary_cols[4].metric("Delivery Met", f"{total_delivery_met:,.0f} MWh")
         summary_cols[5].metric("BESS Losses", f"{total_bess_losses:,.0f} MWh")
 
-        # Create detailed summary table
+        # Create detailed summary table with Energy In/Out format
         summary_data = {
-            'Metric': [
-                '1. Total Solar Generated',
-                '2. Total DG Generated',
-                '3. Total Curtailed (Solar Wastage)',
-                '3a. Load Period Wastage',
-                '4. Total Load Met',
-                '5. Total BESS Losses',
+            'Category': [
+                'ENERGY IN',
                 '',
-                'Net Supply (Solar + DG - Curtailed)',
-                'Missing (Load - Net Supply)',
+                '',
+                '',
+                '',
+                'ENERGY OUT',
+                '',
+                '',
+                '',
+                '',
+                '',
+                'BALANCE',
+            ],
+            'Item': [
+                'Solar Generated',
+                'DG Generated',
+                'Initial BESS Energy',
+                'Total Energy In',
+                '',
+                'Energy to Load',
+                'Solar Curtailed',
+                'DG Curtailed',
+                'BESS Losses',
+                'Final BESS Energy',
+                'Total Energy Out',
+                'Difference (In - Out)',
             ],
             'Value (MWh)': [
-                f"{total_solar_gen:,.1f}",
-                f"{total_dg_gen:,.1f}",
-                f"{total_curtailed:,.1f}",
-                f"{total_load_curtailed:,.1f}",
-                f"{total_load_met:,.1f}",
-                f"{total_bess_losses:,.1f}",
+                f"{total_solar_gen:,.0f}",
+                f"{total_dg_gen:,.0f}",
+                f"{initial_bess_energy:,.0f}",
+                f"{total_energy_in:,.0f}",
                 '',
-                f"{net_supply:,.1f}",
-                f"{missing:,.1f}",
+                f"{total_energy_to_load:,.0f}",
+                f"{total_solar_curtailed:,.0f}",
+                f"{total_dg_curtailed:,.0f}",
+                f"{total_bess_losses:,.0f}",
+                f"{final_bess_energy:,.0f}",
+                f"{total_energy_out:,.0f}",
+                f"{balance_difference:,.0f}",
             ],
-            'Notes': [
+            'Details': [
                 f"{total_solar_gen/20:,.0f} MWh/year avg",
-                f"{total_dg_gen/20:,.0f} MWh/year avg",
-                f"{total_curtailed/total_solar_gen*100:.1f}% total wastage rate",
-                f"{load_wastage_pct:.1f}% wastage during load hours",
-                f"{avg_load_hrs_per_year:,.0f} hrs × {setup['load_mw']} MW × 20 years",
-                f"Charging: {total_charging_loss:,.0f} + Discharging: {total_discharging_loss:,.0f}",
+                f"{total_dg_gen/20:,.0f} MWh/year avg" if total_dg_gen > 0 else "DG disabled",
+                f"{bess_capacity:.0f} MWh × {setup['bess_initial_soc']:.0f}% SOC",
                 '',
-                'Energy available for consumption',
-                'Should ≈ -BESS Losses (energy balance)',
+                '',
+                f"Solar: {total_solar_to_load:,.0f} + BESS: {total_bess_to_load:,.0f} + DG: {total_dg_to_load:,.0f}",
+                f"{total_solar_curtailed/total_solar_gen*100:.1f}% of solar" if total_solar_gen > 0 else "N/A",
+                f"{total_dg_curtailed/total_dg_gen*100:.1f}% of DG" if total_dg_gen > 0 else "N/A",
+                f"Charge: {total_charging_loss:,.0f} + Discharge: {total_discharging_loss:,.0f}",
+                f"{year_20_capacity:.0f} MWh × {year_20_final_soc*100:.0f}% SOC (Year 20 end)",
+                '',
+                'Should be ~0 if balanced',
             ]
         }
 
@@ -1268,11 +1356,10 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         st.dataframe(summary_df, width='stretch', hide_index=True)
 
         # Energy balance verification
-        balance_check = abs(missing + total_bess_losses)
-        if balance_check < 1000:
-            st.success(f"✓ Energy balance verified: Missing ({missing:,.0f}) + BESS Losses ({total_bess_losses:,.0f}) = {missing + total_bess_losses:,.0f} MWh (< 1,000 MWh tolerance)")
+        if abs(balance_difference) < 100:  # Allow small floating point errors
+            st.success(f"Energy balance verified: {balance_difference:,.0f} MWh difference (within tolerance)")
         else:
-            st.warning(f"⚠ Energy imbalance detected: {balance_check:,.0f} MWh gap")
+            st.warning(f"Energy balance issue: {balance_difference:,.0f} MWh difference detected")
 
 else:
     st.info("👆 Configure your settings above and click **Run Full Year Simulation** to see results.")

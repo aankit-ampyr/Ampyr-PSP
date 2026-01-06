@@ -245,15 +245,20 @@ def create_dg_hourly_dataframe(hourly_data):
 
 def calculate_ranked_recommendations(
     results_df,
-    primary_metric='delivery_hours',
+    optimization_goal=None,
     top_n=5
 ):
     """
-    Calculate ranked recommendations with single best + alternatives.
+    Calculate ranked recommendations based on user-defined optimization goals.
 
     Args:
         results_df: DataFrame with simulation results
-        primary_metric: Column name to optimize (default: 'delivery_hours')
+        optimization_goal: dict with optimization criteria:
+            - delivery_mode: 'maximize', 'at_least', 'exactly'
+            - delivery_target_pct: target % when mode is 'at_least' or 'exactly'
+            - optimize_for: 'min_bess_size', 'min_wastage', 'min_dg_hours', 'min_cycles'
+            - max_wastage_pct: optional max wastage constraint
+            - max_dg_hours: optional max DG runtime constraint
         top_n: Number of alternatives to include
 
     Returns:
@@ -262,11 +267,24 @@ def calculate_ranked_recommendations(
             'alternatives': [{rank, config, vs_recommended}...],
             'all_ranked': list,
             'marginal_analysis': list,
-            'selection_method': str
+            'selection_method': str,
+            'goal_summary': str,
+            'filtered_count': int,
+            'excluded_count': int
         }
     """
     if results_df is None or len(results_df) == 0:
         return None
+
+    # Default optimization goal (backward compatibility)
+    if optimization_goal is None:
+        optimization_goal = {
+            'delivery_mode': 'maximize',
+            'delivery_target_pct': 95.0,
+            'optimize_for': 'min_bess_size',
+            'max_wastage_pct': None,
+            'max_dg_hours': None,
+        }
 
     # Normalize column names (handle both formats)
     df = results_df.copy()
@@ -279,6 +297,7 @@ def calculate_ranked_recommendations(
         'duration_hrs': ['duration_hrs', 'duration', 'Duration'],
         'power_mw': ['power_mw', 'Power (MW)'],
         'dg_mw': ['dg_mw', 'DG Size (MW)', 'dg_capacity'],
+        'dg_hours': ['dg_hours', 'DG Hours', 'dg_runtime_hours'],
         'bess_cycles': ['bess_cycles', 'Total Cycles', 'total_cycles'],
         'wastage_pct': ['wastage_pct', 'Wastage (%)', 'Solar Wastage (%)'],
     }
@@ -294,18 +313,118 @@ def calculate_ranked_recommendations(
     bess_col = find_col('bess_mwh')
     duration_col = find_col('duration_hrs')
     dg_col = find_col('dg_mw')
+    dg_hours_col = find_col('dg_hours')
     cycles_col = find_col('bess_cycles')
     wastage_col = find_col('wastage_pct')
     delivery_pct_col = find_col('delivery_pct')
 
-    # Sort by primary metric (descending for delivery hours)
-    df_sorted = df.sort_values(by=delivery_col, ascending=False).reset_index(drop=True)
+    # Store original count
+    original_count = len(df)
 
-    # Recommended is the one with max delivery hours
+    # ===========================================
+    # STEP 1: Apply delivery requirement filter
+    # ===========================================
+    delivery_mode = optimization_goal.get('delivery_mode', 'maximize')
+    delivery_target = optimization_goal.get('delivery_target_pct', 95.0)
+
+    if delivery_mode == 'at_least':
+        # Filter to configs meeting minimum delivery
+        df_filtered = df[df[delivery_pct_col] >= delivery_target].copy()
+        delivery_filter_desc = f"≥{delivery_target:.0f}% delivery"
+    elif delivery_mode == 'exactly':
+        # Filter to configs within ±1% of target (allow small tolerance)
+        df_filtered = df[
+            (df[delivery_pct_col] >= delivery_target - 1.0) &
+            (df[delivery_pct_col] <= delivery_target + 1.0)
+        ].copy()
+        delivery_filter_desc = f"={delivery_target:.0f}% delivery (±1%)"
+    else:
+        # Maximize: no filter
+        df_filtered = df.copy()
+        delivery_filter_desc = "maximize delivery"
+
+    # ===========================================
+    # STEP 2: Apply secondary constraints
+    # ===========================================
+    constraint_descs = []
+
+    # Max wastage constraint
+    max_wastage = optimization_goal.get('max_wastage_pct')
+    if max_wastage is not None and wastage_col in df_filtered.columns:
+        df_filtered = df_filtered[df_filtered[wastage_col] <= max_wastage]
+        constraint_descs.append(f"≤{max_wastage:.0f}% wastage")
+
+    # Max DG hours constraint
+    max_dg_hours = optimization_goal.get('max_dg_hours')
+    if max_dg_hours is not None and dg_hours_col in df_filtered.columns:
+        df_filtered = df_filtered[df_filtered[dg_hours_col] <= max_dg_hours]
+        constraint_descs.append(f"≤{max_dg_hours:,} DG hrs")
+
+    filtered_count = len(df_filtered)
+    excluded_count = original_count - filtered_count
+
+    # Handle case where no configs meet criteria
+    if filtered_count == 0:
+        return {
+            'recommended': None,
+            'alternatives': [],
+            'all_ranked': [],
+            'marginal_analysis': [],
+            'selection_method': 'no_match',
+            'goal_summary': f"No configurations meet criteria: {delivery_filter_desc}" +
+                           (f", {', '.join(constraint_descs)}" if constraint_descs else ""),
+            'filtered_count': 0,
+            'excluded_count': original_count,
+            'total_configs_tested': original_count
+        }
+
+    # ===========================================
+    # STEP 3: Sort by optimization priority
+    # ===========================================
+    optimize_for = optimization_goal.get('optimize_for', 'min_bess_size')
+
+    # Define sort configuration for each optimization priority
+    sort_configs = {
+        'min_bess_size': (bess_col, True, "smallest BESS"),
+        'min_wastage': (wastage_col, True, "lowest wastage"),
+        'min_dg_hours': (dg_hours_col, True, "lowest DG runtime"),
+        'min_cycles': (cycles_col, True, "lowest cycles"),
+    }
+
+    sort_col, sort_asc, sort_desc = sort_configs.get(optimize_for, (bess_col, True, "smallest BESS"))
+
+    # For 'maximize' mode, first sort by delivery (desc), then by optimization priority
+    if delivery_mode == 'maximize':
+        # Primary: max delivery, Secondary: optimization priority
+        df_sorted = df_filtered.sort_values(
+            by=[delivery_col, sort_col],
+            ascending=[False, sort_asc]
+        ).reset_index(drop=True)
+        selection_method = f"max_delivery_then_{optimize_for}"
+    else:
+        # All configs meet delivery requirement, sort by optimization priority only
+        df_sorted = df_filtered.sort_values(
+            by=sort_col,
+            ascending=sort_asc
+        ).reset_index(drop=True)
+        selection_method = optimize_for
+
+    # ===========================================
+    # STEP 4: Build recommendation
+    # ===========================================
     rec_row = df_sorted.iloc[0]
     rec_idx = 0
 
-    # Build recommended config dict
+    # Build reasoning string
+    reasoning_parts = []
+    if delivery_mode == 'maximize':
+        reasoning_parts.append(f"Highest delivery ({rec_row.get(delivery_pct_col, 0):.1f}%)")
+    else:
+        reasoning_parts.append(f"Meets {delivery_filter_desc}")
+    reasoning_parts.append(f"with {sort_desc}")
+    if constraint_descs:
+        reasoning_parts.append(f"within constraints ({', '.join(constraint_descs)})")
+
     recommended = {
         'index': rec_idx,
         'bess_mwh': float(rec_row.get(bess_col, 0)),
@@ -314,9 +433,10 @@ def calculate_ranked_recommendations(
         'dg_mw': float(rec_row.get(dg_col, 0)) if dg_col in rec_row.index else 0,
         'delivery_hours': int(rec_row.get(delivery_col, 0)),
         'delivery_pct': float(rec_row.get(delivery_pct_col, 0)),
+        'dg_hours': int(rec_row.get(dg_hours_col, 0)) if dg_hours_col in rec_row.index else 0,
         'total_cycles': float(rec_row.get(cycles_col, 0)) if cycles_col in rec_row.index else 0,
         'wastage_pct': float(rec_row.get(wastage_col, 0)) if wastage_col in rec_row.index else 0,
-        'reasoning': 'Highest delivery hours among all configurations tested',
+        'reasoning': ' '.join(reasoning_parts),
     }
 
     # Calculate degradation estimate
@@ -325,7 +445,9 @@ def calculate_ranked_recommendations(
     else:
         recommended['degradation_pct'] = 0
 
-    # Build alternatives list (excluding recommended)
+    # ===========================================
+    # STEP 5: Build alternatives list
+    # ===========================================
     alternatives = []
     for rank, (idx, row) in enumerate(df_sorted.iloc[1:top_n+1].iterrows(), start=2):
         alt_delivery = int(row.get(delivery_col, 0))
@@ -344,6 +466,8 @@ def calculate_ranked_recommendations(
             'dg_mw': float(row.get(dg_col, 0)) if dg_col in row.index else 0,
             'delivery_hours': alt_delivery,
             'delivery_pct': float(row.get(delivery_pct_col, 0)),
+            'dg_hours': int(row.get(dg_hours_col, 0)) if dg_hours_col in row.index else 0,
+            'wastage_pct': float(row.get(wastage_col, 0)) if wastage_col in row.index else 0,
             'vs_recommended': {
                 'hours_diff': hours_diff,
                 'pct_diff': (hours_diff / recommended['delivery_hours'] * 100
@@ -352,11 +476,12 @@ def calculate_ranked_recommendations(
             }
         })
 
-    # Calculate marginal analysis (for size-based analysis)
+    # ===========================================
+    # STEP 6: Marginal analysis (using filtered data)
+    # ===========================================
     marginal_analysis = []
-    if bess_col in df.columns:
-        # Sort by BESS size for marginal analysis
-        df_by_size = df.sort_values(by=bess_col).reset_index(drop=True)
+    if bess_col in df_filtered.columns:
+        df_by_size = df_filtered.sort_values(by=bess_col).reset_index(drop=True)
 
         for i in range(1, len(df_by_size)):
             prev = df_by_size.iloc[i-1]
@@ -376,7 +501,7 @@ def calculate_ranked_recommendations(
                 'total_hours': int(curr.get(delivery_col, 0))
             })
 
-    # All ranked (for table display)
+    # All ranked (for table display, from filtered set)
     all_ranked = []
     for rank, (idx, row) in enumerate(df_sorted.iterrows(), start=1):
         all_ranked.append({
@@ -384,15 +509,27 @@ def calculate_ranked_recommendations(
             'bess_mwh': float(row.get(bess_col, 0)),
             'delivery_hours': int(row.get(delivery_col, 0)),
             'delivery_pct': float(row.get(delivery_pct_col, 0)),
+            'wastage_pct': float(row.get(wastage_col, 0)) if wastage_col in row.index else 0,
+            'dg_hours': int(row.get(dg_hours_col, 0)) if dg_hours_col in row.index else 0,
         })
+
+    # Build goal summary
+    goal_parts = [delivery_filter_desc]
+    if optimize_for != 'min_bess_size' or delivery_mode != 'maximize':
+        goal_parts.append(f"optimize: {sort_desc}")
+    if constraint_descs:
+        goal_parts.extend(constraint_descs)
 
     return {
         'recommended': recommended,
         'alternatives': alternatives,
         'all_ranked': all_ranked,
         'marginal_analysis': marginal_analysis,
-        'selection_method': 'max_delivery_hours',
-        'total_configs_tested': len(df)
+        'selection_method': selection_method,
+        'goal_summary': ', '.join(goal_parts),
+        'filtered_count': filtered_count,
+        'excluded_count': excluded_count,
+        'total_configs_tested': original_count
     }
 
 

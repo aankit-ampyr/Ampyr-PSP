@@ -370,6 +370,150 @@ st.divider()
 
 
 # =============================================================================
+# OPTIMIZATION GOAL
+# =============================================================================
+
+st.markdown("### 🎯 Optimization Goal")
+st.caption("Define what you want to achieve. The system will recommend the best configuration based on your goal.")
+
+# Get current optimization goal (with defaults for backward compatibility)
+opt_goal = sizing.get('optimization_goal', {
+    'delivery_mode': 'maximize',
+    'delivery_target_pct': 95.0,
+    'optimize_for': 'min_bess_size',
+    'max_wastage_pct': None,
+    'max_dg_hours': None,
+})
+
+goal_col1, goal_col2 = st.columns(2)
+
+with goal_col1:
+    st.markdown("**Delivery Requirement**")
+
+    delivery_mode_options = {
+        'maximize': "Maximize delivery hours (find the best possible)",
+        'at_least': "Achieve at least X% delivery",
+        'exactly': "Achieve exactly X% delivery (no over-sizing)",
+    }
+
+    delivery_mode = st.radio(
+        "What delivery level do you need?",
+        options=list(delivery_mode_options.keys()),
+        format_func=lambda x: delivery_mode_options[x],
+        index=list(delivery_mode_options.keys()).index(opt_goal.get('delivery_mode', 'maximize')),
+        key='opt_delivery_mode',
+        label_visibility="collapsed"
+    )
+
+    # Update state
+    if 'optimization_goal' not in sizing:
+        sizing['optimization_goal'] = opt_goal
+    sizing['optimization_goal']['delivery_mode'] = delivery_mode
+
+    # Show target input if not maximize
+    if delivery_mode in ['at_least', 'exactly']:
+        delivery_target = st.slider(
+            "Target Delivery %",
+            min_value=50.0,
+            max_value=100.0,
+            value=float(opt_goal.get('delivery_target_pct', 95.0)),
+            step=1.0,
+            key='opt_delivery_target',
+            help="Configurations below this threshold will be excluded"
+        )
+        sizing['optimization_goal']['delivery_target_pct'] = delivery_target
+
+        if delivery_mode == 'exactly' and delivery_target == 100.0:
+            st.info("💡 100% delivery means zero unserved hours - only possible with sufficient DG backup or over-sized BESS.")
+
+with goal_col2:
+    st.markdown("**Optimization Priority**")
+    st.caption("When multiple configurations meet your delivery requirement, what should we optimize?")
+
+    optimize_for_options = {
+        'min_bess_size': ("Minimize Battery Size", "Smallest BESS that meets requirement (lowest cost)"),
+        'min_wastage': ("Minimize Solar Wastage", "Least curtailed solar energy"),
+        'min_dg_hours': ("Minimize DG Runtime", "Least generator hours (greenest)"),
+        'min_cycles': ("Minimize Battery Cycles", "Lowest cycling (longest battery life)"),
+    }
+
+    optimize_for = st.radio(
+        "Optimization priority:",
+        options=list(optimize_for_options.keys()),
+        format_func=lambda x: optimize_for_options[x][0],
+        index=list(optimize_for_options.keys()).index(opt_goal.get('optimize_for', 'min_bess_size')),
+        key='opt_optimize_for',
+        label_visibility="collapsed"
+    )
+    sizing['optimization_goal']['optimize_for'] = optimize_for
+
+    # Show description
+    st.caption(f"*{optimize_for_options[optimize_for][1]}*")
+
+    # Secondary constraints (expandable)
+    with st.expander("Additional Constraints (Optional)"):
+        # Max wastage constraint
+        use_max_wastage = st.checkbox(
+            "Limit maximum solar wastage",
+            value=opt_goal.get('max_wastage_pct') is not None,
+            key='opt_use_max_wastage'
+        )
+        if use_max_wastage:
+            max_wastage = st.slider(
+                "Max Wastage %",
+                min_value=0.0,
+                max_value=50.0,
+                value=float(opt_goal.get('max_wastage_pct', 20.0) or 20.0),
+                step=1.0,
+                key='opt_max_wastage'
+            )
+            sizing['optimization_goal']['max_wastage_pct'] = max_wastage
+        else:
+            sizing['optimization_goal']['max_wastage_pct'] = None
+
+        # Max DG hours constraint (only if DG enabled)
+        if dg_enabled:
+            use_max_dg = st.checkbox(
+                "Limit maximum DG runtime",
+                value=opt_goal.get('max_dg_hours') is not None,
+                key='opt_use_max_dg'
+            )
+            if use_max_dg:
+                max_dg = st.slider(
+                    "Max DG Hours/Year",
+                    min_value=0,
+                    max_value=4380,  # 50% of year
+                    value=int(opt_goal.get('max_dg_hours', 1000) or 1000),
+                    step=100,
+                    key='opt_max_dg',
+                    help="Maximum acceptable DG runtime per year"
+                )
+                sizing['optimization_goal']['max_dg_hours'] = max_dg
+            else:
+                sizing['optimization_goal']['max_dg_hours'] = None
+
+# Summary of goal
+goal_summary_parts = []
+if delivery_mode == 'maximize':
+    goal_summary_parts.append("**Maximize** delivery hours")
+elif delivery_mode == 'at_least':
+    goal_summary_parts.append(f"**≥{sizing['optimization_goal']['delivery_target_pct']:.0f}%** delivery")
+else:
+    goal_summary_parts.append(f"**={sizing['optimization_goal']['delivery_target_pct']:.0f}%** delivery")
+
+goal_summary_parts.append(f"then **{optimize_for_options[optimize_for][0].lower()}**")
+
+if sizing['optimization_goal'].get('max_wastage_pct'):
+    goal_summary_parts.append(f"(max {sizing['optimization_goal']['max_wastage_pct']:.0f}% wastage)")
+if sizing['optimization_goal'].get('max_dg_hours'):
+    goal_summary_parts.append(f"(max {sizing['optimization_goal']['max_dg_hours']:,} DG hrs)")
+
+st.success(f"🎯 Goal: {', '.join(goal_summary_parts)}")
+
+st.divider()
+
+
+# =============================================================================
 # VALIDATION & RUN
 # =============================================================================
 
@@ -411,9 +555,16 @@ if run_button:
         # Store results
         update_wizard_state('results', 'simulation_results', results_df)
 
-        # Calculate ranked recommendations
+        # Calculate ranked recommendations using optimization goal
         from utils.metrics import calculate_ranked_recommendations
-        ranked = calculate_ranked_recommendations(results_df)
+        optimization_goal = sizing.get('optimization_goal', {
+            'delivery_mode': 'maximize',
+            'delivery_target_pct': 95.0,
+            'optimize_for': 'min_bess_size',
+            'max_wastage_pct': None,
+            'max_dg_hours': None,
+        })
+        ranked = calculate_ranked_recommendations(results_df, optimization_goal)
         update_wizard_state('results', 'ranked_recommendations', ranked)
 
         status_text.text("✅ Simulation complete!")

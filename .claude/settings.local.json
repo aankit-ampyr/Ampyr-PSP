@@ -39,7 +39,8 @@
       "Bash(grep:*)",
       "Bash(git push:*)",
       "Bash(git reset:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
