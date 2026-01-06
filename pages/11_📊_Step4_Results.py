@@ -301,6 +301,97 @@ view_mode = st.radio(
 
 
 # =============================================================================
+# RECOMMENDED CONFIGURATION HERO
+# =============================================================================
+
+ranked_recommendations = results_state.get('ranked_recommendations')
+
+if ranked_recommendations and ranked_recommendations.get('recommended'):
+    recommended = ranked_recommendations['recommended']
+    alternatives = ranked_recommendations.get('alternatives', [])
+
+    st.markdown("---")
+
+    # Hero section
+    st.markdown("## 🎯 RECOMMENDED CONFIGURATION")
+
+    # Main recommendation
+    rec_col1, rec_col2 = st.columns([2, 3])
+
+    with rec_col1:
+        st.markdown(f"""
+        <div style="
+            background: linear-gradient(135deg, #1a5f7a 0%, #2ecc71 100%);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+        ">
+            <h1 style="margin: 0; font-size: 3rem;">{recommended['power_mw']:.0f} MW × {recommended['duration_hrs']}-hr</h1>
+            <h2 style="margin: 10px 0; font-size: 2rem;">{recommended['bess_mwh']:.0f} MWh</h2>
+            <p style="margin: 10px 0; font-size: 1rem; opacity: 0.9;">
+                {recommended.get('reasoning', 'Highest delivery hours with optimal marginal gain')}
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with rec_col2:
+        # Key metrics grid
+        m_cols = st.columns(4)
+
+        with m_cols[0]:
+            delivery_hours = recommended.get('delivery_hours', 0)
+            load_hours = recommended.get('load_hours', 8760)
+            delivery_pct = (delivery_hours / load_hours * 100) if load_hours > 0 else 0
+            st.metric("Delivery Hours", f"{delivery_hours:,}", f"{delivery_pct:.1f}%")
+
+        with m_cols[1]:
+            cycles = recommended.get('bess_cycles', 0)
+            st.metric("Total Cycles", f"{cycles:,.0f}")
+
+        with m_cols[2]:
+            wastage = recommended.get('wastage_pct', 0)
+            st.metric("Solar Wastage", f"{wastage:.1f}%")
+
+        with m_cols[3]:
+            dg_hours = recommended.get('dg_hours', 0)
+            if setup['dg_enabled']:
+                st.metric("DG Runtime", f"{dg_hours:,} hrs")
+            else:
+                green_hours = recommended.get('green_hours', delivery_hours)
+                st.metric("Green Hours", f"{green_hours:,}")
+
+        # Fuel consumption if available
+        fuel_consumed = recommended.get('fuel_consumed', 0)
+        if fuel_consumed > 0:
+            st.info(f"**Estimated Fuel:** {fuel_consumed:,.0f} L/year")
+
+    # Alternatives table
+    if alternatives:
+        st.markdown("### 📊 Top Alternatives")
+
+        alt_data = []
+        for alt in alternatives[:4]:  # Show top 4 alternatives
+            alt_data.append({
+                'Rank': f"#{alt.get('rank', '-')}",
+                'Configuration': f"{alt.get('power_mw', 0):.0f} MW × {alt.get('duration_hrs', 0)}-hr",
+                'Capacity': f"{alt.get('bess_mwh', 0):.0f} MWh",
+                'Delivery Hours': f"{alt.get('delivery_hours', 0):,}",
+                'vs Recommended': alt.get('vs_recommended', ''),
+            })
+
+        if alt_data:
+            alt_df = pd.DataFrame(alt_data)
+            st.dataframe(alt_df, hide_index=True, width='stretch')
+
+    st.markdown("---")
+
+else:
+    # Fallback: No ranked recommendations available - will use legacy top config display
+    pass
+
+
+# =============================================================================
 # TABLE VIEW
 # =============================================================================
 
@@ -714,6 +805,129 @@ elif view_mode == 'compare':
         if st.button("Clear Selection"):
             clear_comparison_selection()
             st.rerun()
+
+
+# =============================================================================
+# OPTIONAL FINANCIAL PROJECTION
+# =============================================================================
+
+st.divider()
+
+# Financial projection section (opt-in)
+financial_state = state.get('financial', {})
+show_financial = st.checkbox(
+    "📈 Show 20-Year Financial Projection",
+    value=financial_state.get('enabled', False),
+    key='show_financial_projection'
+)
+update_wizard_state('financial', 'enabled', show_financial)
+
+if show_financial and ranked_recommendations and ranked_recommendations.get('recommended'):
+    recommended = ranked_recommendations['recommended']
+
+    st.markdown("### 💰 Financial Projection")
+    st.caption("Project 20-year lifecycle costs for the recommended configuration")
+
+    fin_col1, fin_col2, fin_col3 = st.columns(3)
+
+    with fin_col1:
+        bess_cost = st.number_input(
+            "BESS Cost ($/MWh)",
+            min_value=100000,
+            max_value=1000000,
+            value=int(financial_state.get('bess_cost_per_mwh', 300000)),
+            step=10000,
+            key='fin_bess_cost'
+        )
+        update_wizard_state('financial', 'bess_cost_per_mwh', bess_cost)
+
+    with fin_col2:
+        discount_rate = st.number_input(
+            "Discount Rate (%)",
+            min_value=1.0,
+            max_value=20.0,
+            value=float(financial_state.get('discount_rate', 8.0)) * 100 if financial_state.get('discount_rate', 8.0) < 1 else float(financial_state.get('discount_rate', 8.0)),
+            step=0.5,
+            key='fin_discount_rate'
+        ) / 100
+        update_wizard_state('financial', 'discount_rate', discount_rate)
+
+    with fin_col3:
+        project_life = st.number_input(
+            "Project Life (years)",
+            min_value=10,
+            max_value=30,
+            value=int(financial_state.get('project_life_years', 20)),
+            step=1,
+            key='fin_project_life'
+        )
+        update_wizard_state('financial', 'project_life_years', project_life)
+
+    if st.button("📊 Run Financial Projection", type="primary", key='run_financial'):
+        try:
+            from src.financial_model import FinancialConfig, FinancialProjection
+
+            # Create financial config
+            fin_config = FinancialConfig(
+                bess_capacity_mwh=recommended['bess_mwh'],
+                bess_power_mw=recommended['power_mw'],
+                dg_capacity_mw=recommended.get('dg_mw', 0),
+                bess_cost_per_mwh=bess_cost,
+                discount_rate=discount_rate,
+                project_life_years=project_life,
+            )
+
+            # Get degradation strategy from setup
+            deg_strategy = setup.get('degradation_strategy', 'standard')
+
+            # Run projection
+            projection = FinancialProjection(fin_config)
+            summary = projection.run_projection(
+                initial_cycles_per_year=recommended.get('bess_cycles', 300),
+                strategy=deg_strategy,
+                overbuild_factor=setup.get('overbuild_factor', 0.20),
+                augmentation_year=setup.get('augmentation_year', 8),
+            )
+
+            # Store results
+            update_wizard_state('financial', 'projection_results', {
+                'npv': summary.total_npv,
+                'lcoe': summary.levelized_cost,
+                'total_capex': summary.total_capex,
+                'total_opex': summary.total_opex_npv,
+                'payback_years': summary.simple_payback_years,
+            })
+
+            # Display results
+            st.success("Financial projection completed!")
+
+            result_cols = st.columns(4)
+
+            with result_cols[0]:
+                st.metric("Total CAPEX", f"${summary.total_capex:,.0f}")
+
+            with result_cols[1]:
+                st.metric("20-Year NPV", f"${summary.total_npv:,.0f}")
+
+            with result_cols[2]:
+                st.metric("LCOE", f"${summary.levelized_cost:,.2f}/MWh")
+
+            with result_cols[3]:
+                if summary.simple_payback_years:
+                    st.metric("Simple Payback", f"{summary.simple_payback_years:.1f} years")
+                else:
+                    st.metric("Simple Payback", "N/A")
+
+            # Capacity fade note
+            if deg_strategy == 'overbuild':
+                st.info(f"**Strategy:** Overbuild by {setup.get('overbuild_factor', 0.20)*100:.0f}% to maintain performance throughout project life")
+            elif deg_strategy == 'augmentation':
+                st.info(f"**Strategy:** Augmentation in Year {setup.get('augmentation_year', 8)} to compensate for degradation")
+            else:
+                st.info("**Strategy:** Standard sizing (capacity will degrade over time)")
+
+        except Exception as e:
+            st.error(f"Financial projection error: {str(e)}")
 
 
 # =============================================================================

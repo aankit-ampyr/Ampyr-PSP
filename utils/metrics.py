@@ -166,30 +166,6 @@ def create_hourly_dataframe(hourly_data):
     return result_df
 
 
-def calculate_daily_statistics(hourly_df):
-    """
-    Calculate daily statistics from hourly data.
-
-    Args:
-        hourly_df: DataFrame with hourly data
-
-    Returns:
-        pd.DataFrame: Daily statistics
-    """
-    daily_stats = hourly_df.groupby('Day').agg({
-        'Solar Generation (MW)': 'sum',
-        'Power Delivered (MW)': 'sum',
-        'Battery Charge (MW)': 'sum',
-        'Battery Discharge (MW)': 'sum'
-    }).round(1)
-
-    # Add delivery hours per day
-    daily_delivery = hourly_df[hourly_df['Power Delivered (MW)'] > 0].groupby('Day').size()
-    daily_stats['Delivery Hours'] = daily_delivery.fillna(0)
-
-    return daily_stats
-
-
 def format_results_for_export(all_results):
     """
     Format all results for CSV export.
@@ -221,68 +197,6 @@ def format_results_for_export(all_results):
     df = df[column_order]
 
     return df
-
-
-def calculate_dg_metrics_summary(battery_capacity_mwh, dg_capacity_mw, simulation_results):
-    """
-    Calculate summary metrics for Solar+BESS+DG simulation.
-
-    Args:
-        battery_capacity_mwh: Battery capacity in MWh
-        dg_capacity_mw: DG capacity in MW
-        simulation_results: Results from DG simulation
-
-    Returns:
-        dict: Formatted metrics including both BESS and DG
-    """
-    # Calculate wastage percentage
-    total_solar = (
-        simulation_results.get('solar_to_load_mwh', 0) +
-        simulation_results.get('solar_charged_mwh', 0) +
-        simulation_results.get('solar_wasted_mwh', 0)
-    )
-    if total_solar > 0:
-        wastage_percent = (simulation_results['solar_wasted_mwh'] / total_solar) * 100
-    else:
-        wastage_percent = 0
-
-    # Calculate DG capacity factor
-    dg_runtime = simulation_results.get('dg_runtime_hours', 0)
-    dg_capacity_factor = (dg_runtime / 8760) * 100 if dg_runtime > 0 else 0
-
-    metrics = {
-        # System sizes
-        'Battery Size (MWh)': battery_capacity_mwh,
-        'DG Size (MW)': dg_capacity_mw,
-
-        # Delivery metrics
-        'Delivery Hours': simulation_results['hours_delivered'],
-        'Delivery Rate (%)': round(simulation_results['hours_delivered'] / 87.6, 1),
-        'Energy Delivered (GWh)': round(simulation_results['energy_delivered_mwh'] / 1000, 2),
-
-        # Solar metrics
-        'Solar to Load (MWh)': round(simulation_results.get('solar_to_load_mwh', 0), 1),
-        'Solar Charged (MWh)': round(simulation_results['solar_charged_mwh'], 1),
-        'Solar Wasted (MWh)': round(simulation_results['solar_wasted_mwh'], 1),
-        'Solar Wastage (%)': round(wastage_percent, 1),
-
-        # BESS metrics
-        'Battery Discharged (MWh)': round(simulation_results['battery_discharged_mwh'], 1),
-        'Total Cycles': round(simulation_results['total_cycles'], 1),
-        'Avg Daily Cycles': round(simulation_results['avg_daily_cycles'], 2),
-        'Max Daily Cycles': round(simulation_results['max_daily_cycles'], 2),
-        'Degradation (%)': round(simulation_results['degradation_percent'], 3),
-
-        # DG metrics
-        'DG Runtime (hours)': simulation_results.get('dg_runtime_hours', 0),
-        'DG Starts': simulation_results.get('dg_starts', 0),
-        'DG Energy (MWh)': round(simulation_results.get('dg_energy_generated_mwh', 0), 1),
-        'DG to Load (MWh)': round(simulation_results.get('dg_to_load_mwh', 0), 1),
-        'DG to BESS (MWh)': round(simulation_results.get('dg_to_bess_mwh', 0), 1),
-        'DG Capacity Factor (%)': round(dg_capacity_factor, 1),
-    }
-
-    return metrics
 
 
 def create_dg_hourly_dataframe(hourly_data):
@@ -327,6 +241,159 @@ def create_dg_hourly_dataframe(hourly_data):
     })
 
     return result_df
+
+
+def calculate_ranked_recommendations(
+    results_df,
+    primary_metric='delivery_hours',
+    top_n=5
+):
+    """
+    Calculate ranked recommendations with single best + alternatives.
+
+    Args:
+        results_df: DataFrame with simulation results
+        primary_metric: Column name to optimize (default: 'delivery_hours')
+        top_n: Number of alternatives to include
+
+    Returns:
+        dict: {
+            'recommended': {...config details, reasoning...},
+            'alternatives': [{rank, config, vs_recommended}...],
+            'all_ranked': list,
+            'marginal_analysis': list,
+            'selection_method': str
+        }
+    """
+    if results_df is None or len(results_df) == 0:
+        return None
+
+    # Normalize column names (handle both formats)
+    df = results_df.copy()
+
+    # Map possible column names
+    col_mapping = {
+        'delivery_hours': ['delivery_hours', 'Delivery Hours'],
+        'delivery_pct': ['delivery_pct', 'Delivery Rate (%)', 'Delivery (%)'],
+        'bess_mwh': ['bess_mwh', 'Battery Size (MWh)', 'capacity_mwh'],
+        'duration_hrs': ['duration_hrs', 'duration', 'Duration'],
+        'power_mw': ['power_mw', 'Power (MW)'],
+        'dg_mw': ['dg_mw', 'DG Size (MW)', 'dg_capacity'],
+        'bess_cycles': ['bess_cycles', 'Total Cycles', 'total_cycles'],
+        'wastage_pct': ['wastage_pct', 'Wastage (%)', 'Solar Wastage (%)'],
+    }
+
+    # Find actual column names
+    def find_col(key):
+        for possible in col_mapping.get(key, [key]):
+            if possible in df.columns:
+                return possible
+        return key
+
+    delivery_col = find_col('delivery_hours')
+    bess_col = find_col('bess_mwh')
+    duration_col = find_col('duration_hrs')
+    dg_col = find_col('dg_mw')
+    cycles_col = find_col('bess_cycles')
+    wastage_col = find_col('wastage_pct')
+    delivery_pct_col = find_col('delivery_pct')
+
+    # Sort by primary metric (descending for delivery hours)
+    df_sorted = df.sort_values(by=delivery_col, ascending=False).reset_index(drop=True)
+
+    # Recommended is the one with max delivery hours
+    rec_row = df_sorted.iloc[0]
+    rec_idx = 0
+
+    # Build recommended config dict
+    recommended = {
+        'index': rec_idx,
+        'bess_mwh': float(rec_row.get(bess_col, 0)),
+        'duration_hrs': int(rec_row.get(duration_col, 0)) if duration_col in rec_row else 0,
+        'power_mw': float(rec_row.get('power_mw', rec_row.get(bess_col, 0) / max(rec_row.get(duration_col, 1), 1))),
+        'dg_mw': float(rec_row.get(dg_col, 0)) if dg_col in rec_row.index else 0,
+        'delivery_hours': int(rec_row.get(delivery_col, 0)),
+        'delivery_pct': float(rec_row.get(delivery_pct_col, 0)),
+        'total_cycles': float(rec_row.get(cycles_col, 0)) if cycles_col in rec_row.index else 0,
+        'wastage_pct': float(rec_row.get(wastage_col, 0)) if wastage_col in rec_row.index else 0,
+        'reasoning': 'Highest delivery hours among all configurations tested',
+    }
+
+    # Calculate degradation estimate
+    if recommended['total_cycles'] > 0:
+        recommended['degradation_pct'] = recommended['total_cycles'] * 0.0015 * 100
+    else:
+        recommended['degradation_pct'] = 0
+
+    # Build alternatives list (excluding recommended)
+    alternatives = []
+    for rank, (idx, row) in enumerate(df_sorted.iloc[1:top_n+1].iterrows(), start=2):
+        alt_delivery = int(row.get(delivery_col, 0))
+        alt_bess = float(row.get(bess_col, 0))
+
+        hours_diff = alt_delivery - recommended['delivery_hours']
+        cost_diff_pct = ((alt_bess - recommended['bess_mwh']) / recommended['bess_mwh'] * 100
+                        if recommended['bess_mwh'] > 0 else 0)
+
+        alternatives.append({
+            'rank': rank,
+            'index': idx,
+            'bess_mwh': alt_bess,
+            'duration_hrs': int(row.get(duration_col, 0)) if duration_col in row else 0,
+            'power_mw': float(row.get('power_mw', 0)),
+            'dg_mw': float(row.get(dg_col, 0)) if dg_col in row.index else 0,
+            'delivery_hours': alt_delivery,
+            'delivery_pct': float(row.get(delivery_pct_col, 0)),
+            'vs_recommended': {
+                'hours_diff': hours_diff,
+                'pct_diff': (hours_diff / recommended['delivery_hours'] * 100
+                            if recommended['delivery_hours'] > 0 else 0),
+                'cost_diff_pct': cost_diff_pct
+            }
+        })
+
+    # Calculate marginal analysis (for size-based analysis)
+    marginal_analysis = []
+    if bess_col in df.columns:
+        # Sort by BESS size for marginal analysis
+        df_by_size = df.sort_values(by=bess_col).reset_index(drop=True)
+
+        for i in range(1, len(df_by_size)):
+            prev = df_by_size.iloc[i-1]
+            curr = df_by_size.iloc[i]
+
+            size_diff = float(curr.get(bess_col, 0)) - float(prev.get(bess_col, 0))
+            hours_diff = int(curr.get(delivery_col, 0)) - int(prev.get(delivery_col, 0))
+
+            if size_diff > 0:
+                marginal_per_10mwh = (hours_diff / size_diff) * 10
+            else:
+                marginal_per_10mwh = 0
+
+            marginal_analysis.append({
+                'size_mwh': float(curr.get(bess_col, 0)),
+                'marginal_hours_per_10mwh': round(marginal_per_10mwh, 1),
+                'total_hours': int(curr.get(delivery_col, 0))
+            })
+
+    # All ranked (for table display)
+    all_ranked = []
+    for rank, (idx, row) in enumerate(df_sorted.iterrows(), start=1):
+        all_ranked.append({
+            'rank': rank,
+            'bess_mwh': float(row.get(bess_col, 0)),
+            'delivery_hours': int(row.get(delivery_col, 0)),
+            'delivery_pct': float(row.get(delivery_pct_col, 0)),
+        })
+
+    return {
+        'recommended': recommended,
+        'alternatives': alternatives,
+        'all_ranked': all_ranked,
+        'marginal_analysis': marginal_analysis,
+        'selection_method': 'max_delivery_hours',
+        'total_configs_tested': len(df)
+    }
 
 
 def calculate_simulation_params(min_size, max_size, step_size, max_simulations=None):

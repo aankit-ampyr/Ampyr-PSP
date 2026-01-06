@@ -118,17 +118,17 @@ streamlit run app.py --server.headless true
 **SAFE TO MODIFY**:
 - `/src/` - Core business logic modules
   - `config.py` - Default configuration constants
-  - `battery_simulator.py` - Simulation engine
+  - `dispatch_engine.py` - Core dispatch simulation engine
+  - `wizard_state.py` - Wizard state management
   - `data_loader.py` - Solar profile management
 - `/utils/` - Utility functions
   - `metrics.py` - Metrics calculation
   - `config_manager.py` - Configuration state management
-- `/pages/` - Streamlit multipage components
-  - `0_configurations.py` - Configuration UI
-  - `1_simulation.py` - Single simulation interface
-  - `2_optimization.py` - Optimization analysis
-  - `3_dg_simulation.py` - Solar+BESS+DG simulation
-  - `4_calculation_logic.py` - Documentation page (reference)
+- `/pages/` - Streamlit multipage components (new wizard UI)
+  - `8_Step1_Setup.py` - System configuration wizard
+  - `9_Step2_Rules.py` - Dispatch rules configuration
+  - `10_Step3_Sizing.py` - Battery sizing simulation
+  - `11_Step4_Results.py` - Results and analysis
 - `/tests/` - Unit and integration tests
 - `app.py` - Main application entry point
 - `setup.py` - Python package configuration (for dependency management changes)
@@ -148,7 +148,7 @@ streamlit run app.py --server.headless true
 
 **REFERENCE ONLY**:
 - `PROJECT_PLAN.md` - Comprehensive project documentation
-- `PROJECT_DOCUMENTATION.md` - Additional technical details
+- `docs/NewConcept/` - Dispatch template specifications (T0-T6)
 
 ### Code Style & Architecture Standards
 

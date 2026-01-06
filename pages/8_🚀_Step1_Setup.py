@@ -537,6 +537,99 @@ st.divider()
 
 
 # =============================================================================
+# DEGRADATION & SIZING STRATEGY SECTION
+# =============================================================================
+
+st.subheader("📉 Degradation & Sizing Strategy")
+
+strategy_options = ['standard', 'overbuild', 'augmentation']
+current_strategy = setup.get('degradation_strategy', 'standard')
+strategy_index = strategy_options.index(current_strategy) if current_strategy in strategy_options else 0
+
+degradation_strategy = st.radio(
+    "Battery Sizing Strategy",
+    options=strategy_options,
+    index=strategy_index,
+    format_func=lambda x: {
+        'standard': 'Standard — Size for Year 1 performance',
+        'overbuild': 'Overbuild — Add capacity buffer for degradation',
+        'augmentation': 'Augmentation — Plan mid-life capacity addition'
+    }.get(x, x),
+    horizontal=True,
+    key='degradation_strategy_radio'
+)
+update_wizard_state('setup', 'degradation_strategy', degradation_strategy)
+
+# Strategy-specific inputs
+col1, col2 = st.columns(2)
+
+with col1:
+    if degradation_strategy == 'overbuild':
+        overbuild_pct = st.slider(
+            "Overbuild Factor (%)",
+            min_value=10,
+            max_value=50,
+            value=int(setup.get('overbuild_factor', 0.20) * 100),
+            step=5,
+            help="Extra capacity to compensate for degradation over project life",
+            key='overbuild_factor_slider'
+        )
+        update_wizard_state('setup', 'overbuild_factor', overbuild_pct / 100)
+
+        st.info(f"Example: 100 MWh required x {1 + overbuild_pct/100:.2f} = {100 * (1 + overbuild_pct/100):.0f} MWh installed")
+
+    elif degradation_strategy == 'augmentation':
+        aug_year = st.number_input(
+            "Augmentation Year",
+            min_value=3,
+            max_value=15,
+            value=int(setup.get('augmentation_year', 8)),
+            step=1,
+            help="Year to add replacement capacity to restore performance",
+            key='augmentation_year_input'
+        )
+        update_wizard_state('setup', 'augmentation_year', aug_year)
+
+        st.info(f"Capacity will be restored in Year {aug_year} to maintain target delivery")
+
+    else:
+        st.caption("Standard sizing: Battery sized for Year 1 requirements. Performance may degrade over time.")
+
+with col2:
+    # Advanced degradation settings
+    with st.expander("⚙️ Advanced Degradation Settings"):
+        calendar_rate = st.slider(
+            "Calendar Degradation (%/year)",
+            min_value=0.5,
+            max_value=5.0,
+            value=float(setup.get('calendar_degradation_rate', 0.02) * 100),
+            step=0.5,
+            help="Baseline capacity loss per year from calendar aging",
+            key='calendar_deg_slider'
+        )
+        update_wizard_state('setup', 'calendar_degradation_rate', calendar_rate / 100)
+
+        use_rainflow = st.checkbox(
+            "Use Rainflow Cycle Counting",
+            value=setup.get('use_rainflow_counting', True),
+            help="Advanced DoD-weighted cycle counting for more accurate degradation",
+            key='use_rainflow_check'
+        )
+        update_wizard_state('setup', 'use_rainflow_counting', use_rainflow)
+
+        include_calendar = st.checkbox(
+            "Include Calendar Aging",
+            value=setup.get('include_calendar_aging', True),
+            help="Add time-based degradation in addition to cycle degradation",
+            key='include_calendar_check'
+        )
+        update_wizard_state('setup', 'include_calendar_aging', include_calendar)
+
+
+st.divider()
+
+
+# =============================================================================
 # GENERATOR (DG) SECTION
 # =============================================================================
 
@@ -582,6 +675,84 @@ if dg_enabled:
 
     with col2:
         st.info("DG capacity will be configured in Step 3 (Sizing)")
+
+    # Advanced DG Fuel Model
+    with st.expander("⛽ Advanced DG Fuel Model"):
+        fuel_curve_enabled = st.checkbox(
+            "Use advanced fuel curve model",
+            value=setup.get('dg_fuel_curve_enabled', False),
+            help="Uses Willans line model: Fuel = F0 x P_rated + F1 x P_actual",
+            key='fuel_curve_enabled_check'
+        )
+        update_wizard_state('setup', 'dg_fuel_curve_enabled', fuel_curve_enabled)
+
+        if fuel_curve_enabled:
+            fcol1, fcol2 = st.columns(2)
+            with fcol1:
+                f0 = st.number_input(
+                    "F0 (No-load coeff, L/hr/kW)",
+                    min_value=0.01,
+                    max_value=0.10,
+                    value=float(setup.get('dg_fuel_f0', 0.03)),
+                    step=0.005,
+                    format="%.3f",
+                    help="Fuel consumption per kW of rated capacity at zero load",
+                    key='dg_f0_input'
+                )
+                update_wizard_state('setup', 'dg_fuel_f0', f0)
+
+            with fcol2:
+                f1 = st.number_input(
+                    "F1 (Load coeff, L/kWh)",
+                    min_value=0.15,
+                    max_value=0.35,
+                    value=float(setup.get('dg_fuel_f1', 0.22)),
+                    step=0.01,
+                    format="%.2f",
+                    help="Fuel consumption per kWh of actual output",
+                    key='dg_f1_input'
+                )
+                update_wizard_state('setup', 'dg_fuel_f1', f1)
+
+            # Show efficiency table
+            st.markdown("**Efficiency at Different Load Levels (25 MW DG):**")
+            eff_data = []
+            for load_pct in [25, 50, 75, 100]:
+                p_actual_kw = 25000 * (load_pct / 100)
+                fuel_rate = f0 * 25000 + f1 * p_actual_kw
+                specific = fuel_rate / p_actual_kw if p_actual_kw > 0 else 0
+                eff_data.append({
+                    'Load': f"{load_pct}%",
+                    'Output': f"{p_actual_kw/1000:.1f} MW",
+                    'Fuel Rate': f"{fuel_rate:.0f} L/hr",
+                    'Specific': f"{specific:.3f} L/kWh"
+                })
+            st.dataframe(pd.DataFrame(eff_data), hide_index=True, use_container_width=True)
+
+            st.caption("Lower load = higher specific fuel consumption (less efficient)")
+        else:
+            flat_rate = st.number_input(
+                "Flat fuel rate (L/kWh)",
+                min_value=0.15,
+                max_value=0.40,
+                value=float(setup.get('dg_fuel_flat_rate', 0.25)),
+                step=0.01,
+                format="%.2f",
+                key='dg_flat_rate_input'
+            )
+            update_wizard_state('setup', 'dg_fuel_flat_rate', flat_rate)
+
+        fuel_price = st.number_input(
+            "Fuel price ($/L)",
+            min_value=0.50,
+            max_value=5.00,
+            value=float(setup.get('dg_fuel_price', 1.50)),
+            step=0.10,
+            format="%.2f",
+            key='dg_fuel_price_input'
+        )
+        update_wizard_state('setup', 'dg_fuel_price', fuel_price)
+
 else:
     st.info("No generator in this configuration. System will be Solar + BESS only.")
 

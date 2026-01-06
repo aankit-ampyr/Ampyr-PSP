@@ -366,6 +366,54 @@ else:
 
     st.markdown("---")
 
+    # Question 6: Cycle Charging Mode
+    st.markdown("#### 6. Enable Cycle Charging Mode?")
+
+    cycle_charging = st.radio(
+        "When DG runs, should it operate at high load for efficiency?",
+        options=[False, True],
+        format_func=lambda x: {
+            False: "No — DG follows load (standard)",
+            True: "Yes — DG runs at minimum load %, excess charges BESS"
+        }[x],
+        index=1 if rules.get('cycle_charging_enabled', False) else 0,
+        key='cycle_charging_radio'
+    )
+    update_wizard_state('rules', 'cycle_charging_enabled', cycle_charging)
+
+    if cycle_charging:
+        col1, col2 = st.columns(2)
+        with col1:
+            min_load = st.slider(
+                "Minimum DG Load (%)",
+                min_value=50,
+                max_value=90,
+                value=int(rules.get('cycle_charging_min_load_pct', 70)),
+                step=5,
+                help="DG will run at least at this load level when ON",
+                key='cycle_min_load_slider'
+            )
+            update_wizard_state('rules', 'cycle_charging_min_load_pct', float(min_load))
+
+        with col2:
+            off_soc = st.slider(
+                "Stop Charging at SOC (%)",
+                min_value=int(rules.get('soc_on_threshold', 30)) + 20,
+                max_value=int(setup['bess_max_soc']),
+                value=int(rules.get('cycle_charging_off_soc', 80)),
+                step=5,
+                help="DG stops when BESS reaches this SOC",
+                key='cycle_off_soc_slider'
+            )
+            update_wizard_state('rules', 'cycle_charging_off_soc', float(off_soc))
+
+        st.info(f"DG will run at ≥{min_load}% load when ON, charging BESS until {off_soc}% SOC. "
+                "This improves fuel efficiency by avoiding partial loading.")
+    else:
+        st.caption("DG output matches load demand (may run at inefficient partial loads)")
+
+    st.markdown("---")
+
     # Infer and display template
     template_id = infer_template(
         dg_enabled=True,
@@ -429,3 +477,4 @@ with st.sidebar:
         load_priority_display = "BESS First" if rules.get('dg_load_priority', 'bess_first') == 'bess_first' else "DG First"
         st.markdown(f"- Load Priority: {load_priority_display}")
         st.markdown(f"- Takeover Mode: {'Yes' if rules.get('dg_takeover_mode', False) else 'No'}")
+        st.markdown(f"- Cycle Charging: {'Yes' if rules.get('cycle_charging_enabled', False) else 'No'}")

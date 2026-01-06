@@ -206,6 +206,15 @@ def run_batch_simulation(progress_bar, status_text):
             blackout_end_hour=rules['blackout_end'],
             dg_soc_on_threshold=rules['soc_on_threshold'],
             dg_soc_off_threshold=rules['soc_off_threshold'],
+            # Fuel model parameters
+            dg_fuel_curve_enabled=setup.get('dg_fuel_curve_enabled', False),
+            dg_fuel_f0=setup.get('dg_fuel_f0', 0.03),
+            dg_fuel_f1=setup.get('dg_fuel_f1', 0.22),
+            dg_fuel_flat_rate=setup.get('dg_fuel_flat_rate', 0.25),
+            # Cycle charging parameters
+            cycle_charging_enabled=rules.get('cycle_charging_enabled', False),
+            cycle_charging_min_load_pct=rules.get('cycle_charging_min_load_pct', 70.0),
+            cycle_charging_off_soc=rules.get('cycle_charging_off_soc', 80.0),
         )
 
         # Run simulation
@@ -227,6 +236,8 @@ def run_batch_simulation(progress_bar, status_text):
             'dg_hours': metrics.dg_runtime_hours,
             'dg_starts': metrics.dg_starts,
             'bess_cycles': metrics.bess_equivalent_cycles,
+            'fuel_consumed': metrics.total_fuel_consumed,  # Liters
+            'cycle_charging_hours': metrics.cycle_charging_hours,
             'unserved_mwh': metrics.total_unserved,
         })
 
@@ -480,6 +491,11 @@ if run_button:
 
         # Store results
         update_wizard_state('results', 'simulation_results', results_df)
+
+        # Calculate ranked recommendations
+        from utils.metrics import calculate_ranked_recommendations
+        ranked = calculate_ranked_recommendations(results_df)
+        update_wizard_state('results', 'ranked_recommendations', ranked)
 
         status_text.text("✅ Simulation complete!")
         st.success(f"Completed {len(results_df)} configurations")

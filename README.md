@@ -63,21 +63,18 @@ See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 ├── requirements.txt          # Dependencies (pinned versions)
 ├── CHANGELOG.md              # Version history
 ├── PROJECT_PLAN.md           # Technical documentation
-├── TESTING_GUIDE.md          # Testing framework
 ├── docs/
-│   ├── DATA_FORMATS.md       # Input/output specifications
-│   └── archive/              # Historical documentation
+│   └── NewConcept/           # Dispatch template specifications (T0-T6)
 ├── pages/
-│   ├── 0_configurations.py   # System configuration
-│   ├── 1_simulation.py       # Battery simulation
-│   ├── 2_optimization.py     # Optimization analysis
-│   ├── 3_dg_simulation.py    # Solar+BESS+DG simulation
-│   ├── 4_calculation_logic.py # Documentation with flow diagrams
-│   └── 5_hourly_examples.py  # Hourly operation examples
+│   ├── 8_Step1_Setup.py      # System configuration wizard
+│   ├── 9_Step2_Rules.py      # Dispatch rules configuration
+│   ├── 10_Step3_Sizing.py    # Battery sizing simulation
+│   └── 11_Step4_Results.py   # Results and analysis
 ├── src/
 │   ├── __init__.py           # Package exports
-│   ├── battery_simulator.py  # Core simulation engine
+│   ├── dispatch_engine.py    # Core dispatch simulation engine
 │   ├── config.py             # Default configurations
+│   ├── wizard_state.py       # Wizard state management
 │   └── data_loader.py        # Data management
 └── utils/
     ├── __init__.py           # Package exports
@@ -137,9 +134,7 @@ All dependencies are pinned to exact versions in `requirements.txt` to ensure co
 
 - **[CHANGELOG.md](CHANGELOG.md)** - Version history and recent changes
 - **[PROJECT_PLAN.md](PROJECT_PLAN.md)** - Comprehensive technical documentation
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Testing framework and validation
-- **[docs/DATA_FORMATS.md](docs/DATA_FORMATS.md)** - Input/output specifications
-- **[docs/archive/](docs/archive/)** - Historical documentation (bug reports, scenarios)
+- **[docs/NewConcept/](docs/NewConcept/)** - Dispatch template specifications (T0-T6)
 
 ## 🤝 Contributing
 

@@ -54,6 +54,21 @@ DEFAULT_WIZARD_STATE = {
         'dg_enabled': True,
         'dg_operating_mode': 'binary',  # 'binary' (100% or off) or 'variable' (above min load)
         'dg_min_load_pct': 30.0,  # % (only used when operating_mode is 'variable')
+
+        # Degradation Strategy
+        'degradation_strategy': 'standard',  # 'standard', 'overbuild', 'augmentation'
+        'overbuild_factor': 0.20,  # 20% overbuild factor
+        'augmentation_year': 8,  # Year to add capacity
+        'calendar_degradation_rate': 0.02,  # 2% per year
+        'use_rainflow_counting': True,  # Use advanced cycle counting
+        'include_calendar_aging': True,  # Include calendar degradation
+
+        # Fuel Model (Advanced DG)
+        'dg_fuel_curve_enabled': False,  # Use advanced Willans line model
+        'dg_fuel_f0': 0.03,  # L/hr/kW (no-load coefficient)
+        'dg_fuel_f1': 0.22,  # L/kWh (load coefficient)
+        'dg_fuel_flat_rate': 0.25,  # L/kWh (flat rate when disabled)
+        'dg_fuel_price': 1.50,  # $/L
     },
 
     # Step 2: Dispatch Rules
@@ -80,6 +95,11 @@ DEFAULT_WIZARD_STATE = {
 
         # Inferred template (read-only, set by inference)
         'inferred_template': 0,
+
+        # Cycle Charging Mode
+        'cycle_charging_enabled': False,  # Enable cycle charging
+        'cycle_charging_min_load_pct': 70.0,  # Minimum DG load %
+        'cycle_charging_off_soc': 80.0,  # Stop charging at this SOC %
     },
 
     # Step 3: Sizing Range
@@ -119,6 +139,23 @@ DEFAULT_WIZARD_STATE = {
             'hide_dominated': False,
         },
         'detail_view_config': None,  # Config index for detail view
+
+        # Ranked recommendations
+        'ranked_recommendations': None,  # Result from calculate_ranked_recommendations()
+        'recommendation_generated': False,
+    },
+
+    # Financial Analysis
+    'financial': {
+        'enabled': False,  # Enable financial analysis
+        'bess_cost_per_mwh': 300000,  # $/MWh
+        'dg_cost_per_mw': 200000,  # $/MW
+        'augmentation_cost_per_mwh': 250000,  # $/MWh
+        'discount_rate': 0.08,  # 8%
+        'project_life_years': 20,
+        'fuel_price_per_liter': 1.50,
+        'delivery_value_per_mwh': 100,  # $/MWh
+        'projection_results': None,  # Cached projection results
     },
 
     # Quick Analysis (alternative to 5-step wizard)

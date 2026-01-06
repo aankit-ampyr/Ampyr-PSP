@@ -12,6 +12,9 @@ import math
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
+# Import fuel model for DG fuel consumption calculations
+from src.fuel_model import calculate_fuel_rate, calculate_fuel_consumption
+
 
 # =============================================================================
 # CONSTANTS
@@ -66,6 +69,17 @@ class SimulationParams:
     allow_emergency_dg_day: bool = False
     allow_emergency_dg_night: bool = False
 
+    # Fuel model parameters
+    dg_fuel_curve_enabled: bool = False
+    dg_fuel_f0: float = 0.03  # L/hr per kW rated (no-load coefficient)
+    dg_fuel_f1: float = 0.22  # L/kWh output (load coefficient)
+    dg_fuel_flat_rate: float = 0.25  # L/kWh (flat rate when curve disabled)
+
+    # Cycle charging parameters
+    cycle_charging_enabled: bool = False
+    cycle_charging_min_load_pct: float = 70.0  # Minimum DG load in cycle charging
+    cycle_charging_off_soc: float = 80.0  # Stop cycle charging at this SOC %
+
 
 @dataclass
 class SimulationState:
@@ -104,6 +118,7 @@ class SimulationState:
     # Counters
     total_dg_starts: int = 0
     total_dg_runtime_hours: int = 0
+    total_dg_fuel_consumed: float = 0  # Liters
 
 
 @dataclass
@@ -127,6 +142,9 @@ class HourlyResult:
     dg_curtailed: float = 0
     dg_running: bool = False
     dg_mode: str = "OFF"
+    dg_output_mw: float = 0  # Actual DG output (MW)
+    dg_fuel_consumed: float = 0  # Fuel consumed this hour (Liters)
+    cycle_charging: bool = False  # True if DG is in cycle charging mode
 
     bess_assisted: bool = False
     unserved: float = 0
@@ -177,6 +195,12 @@ class SummaryMetrics:
     dg_starts: int = 0
     bess_throughput: float = 0
     bess_equivalent_cycles: float = 0
+
+    # Fuel consumption metrics
+    total_fuel_consumed: float = 0  # Liters
+    avg_fuel_rate_lph: float = 0  # L/hr (average when running)
+    specific_fuel_consumption: float = 0  # L/kWh delivered
+    cycle_charging_hours: int = 0  # Hours DG was in cycle charging mode
 
 
 # =============================================================================
@@ -332,6 +356,31 @@ def discharge_bess(state: SimulationState, params: SimulationParams,
     return max_discharge, True
 
 
+def calculate_dg_fuel(params: SimulationParams, dg_output_mw: float, hours: float = 1.0) -> float:
+    """Calculate fuel consumption for DG operation.
+
+    Args:
+        params: Simulation parameters with fuel model settings
+        dg_output_mw: Actual DG output in MW
+        hours: Duration of operation (default 1 hour)
+
+    Returns:
+        Fuel consumed in Liters
+    """
+    if params.dg_fuel_curve_enabled:
+        # Use non-linear Willans line model
+        return calculate_fuel_consumption(
+            p_rated_kw=params.dg_capacity * 1000,  # MW to kW
+            p_actual_kw=dg_output_mw * 1000,  # MW to kW
+            hours=hours,
+            f0=params.dg_fuel_f0,
+            f1=params.dg_fuel_f1
+        )
+    else:
+        # Use flat rate
+        return dg_output_mw * 1000 * params.dg_fuel_flat_rate * hours  # kWh * L/kWh
+
+
 def activate_dg(state: SimulationState, params: SimulationParams, hour: HourlyResult,
                 remaining_load: float, bess_discharged: bool,
                 charge_power_used: float, mode: str = "NORMAL") -> Tuple[float, float]:
@@ -344,6 +393,7 @@ def activate_dg(state: SimulationState, params: SimulationParams, hour: HourlyRe
     state.total_dg_runtime_hours += 1
 
     dg_output = state.dg_capacity
+    hour.dg_output_mw = dg_output
     hour.dg_to_load = min(dg_output, remaining_load)
     remaining_load -= hour.dg_to_load
     dg_excess = dg_output - hour.dg_to_load
@@ -355,12 +405,81 @@ def activate_dg(state: SimulationState, params: SimulationParams, hour: HourlyRe
     else:
         hour.dg_curtailed = dg_excess
 
+    # Calculate fuel consumption
+    actual_output = hour.dg_to_load + hour.dg_to_bess
+    hour.dg_fuel_consumed = calculate_dg_fuel(params, actual_output)
+    state.total_dg_fuel_consumed += hour.dg_fuel_consumed
+
+    return remaining_load, charge_power_used
+
+
+def activate_dg_cycle_charging(state: SimulationState, params: SimulationParams,
+                               hour: HourlyResult, remaining_load: float,
+                               charge_power_used: float, mode: str = "CYCLE") -> Tuple[float, float]:
+    """Activate DG in cycle charging mode.
+
+    In cycle charging mode, DG runs at minimum load percentage (default 70%)
+    for efficiency. Excess power is used to charge BESS.
+
+    Returns (remaining_load, charge_power_used).
+    """
+    hour.dg_running = True
+    hour.dg_mode = mode
+    hour.cycle_charging = True
+
+    if not state.dg_was_running:
+        state.total_dg_starts += 1
+    state.total_dg_runtime_hours += 1
+
+    # Calculate minimum DG output for cycle charging
+    min_dg_output = state.dg_capacity * params.cycle_charging_min_load_pct / 100
+    dg_output = max(min_dg_output, remaining_load)  # At least min load or actual need
+
+    # Cap at DG capacity
+    dg_output = min(dg_output, state.dg_capacity)
+    hour.dg_output_mw = dg_output
+
+    # Serve load first
+    hour.dg_to_load = min(dg_output, remaining_load)
+    remaining_load -= hour.dg_to_load
+    dg_excess = dg_output - hour.dg_to_load
+
+    # All excess goes to BESS (cycle charging purpose)
+    if dg_excess > 0 and not state.bess_disabled_today:
+        hour.dg_to_bess, charge_power_used = charge_bess(state, dg_excess, charge_power_used)
+        hour.dg_curtailed = dg_excess - hour.dg_to_bess
+    else:
+        hour.dg_curtailed = dg_excess
+
+    # Calculate fuel consumption
+    actual_output = hour.dg_to_load + hour.dg_to_bess
+    hour.dg_fuel_consumed = calculate_dg_fuel(params, actual_output)
+    state.total_dg_fuel_consumed += hour.dg_fuel_consumed
+
     return remaining_load, charge_power_used
 
 
 # =============================================================================
 # TEMPLATE DISPATCH FUNCTIONS
 # =============================================================================
+
+def should_use_cycle_charging(params: SimulationParams, state: SimulationState) -> bool:
+    """Check if cycle charging mode should be used.
+
+    Cycle charging is used when:
+    1. cycle_charging_enabled is True
+    2. DG needs to run
+    3. BESS SOC is below the off-threshold
+
+    Returns True if cycle charging should be used.
+    """
+    if not params.cycle_charging_enabled:
+        return False
+
+    # Check if BESS SOC is below the cycle charging off threshold
+    soc_pct = (state.soc / state.bess_capacity * 100) if state.bess_capacity > 0 else 100
+    return soc_pct < params.cycle_charging_off_soc
+
 
 def check_dg_takeover(params: SimulationParams, state: SimulationState,
                       hour: HourlyResult, remaining_load: float,
@@ -401,6 +520,7 @@ def check_dg_takeover(params: SimulationParams, state: SimulationState,
     state.total_dg_runtime_hours += 1
 
     hour.dg_to_load = hour.load  # DG serves exactly the load
+    hour.dg_output_mw = hour.load  # DG output matches load
     remaining_load = 0
     hour.dg_curtailed = 0  # No DG curtailment in takeover mode
 
@@ -410,6 +530,10 @@ def check_dg_takeover(params: SimulationParams, state: SimulationState,
         hour.solar_curtailed = total_solar - hour.solar_to_bess
     else:
         hour.solar_curtailed = total_solar
+
+    # Calculate fuel consumption for takeover mode
+    hour.dg_fuel_consumed = calculate_dg_fuel(params, hour.dg_output_mw)
+    state.total_dg_fuel_consumed += hour.dg_fuel_consumed
 
     return True, remaining_load, False, charge_power_used
 
@@ -1048,5 +1172,17 @@ def calculate_metrics(results: List[HourlyResult], params: SimulationParams) -> 
     usable = params.bess_capacity * (params.bess_max_soc - params.bess_min_soc) / 100
     if usable > 0:
         metrics.bess_equivalent_cycles = metrics.bess_throughput / usable
+
+    # Fuel consumption metrics
+    metrics.total_fuel_consumed = sum(r.dg_fuel_consumed for r in results)
+    metrics.cycle_charging_hours = sum(1 for r in results if r.cycle_charging)
+
+    if metrics.dg_runtime_hours > 0:
+        metrics.avg_fuel_rate_lph = metrics.total_fuel_consumed / metrics.dg_runtime_hours
+
+    total_dg_delivered = metrics.total_dg_to_load + metrics.total_dg_to_bess
+    if total_dg_delivered > 0:
+        # L per MWh delivered
+        metrics.specific_fuel_consumption = metrics.total_fuel_consumed / total_dg_delivered
 
     return metrics

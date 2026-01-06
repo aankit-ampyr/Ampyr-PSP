@@ -39,6 +39,24 @@ st.set_page_config(
     layout="wide"
 )
 
+# Custom CSS to reduce metric font sizes to prevent overlapping
+st.markdown("""
+<style>
+    /* Reduce metric value font size */
+    [data-testid="stMetricValue"] {
+        font-size: 1.2rem !important;
+    }
+    /* Reduce metric label font size */
+    [data-testid="stMetricLabel"] {
+        font-size: 0.85rem !important;
+    }
+    /* Reduce metric delta font size */
+    [data-testid="stMetricDelta"] {
+        font-size: 0.75rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Initialize wizard state
 init_wizard_state()
 
@@ -457,26 +475,57 @@ if 'quick_analysis' not in st.session_state:
 
 qa_state = st.session_state.quick_analysis
 
+# Initialize widget keys if they don't exist (first run)
+if 'qa_bess_slider' not in st.session_state:
+    st.session_state.qa_bess_slider = qa_state['bess_capacity']
+if 'qa_bess_input' not in st.session_state:
+    st.session_state.qa_bess_input = qa_state['bess_capacity']
+if 'qa_dg_slider' not in st.session_state:
+    st.session_state.qa_dg_slider = qa_state['dg_capacity']
+if 'qa_dg_input' not in st.session_state:
+    st.session_state.qa_dg_input = qa_state['dg_capacity']
+
+# Callbacks to sync slider and number input values
+def on_bess_slider_change():
+    val = st.session_state.qa_bess_slider
+    st.session_state.qa_bess_input = val
+    st.session_state.quick_analysis['bess_capacity'] = val
+
+def on_bess_input_change():
+    val = st.session_state.qa_bess_input
+    st.session_state.qa_bess_slider = val
+    st.session_state.quick_analysis['bess_capacity'] = val
+
+def on_dg_slider_change():
+    val = st.session_state.qa_dg_slider
+    st.session_state.qa_dg_input = val
+    st.session_state.quick_analysis['dg_capacity'] = val
+
+def on_dg_input_change():
+    val = st.session_state.qa_dg_input
+    st.session_state.qa_dg_slider = val
+    st.session_state.quick_analysis['dg_capacity'] = val
+
 col_config1, col_config2, col_config3 = st.columns(3)
 
 with col_config1:
     st.markdown("**BESS Capacity (MWh)**")
-    bess_capacity = st.slider(
+    st.slider(
         "BESS MWh",
         min_value=10.0, max_value=800.0,
-        value=qa_state['bess_capacity'],
         step=10.0,
         key='qa_bess_slider',
+        on_change=on_bess_slider_change,
         label_visibility="collapsed"
     )
-    bess_capacity = st.number_input(
+    st.number_input(
         "Fine-tune",
         min_value=10.0, max_value=800.0,
-        value=bess_capacity,
         step=5.0,
-        key='qa_bess_input'
+        key='qa_bess_input',
+        on_change=on_bess_input_change
     )
-    qa_state['bess_capacity'] = bess_capacity
+    bess_capacity = qa_state['bess_capacity']
 
 with col_config2:
     st.markdown("**Duration (hours)**")
@@ -495,22 +544,22 @@ with col_config2:
 with col_config3:
     if dg_enabled:
         st.markdown("**DG Capacity (MW)**")
-        dg_capacity = st.slider(
+        st.slider(
             "DG MW",
             min_value=0.0, max_value=50.0,
-            value=qa_state['dg_capacity'],
             step=5.0,
             key='qa_dg_slider',
+            on_change=on_dg_slider_change,
             label_visibility="collapsed"
         )
-        dg_capacity = st.number_input(
+        st.number_input(
             "Fine-tune",
             min_value=0.0, max_value=50.0,
-            value=dg_capacity,
             step=1.0,
-            key='qa_dg_input'
+            key='qa_dg_input',
+            on_change=on_dg_input_change
         )
-        qa_state['dg_capacity'] = dg_capacity
+        dg_capacity = qa_state['dg_capacity']
     else:
         dg_capacity = 0.0
         st.markdown("**DG Capacity**")
