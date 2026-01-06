@@ -166,251 +166,211 @@ if not dg_enabled:
 
 else:
     st.markdown("### How should your system operate?")
-    st.markdown("Answer the questions below to configure your dispatch strategy.")
+    st.markdown("Configure your dispatch strategy using the options below.")
 
-    st.markdown("---")
+    # Get valid triggers based on current timing (needed for Q2)
+    dg_timing_current = rules.get('dg_timing', 'anytime')
+    valid_triggers = get_valid_triggers_for_timing(dg_timing_current)
+    trigger_options = {t[0]: t[1] for t in valid_triggers} if valid_triggers else {'reactive': 'Reactive'}
 
-    # Question 1: When can the generator run?
-    st.markdown("#### 1. When can the generator run?")
+    # ===========================================
+    # ROW 1: Questions 1-3
+    # ===========================================
+    row1_col1, row1_col2, row1_col3 = st.columns(3)
 
-    dg_timing_options = {
-        'anytime': "Anytime (no restrictions)",
-        'day_only': "Day only (nights must be silent)",
-        'night_only': "Night only (days must be green)",
-        'custom_blackout': "Custom blackout window",
-    }
+    # --- Q1: DG Timing ---
+    with row1_col1:
+        with st.container(border=True):
+            st.markdown("##### 1. When can DG run?")
+            st.caption("📊 **Impact:** Restricts DG to specific hours. Affects green hours vs DG hours balance.")
 
-    dg_timing = st.radio(
-        "Select when the generator is allowed to operate:",
-        options=list(dg_timing_options.keys()),
-        format_func=lambda x: dg_timing_options[x],
-        index=list(dg_timing_options.keys()).index(rules['dg_timing']),
-        key='dg_timing_radio'
-    )
-    update_wizard_state('rules', 'dg_timing', dg_timing)
+            dg_timing_options = {
+                'anytime': "Anytime",
+                'day_only': "Day only",
+                'night_only': "Night only",
+                'custom_blackout': "Custom blackout",
+            }
 
-    # Show time window settings if applicable
-    if dg_timing == 'day_only':
-        col1, col2 = st.columns(2)
-        with col1:
-            day_start = st.slider(
-                "Day starts at",
-                min_value=0, max_value=23,
-                value=rules['day_start'],
-                key='day_start_slider'
+            dg_timing = st.radio(
+                "DG timing:",
+                options=list(dg_timing_options.keys()),
+                format_func=lambda x: dg_timing_options[x],
+                index=list(dg_timing_options.keys()).index(rules['dg_timing']),
+                key='dg_timing_radio',
+                label_visibility="collapsed"
             )
-            update_wizard_state('rules', 'day_start', day_start)
-        with col2:
-            day_end = st.slider(
-                "Day ends at",
-                min_value=0, max_value=23,
-                value=rules['day_end'],
-                key='day_end_slider'
+            update_wizard_state('rules', 'dg_timing', dg_timing)
+
+            # Time window settings
+            if dg_timing == 'day_only':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    day_start = st.slider("Start", 0, 23, rules['day_start'], key='day_start_slider')
+                    update_wizard_state('rules', 'day_start', day_start)
+                with tc2:
+                    day_end = st.slider("End", 0, 23, rules['day_end'], key='day_end_slider')
+                    update_wizard_state('rules', 'day_end', day_end)
+            elif dg_timing == 'night_only':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    night_start = st.slider("Start", 0, 23, rules['night_start'], key='night_start_slider')
+                    update_wizard_state('rules', 'night_start', night_start)
+                with tc2:
+                    night_end = st.slider("End", 0, 23, rules['night_end'], key='night_end_slider')
+                    update_wizard_state('rules', 'night_end', night_end)
+            elif dg_timing == 'custom_blackout':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    blackout_start = st.slider("Blackout from", 0, 23, rules['blackout_start'], key='blackout_start_slider')
+                    update_wizard_state('rules', 'blackout_start', blackout_start)
+                with tc2:
+                    blackout_end = st.slider("Until", 0, 23, rules['blackout_end'], key='blackout_end_slider')
+                    update_wizard_state('rules', 'blackout_end', blackout_end)
+
+    # --- Q2: DG Trigger ---
+    with row1_col2:
+        with st.container(border=True):
+            st.markdown("##### 2. What triggers DG?")
+            st.caption("📊 **Impact:** Controls DG start frequency. Affects DG runtime hours and start count.")
+
+            # Update valid triggers based on new timing
+            valid_triggers = get_valid_triggers_for_timing(dg_timing)
+            trigger_options = {t[0]: t[1] for t in valid_triggers}
+
+            current_trigger = rules['dg_trigger']
+            if current_trigger not in trigger_options:
+                current_trigger = list(trigger_options.keys())[0]
+                update_wizard_state('rules', 'dg_trigger', current_trigger)
+
+            dg_trigger = st.radio(
+                "DG trigger:",
+                options=list(trigger_options.keys()),
+                format_func=lambda x: trigger_options[x],
+                index=list(trigger_options.keys()).index(current_trigger),
+                key='dg_trigger_radio',
+                label_visibility="collapsed"
             )
-            update_wizard_state('rules', 'day_end', day_end)
+            update_wizard_state('rules', 'dg_trigger', dg_trigger)
 
-    elif dg_timing == 'night_only':
-        col1, col2 = st.columns(2)
-        with col1:
-            night_start = st.slider(
-                "Night starts at",
-                min_value=0, max_value=23,
-                value=rules['night_start'],
-                key='night_start_slider'
+            # SoC thresholds
+            if dg_trigger == 'soc_based':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    soc_on = st.slider(
+                        "ON below %", int(setup['bess_min_soc']), int(setup['bess_max_soc']) - 10,
+                        int(rules['soc_on_threshold']), step=5, key='soc_on_slider'
+                    )
+                    update_wizard_state('rules', 'soc_on_threshold', float(soc_on))
+                with tc2:
+                    soc_off = st.slider(
+                        "OFF above %", soc_on + 10, int(setup['bess_max_soc']),
+                        max(int(rules['soc_off_threshold']), soc_on + 10), step=5, key='soc_off_slider'
+                    )
+                    update_wizard_state('rules', 'soc_off_threshold', float(soc_off))
+
+    # --- Q3: DG Charges BESS ---
+    with row1_col3:
+        with st.container(border=True):
+            st.markdown("##### 3. Can DG charge battery?")
+            st.caption("📊 **Impact:** If Yes, excess DG power charges BESS. Can reduce solar wastage but increases DG fuel use.")
+
+            dg_charges_bess = st.radio(
+                "DG charging:",
+                options=[False, True],
+                format_func=lambda x: "Yes — excess charges BESS" if x else "No — solar only",
+                index=1 if rules['dg_charges_bess'] else 0,
+                key='dg_charges_bess_radio',
+                label_visibility="collapsed"
             )
-            update_wizard_state('rules', 'night_start', night_start)
-        with col2:
-            night_end = st.slider(
-                "Night ends at",
-                min_value=0, max_value=23,
-                value=rules['night_end'],
-                key='night_end_slider'
+            update_wizard_state('rules', 'dg_charges_bess', dg_charges_bess)
+
+    # ===========================================
+    # ROW 2: Questions 4-6
+    # ===========================================
+    row2_col1, row2_col2, row2_col3 = st.columns(3)
+
+    # --- Q4: Load Priority ---
+    with row2_col1:
+        with st.container(border=True):
+            st.markdown("##### 4. Load serving priority?")
+            st.caption("📊 **Impact:** BESS First = more BESS cycles, less DG runtime. DG First = fewer cycles, more fuel.")
+
+            dg_load_priority = st.radio(
+                "Priority:",
+                options=['bess_first', 'dg_first'],
+                format_func=lambda x: "BESS First" if x == 'bess_first' else "DG First",
+                index=0 if rules.get('dg_load_priority', 'bess_first') == 'bess_first' else 1,
+                key='dg_load_priority_radio',
+                label_visibility="collapsed"
             )
-            update_wizard_state('rules', 'night_end', night_end)
+            update_wizard_state('rules', 'dg_load_priority', dg_load_priority)
 
-    elif dg_timing == 'custom_blackout':
-        col1, col2 = st.columns(2)
-        with col1:
-            blackout_start = st.slider(
-                "Blackout starts at",
-                min_value=0, max_value=23,
-                value=rules['blackout_start'],
-                key='blackout_start_slider'
+            if dg_load_priority == 'bess_first':
+                st.caption("Solar → BESS → DG")
+            else:
+                st.caption("Solar → DG → BESS")
+
+    # --- Q5: Takeover Mode ---
+    with row2_col2:
+        with st.container(border=True):
+            st.markdown("##### 5. DG takeover mode?")
+            st.caption("📊 **Impact:** If Yes, DG serves full load when ON. Solar goes to BESS, reducing wastage.")
+
+            dg_takeover_mode = st.radio(
+                "Takeover:",
+                options=[False, True],
+                format_func=lambda x: "Yes — DG serves full load" if x else "No — DG fills gap",
+                index=1 if rules.get('dg_takeover_mode', True) else 0,
+                key='dg_takeover_mode_radio',
+                label_visibility="collapsed"
             )
-            update_wizard_state('rules', 'blackout_start', blackout_start)
-        with col2:
-            blackout_end = st.slider(
-                "Blackout ends at",
-                min_value=0, max_value=23,
-                value=rules['blackout_end'],
-                key='blackout_end_slider'
-            )
-            update_wizard_state('rules', 'blackout_end', blackout_end)
-        st.caption(f"Generator cannot run from {blackout_start}:00 to {blackout_end}:00")
+            update_wizard_state('rules', 'dg_takeover_mode', dg_takeover_mode)
 
-    st.markdown("---")
+            if dg_takeover_mode:
+                st.caption("DG → Load, Solar → BESS")
 
-    # Question 2: What triggers the generator?
-    st.markdown("#### 2. What triggers the generator to start?")
+    # --- Q6: Cycle Charging ---
+    # Only show if DG is in Variable mode (not Binary mode)
+    dg_operating_mode = setup.get('dg_operating_mode', 'binary')
+    with row2_col3:
+        with st.container(border=True):
+            st.markdown("##### 6. Cycle charging mode?")
 
-    # Get valid triggers based on timing
-    valid_triggers = get_valid_triggers_for_timing(dg_timing)
+            if dg_operating_mode == 'binary':
+                st.caption("⚠️ Not available in Binary DG mode (DG always runs at 100%).")
+                st.info("Switch to **Variable** DG mode in Step 1 to enable cycle charging.")
+                cycle_charging = False
+                update_wizard_state('rules', 'cycle_charging_enabled', False)
+            else:
+                st.caption("📊 **Impact:** If Yes, DG runs at higher load for fuel efficiency. Excess charges BESS.")
 
-    if len(valid_triggers) > 0:
-        trigger_options = {t[0]: t[1] for t in valid_triggers}
-
-        # Set default if current selection is not valid
-        current_trigger = rules['dg_trigger']
-        if current_trigger not in trigger_options:
-            current_trigger = list(trigger_options.keys())[0]
-            update_wizard_state('rules', 'dg_trigger', current_trigger)
-
-        dg_trigger = st.radio(
-            "Select what triggers the generator:",
-            options=list(trigger_options.keys()),
-            format_func=lambda x: trigger_options[x],
-            index=list(trigger_options.keys()).index(current_trigger),
-            key='dg_trigger_radio'
-        )
-        update_wizard_state('rules', 'dg_trigger', dg_trigger)
-
-        # Show SoC thresholds if SoC-based
-        if dg_trigger == 'soc_based':
-            st.markdown("**SoC Thresholds:**")
-            col1, col2 = st.columns(2)
-            with col1:
-                soc_on = st.slider(
-                    "Turn ON when SOC drops below (%)",
-                    min_value=int(setup['bess_min_soc']),
-                    max_value=int(setup['bess_max_soc']) - 10,
-                    value=int(rules['soc_on_threshold']),
-                    step=5,
-                    key='soc_on_slider'
+                cycle_charging = st.radio(
+                    "Cycle charging:",
+                    options=[False, True],
+                    format_func=lambda x: "Yes — DG at min load %" if x else "No — DG follows load",
+                    index=1 if rules.get('cycle_charging_enabled', False) else 0,
+                    key='cycle_charging_radio',
+                    label_visibility="collapsed"
                 )
-                update_wizard_state('rules', 'soc_on_threshold', float(soc_on))
-            with col2:
-                soc_off = st.slider(
-                    "Turn OFF when SOC reaches (%)",
-                    min_value=soc_on + 10,
-                    max_value=int(setup['bess_max_soc']),
-                    value=max(int(rules['soc_off_threshold']), soc_on + 10),
-                    step=5,
-                    key='soc_off_slider'
-                )
-                update_wizard_state('rules', 'soc_off_threshold', float(soc_off))
+                update_wizard_state('rules', 'cycle_charging_enabled', cycle_charging)
 
-            deadband = soc_off - soc_on
-            if deadband < 20:
-                st.warning(f"⚠️ Small deadband ({deadband}%) may cause frequent DG cycling")
-
-        elif dg_trigger == 'proactive':
-            st.info("Generator will start at the beginning of the allowed window and charge the battery proactively.")
-
-    st.markdown("---")
-
-    # Question 3: Can DG charge the battery?
-    st.markdown("#### 3. Can the generator charge the battery?")
-
-    dg_charges_bess = st.radio(
-        "Can excess generator power charge the battery?",
-        options=[False, True],
-        format_func=lambda x: "Yes — excess generator power can charge battery" if x else "No — battery charges from solar only",
-        index=1 if rules['dg_charges_bess'] else 0,
-        key='dg_charges_bess_radio'
-    )
-    update_wizard_state('rules', 'dg_charges_bess', dg_charges_bess)
-
-    st.markdown("---")
-
-    # Question 4: Load serving priority
-    st.markdown("#### 4. When DG runs, how should it serve the load?")
-
-    dg_load_priority = st.radio(
-        "Select the load-serving priority:",
-        options=['bess_first', 'dg_first'],
-        format_func=lambda x: {
-            'bess_first': "BESS First — Battery serves load, DG fills remaining gap",
-            'dg_first': "DG First — Generator serves load directly, excess charges BESS"
-        }[x],
-        index=0 if rules.get('dg_load_priority', 'bess_first') == 'bess_first' else 1,
-        key='dg_load_priority_radio'
-    )
-    update_wizard_state('rules', 'dg_load_priority', dg_load_priority)
-
-    if dg_load_priority == 'bess_first':
-        st.caption("Merit order: Solar → BESS → DG → Unserved")
-    else:
-        st.caption("Merit order: Solar → DG → BESS → Unserved")
-
-    st.markdown("---")
-
-    # Question 5: DG Takeover Mode
-    st.markdown("#### 5. When DG runs, should it take over full load?")
-
-    dg_takeover_mode = st.radio(
-        "Select DG takeover behavior:",
-        options=[False, True],
-        format_func=lambda x: {
-            False: "No — DG fills gap only (standard)",
-            True: "Yes — DG serves full load, solar goes to BESS"
-        }[x],
-        index=1 if rules.get('dg_takeover_mode', False) else 0,
-        key='dg_takeover_mode_radio'
-    )
-    update_wizard_state('rules', 'dg_takeover_mode', dg_takeover_mode)
-
-    if dg_takeover_mode:
-        st.caption("When DG runs: DG → Load (full), Solar → BESS. Zero DG curtailment.")
-    else:
-        st.caption("When DG runs: DG fills gap between (Solar + BESS) and Load.")
-
-    st.markdown("---")
-
-    # Question 6: Cycle Charging Mode
-    st.markdown("#### 6. Enable Cycle Charging Mode?")
-
-    cycle_charging = st.radio(
-        "When DG runs, should it operate at high load for efficiency?",
-        options=[False, True],
-        format_func=lambda x: {
-            False: "No — DG follows load (standard)",
-            True: "Yes — DG runs at minimum load %, excess charges BESS"
-        }[x],
-        index=1 if rules.get('cycle_charging_enabled', False) else 0,
-        key='cycle_charging_radio'
-    )
-    update_wizard_state('rules', 'cycle_charging_enabled', cycle_charging)
-
-    if cycle_charging:
-        col1, col2 = st.columns(2)
-        with col1:
-            min_load = st.slider(
-                "Minimum DG Load (%)",
-                min_value=50,
-                max_value=90,
-                value=int(rules.get('cycle_charging_min_load_pct', 70)),
-                step=5,
-                help="DG will run at least at this load level when ON",
-                key='cycle_min_load_slider'
-            )
-            update_wizard_state('rules', 'cycle_charging_min_load_pct', float(min_load))
-
-        with col2:
-            off_soc = st.slider(
-                "Stop Charging at SOC (%)",
-                min_value=int(rules.get('soc_on_threshold', 30)) + 20,
-                max_value=int(setup['bess_max_soc']),
-                value=int(rules.get('cycle_charging_off_soc', 80)),
-                step=5,
-                help="DG stops when BESS reaches this SOC",
-                key='cycle_off_soc_slider'
-            )
-            update_wizard_state('rules', 'cycle_charging_off_soc', float(off_soc))
-
-        st.info(f"DG will run at ≥{min_load}% load when ON, charging BESS until {off_soc}% SOC. "
-                "This improves fuel efficiency by avoiding partial loading.")
-    else:
-        st.caption("DG output matches load demand (may run at inefficient partial loads)")
+                if cycle_charging:
+                    tc1, tc2 = st.columns(2)
+                    with tc1:
+                        min_load = st.slider(
+                            "Min load %", 50, 90,
+                            int(rules.get('cycle_charging_min_load_pct', 70)), step=5,
+                            key='cycle_min_load_slider'
+                        )
+                        update_wizard_state('rules', 'cycle_charging_min_load_pct', float(min_load))
+                    with tc2:
+                        off_soc = st.slider(
+                            "Stop SOC %",
+                            int(rules.get('soc_on_threshold', 30)) + 20, int(setup['bess_max_soc']),
+                            int(rules.get('cycle_charging_off_soc', 80)), step=5,
+                            key='cycle_off_soc_slider'
+                        )
+                        update_wizard_state('rules', 'cycle_charging_off_soc', float(off_soc))
 
     st.markdown("---")
 

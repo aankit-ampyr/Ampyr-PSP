@@ -20,7 +20,8 @@ from src.wizard_state import (
     init_wizard_state, get_wizard_state, update_wizard_state,
     update_wizard_section, set_current_step, mark_step_completed,
     validate_step_3, get_step_status, can_navigate_to_step,
-    count_configurations, estimate_simulation_time, build_simulation_params
+    count_configurations, estimate_simulation_time, build_simulation_params,
+    sync_quick_analysis_rules
 )
 from src.template_inference import get_template_info
 from src.load_builder import build_load_profile
@@ -569,6 +570,9 @@ if run_button:
 
         status_text.text("✅ Simulation complete!")
         st.success(f"Completed {len(results_df)} configurations")
+
+        # Sync dispatch rules to Quick Analysis page
+        sync_quick_analysis_rules()
 
         # Mark step complete and navigate
         mark_step_completed(3)

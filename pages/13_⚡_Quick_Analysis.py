@@ -22,7 +22,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.wizard_state import (
     init_wizard_state, get_wizard_state, update_wizard_state,
-    can_navigate_to_step, get_step_status
+    can_navigate_to_step, get_step_status,
+    get_quick_analysis_rules, update_quick_analysis_rule
 )
 from src.template_inference import (
     infer_template, get_template_info, get_valid_triggers_for_timing
@@ -309,7 +310,8 @@ st.divider()
 # Get current state
 state = get_wizard_state()
 setup = state['setup']
-rules = state['rules']
+# Use Quick Analysis's own copy of rules (synced from Step 2 when simulation runs)
+rules = get_quick_analysis_rules()
 
 dg_enabled = setup['dg_enabled']
 
@@ -320,6 +322,13 @@ dg_enabled = setup['dg_enabled']
 
 st.header("1️⃣ Dispatch Rules")
 
+# Show sync status
+qa_state = state['quick_analysis']
+if qa_state.get('rules_synced', False):
+    st.caption("✓ Rules synced from Step 2 (Sizing Simulation). You can modify them independently here.")
+else:
+    st.caption("Rules will sync from Step 2 when you run the Sizing Simulation, or you can configure them here.")
+
 if not dg_enabled:
     st.info("Your system has no generator. The dispatch strategy is **Solar + BESS Only**.")
     render_template_card(0)
@@ -327,140 +336,216 @@ if not dg_enabled:
     dg_charges_bess = False
     dg_load_priority = 'bess_first'
 else:
-    col_rules1, col_rules2 = st.columns(2)
+    # Get valid triggers based on current timing
+    dg_timing_current = rules.get('dg_timing', 'anytime')
+    valid_triggers = get_valid_triggers_for_timing(dg_timing_current)
+    trigger_options = {t[0]: t[1] for t in valid_triggers} if valid_triggers else {'reactive': 'Reactive'}
 
-    with col_rules1:
-        # Question 1: DG Timing
-        st.markdown("**When can the generator run?**")
-        dg_timing_options = {
-            'anytime': "Anytime (no restrictions)",
-            'day_only': "Day only (nights must be silent)",
-            'night_only': "Night only (days must be green)",
-            'custom_blackout': "Custom blackout window",
-        }
-        dg_timing = st.radio(
-            "DG timing:",
-            options=list(dg_timing_options.keys()),
-            format_func=lambda x: dg_timing_options[x],
-            index=list(dg_timing_options.keys()).index(rules.get('dg_timing', 'anytime')),
-            key='qa_dg_timing',
-            label_visibility="collapsed"
-        )
-        update_wizard_state('rules', 'dg_timing', dg_timing)
+    # ===========================================
+    # ROW 1: Questions 1-3
+    # ===========================================
+    row1_col1, row1_col2, row1_col3 = st.columns(3)
 
-        # Time window settings
-        if dg_timing == 'day_only':
-            tc1, tc2 = st.columns(2)
-            with tc1:
-                day_start = st.slider("Day starts", 0, 23, rules.get('day_start', 6), key='qa_day_start')
-                update_wizard_state('rules', 'day_start', day_start)
-            with tc2:
-                day_end = st.slider("Day ends", 0, 23, rules.get('day_end', 18), key='qa_day_end')
-                update_wizard_state('rules', 'day_end', day_end)
-        elif dg_timing == 'night_only':
-            tc1, tc2 = st.columns(2)
-            with tc1:
-                night_start = st.slider("Night starts", 0, 23, rules.get('night_start', 18), key='qa_night_start')
-                update_wizard_state('rules', 'night_start', night_start)
-            with tc2:
-                night_end = st.slider("Night ends", 0, 23, rules.get('night_end', 6), key='qa_night_end')
-                update_wizard_state('rules', 'night_end', night_end)
-        elif dg_timing == 'custom_blackout':
-            tc1, tc2 = st.columns(2)
-            with tc1:
-                blackout_start = st.slider("Blackout starts", 0, 23, rules.get('blackout_start', 22), key='qa_blackout_start')
-                update_wizard_state('rules', 'blackout_start', blackout_start)
-            with tc2:
-                blackout_end = st.slider("Blackout ends", 0, 23, rules.get('blackout_end', 6), key='qa_blackout_end')
-                update_wizard_state('rules', 'blackout_end', blackout_end)
+    # --- Q1: DG Timing ---
+    with row1_col1:
+        with st.container(border=True):
+            st.markdown("##### 1. When can DG run?")
+            st.caption("📊 **Impact:** Restricts DG to specific hours. Affects green hours vs DG hours balance.")
 
-        # Question 2: DG Trigger
-        st.markdown("**What triggers the generator?**")
-        valid_triggers = get_valid_triggers_for_timing(dg_timing)
-        trigger_options = {t[0]: t[1] for t in valid_triggers}
+            dg_timing_options = {
+                'anytime': "Anytime",
+                'day_only': "Day only",
+                'night_only': "Night only",
+                'custom_blackout': "Custom blackout",
+            }
 
-        current_trigger = rules.get('dg_trigger', 'reactive')
-        if current_trigger not in trigger_options:
-            current_trigger = list(trigger_options.keys())[0]
-            update_wizard_state('rules', 'dg_trigger', current_trigger)
+            dg_timing = st.radio(
+                "DG timing:",
+                options=list(dg_timing_options.keys()),
+                format_func=lambda x: dg_timing_options[x],
+                index=list(dg_timing_options.keys()).index(rules.get('dg_timing', 'anytime')),
+                key='qa_dg_timing',
+                label_visibility="collapsed"
+            )
+            update_quick_analysis_rule('dg_timing', dg_timing)
 
-        dg_trigger = st.radio(
-            "DG trigger:",
-            options=list(trigger_options.keys()),
-            format_func=lambda x: trigger_options[x],
-            index=list(trigger_options.keys()).index(current_trigger),
-            key='qa_dg_trigger',
-            label_visibility="collapsed"
-        )
-        update_wizard_state('rules', 'dg_trigger', dg_trigger)
+            # Time window settings
+            if dg_timing == 'day_only':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    day_start = st.slider("Start", 0, 23, rules.get('day_start', 6), key='qa_day_start')
+                    update_quick_analysis_rule('day_start', day_start)
+                with tc2:
+                    day_end = st.slider("End", 0, 23, rules.get('day_end', 18), key='qa_day_end')
+                    update_quick_analysis_rule('day_end', day_end)
+            elif dg_timing == 'night_only':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    night_start = st.slider("Start", 0, 23, rules.get('night_start', 18), key='qa_night_start')
+                    update_quick_analysis_rule('night_start', night_start)
+                with tc2:
+                    night_end = st.slider("End", 0, 23, rules.get('night_end', 6), key='qa_night_end')
+                    update_quick_analysis_rule('night_end', night_end)
+            elif dg_timing == 'custom_blackout':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    blackout_start = st.slider("Blackout from", 0, 23, rules.get('blackout_start', 22), key='qa_blackout_start')
+                    update_quick_analysis_rule('blackout_start', blackout_start)
+                with tc2:
+                    blackout_end = st.slider("Until", 0, 23, rules.get('blackout_end', 6), key='qa_blackout_end')
+                    update_quick_analysis_rule('blackout_end', blackout_end)
 
-        # SOC thresholds
-        if dg_trigger == 'soc_based':
-            st.markdown("**SOC Thresholds:**")
-            soc_col1, soc_col2 = st.columns(2)
-            with soc_col1:
-                soc_on = st.slider(
-                    "DG ON below (%)",
-                    int(setup['bess_min_soc']), int(setup['bess_max_soc']) - 10,
-                    int(rules.get('soc_on_threshold', 30)), step=5, key='qa_soc_on'
+    # --- Q2: DG Trigger ---
+    with row1_col2:
+        with st.container(border=True):
+            st.markdown("##### 2. What triggers DG?")
+            st.caption("📊 **Impact:** Controls DG start frequency. Affects DG runtime hours and start count.")
+
+            # Update valid triggers based on new timing
+            valid_triggers = get_valid_triggers_for_timing(dg_timing)
+            trigger_options = {t[0]: t[1] for t in valid_triggers}
+
+            current_trigger = rules.get('dg_trigger', 'reactive')
+            if current_trigger not in trigger_options:
+                current_trigger = list(trigger_options.keys())[0]
+                update_quick_analysis_rule('dg_trigger', current_trigger)
+
+            dg_trigger = st.radio(
+                "DG trigger:",
+                options=list(trigger_options.keys()),
+                format_func=lambda x: trigger_options[x],
+                index=list(trigger_options.keys()).index(current_trigger),
+                key='qa_dg_trigger',
+                label_visibility="collapsed"
+            )
+            update_quick_analysis_rule('dg_trigger', dg_trigger)
+
+            # SoC thresholds
+            if dg_trigger == 'soc_based':
+                tc1, tc2 = st.columns(2)
+                with tc1:
+                    soc_on = st.slider(
+                        "ON below %", int(setup['bess_min_soc']), int(setup['bess_max_soc']) - 10,
+                        int(rules.get('soc_on_threshold', 30)), step=5, key='qa_soc_on'
+                    )
+                    update_quick_analysis_rule('soc_on_threshold', float(soc_on))
+                with tc2:
+                    soc_off = st.slider(
+                        "OFF above %", soc_on + 10, int(setup['bess_max_soc']),
+                        max(int(rules.get('soc_off_threshold', 80)), soc_on + 10), step=5, key='qa_soc_off'
+                    )
+                    update_quick_analysis_rule('soc_off_threshold', float(soc_off))
+
+    # --- Q3: DG Charges BESS ---
+    with row1_col3:
+        with st.container(border=True):
+            st.markdown("##### 3. Can DG charge battery?")
+            st.caption("📊 **Impact:** If Yes, excess DG power charges BESS. Can reduce solar wastage but increases DG fuel use.")
+
+            dg_charges_bess = st.radio(
+                "DG charging:",
+                options=[False, True],
+                format_func=lambda x: "Yes — excess charges BESS" if x else "No — solar only",
+                index=1 if rules.get('dg_charges_bess', False) else 0,
+                key='qa_dg_charges',
+                label_visibility="collapsed"
+            )
+            update_quick_analysis_rule('dg_charges_bess', dg_charges_bess)
+
+    # ===========================================
+    # ROW 2: Questions 4-6
+    # ===========================================
+    row2_col1, row2_col2, row2_col3 = st.columns(3)
+
+    # --- Q4: Load Priority ---
+    with row2_col1:
+        with st.container(border=True):
+            st.markdown("##### 4. Load serving priority?")
+            st.caption("📊 **Impact:** BESS First = more BESS cycles, less DG runtime. DG First = fewer cycles, more fuel.")
+
+            dg_load_priority = st.radio(
+                "Priority:",
+                options=['bess_first', 'dg_first'],
+                format_func=lambda x: "BESS First" if x == 'bess_first' else "DG First",
+                index=0 if rules.get('dg_load_priority', 'bess_first') == 'bess_first' else 1,
+                key='qa_load_priority',
+                label_visibility="collapsed"
+            )
+            update_quick_analysis_rule('dg_load_priority', dg_load_priority)
+
+            if dg_load_priority == 'bess_first':
+                st.caption("Solar → BESS → DG")
+            else:
+                st.caption("Solar → DG → BESS")
+
+    # --- Q5: Takeover Mode ---
+    with row2_col2:
+        with st.container(border=True):
+            st.markdown("##### 5. DG takeover mode?")
+            st.caption("📊 **Impact:** If Yes, DG serves full load when ON. Solar goes to BESS, reducing wastage.")
+
+            dg_takeover_mode = st.radio(
+                "Takeover:",
+                options=[False, True],
+                format_func=lambda x: "Yes — DG serves full load" if x else "No — DG fills gap",
+                index=1 if rules.get('dg_takeover_mode', True) else 0,
+                key='qa_dg_takeover',
+                label_visibility="collapsed"
+            )
+            update_quick_analysis_rule('dg_takeover_mode', dg_takeover_mode)
+
+            if dg_takeover_mode:
+                st.caption("DG → Load, Solar → BESS")
+
+    # --- Q6: Cycle Charging ---
+    dg_operating_mode = setup.get('dg_operating_mode', 'binary')
+    with row2_col3:
+        with st.container(border=True):
+            st.markdown("##### 6. Cycle charging mode?")
+
+            if dg_operating_mode == 'binary':
+                # Binary mode: DG runs at 100% or OFF, cycle charging not applicable
+                st.caption("⚠️ Not available in Binary DG mode (DG always runs at 100%).")
+                st.info("Switch to **Variable** DG mode in Step 1 to enable cycle charging.")
+                cycle_charging = False
+                update_quick_analysis_rule('cycle_charging_enabled', False)
+            else:
+                # Variable mode: cycle charging is valid
+                st.caption("📊 **Impact:** If Yes, DG runs at higher load for fuel efficiency. Excess charges BESS.")
+
+                cycle_charging = st.radio(
+                    "Cycle charging:",
+                    options=[False, True],
+                    format_func=lambda x: "Yes — DG at min load %" if x else "No — DG follows load",
+                    index=1 if rules.get('cycle_charging_enabled', False) else 0,
+                    key='qa_cycle_charging',
+                    label_visibility="collapsed"
                 )
-                update_wizard_state('rules', 'soc_on_threshold', float(soc_on))
-            with soc_col2:
-                soc_off = st.slider(
-                    "DG OFF above (%)",
-                    soc_on + 10, int(setup['bess_max_soc']),
-                    max(int(rules.get('soc_off_threshold', 80)), soc_on + 10), step=5, key='qa_soc_off'
-                )
-                update_wizard_state('rules', 'soc_off_threshold', float(soc_off))
+                update_quick_analysis_rule('cycle_charging_enabled', cycle_charging)
 
-    with col_rules2:
-        # Question 3: DG charges BESS
-        st.markdown("**Can DG charge the battery?**")
-        dg_charges_bess = st.radio(
-            "DG charging:",
-            options=[False, True],
-            format_func=lambda x: "Yes — excess DG charges battery" if x else "No — solar only charges battery",
-            index=1 if rules.get('dg_charges_bess', False) else 0,
-            key='qa_dg_charges',
-            label_visibility="collapsed"
-        )
-        update_wizard_state('rules', 'dg_charges_bess', dg_charges_bess)
+                if cycle_charging:
+                    tc1, tc2 = st.columns(2)
+                    with tc1:
+                        min_load = st.slider(
+                            "Min load %", 50, 90,
+                            int(rules.get('cycle_charging_min_load_pct', 70)), step=5,
+                            key='qa_cycle_min_load'
+                        )
+                        update_quick_analysis_rule('cycle_charging_min_load_pct', float(min_load))
+                    with tc2:
+                        off_soc = st.slider(
+                            "Stop SOC %",
+                            int(rules.get('soc_on_threshold', 30)) + 20, int(setup['bess_max_soc']),
+                            int(rules.get('cycle_charging_off_soc', 80)), step=5,
+                            key='qa_cycle_off_soc'
+                        )
+                        update_quick_analysis_rule('cycle_charging_off_soc', float(off_soc))
 
-        # Question 4: Load priority
-        st.markdown("**Load serving priority:**")
-        dg_load_priority = st.radio(
-            "Priority:",
-            options=['bess_first', 'dg_first'],
-            format_func=lambda x: {
-                'bess_first': "BESS First — Battery serves load, DG fills gap",
-                'dg_first': "DG First — Generator serves load directly"
-            }[x],
-            index=0 if rules.get('dg_load_priority', 'bess_first') == 'bess_first' else 1,
-            key='qa_load_priority',
-            label_visibility="collapsed"
-        )
-        update_wizard_state('rules', 'dg_load_priority', dg_load_priority)
-
-        # Question 5: DG Takeover Mode
-        st.markdown("**DG Takeover Mode:**")
-        dg_takeover_mode = st.radio(
-            "Takeover:",
-            options=[False, True],
-            format_func=lambda x: "Yes — DG serves full load, solar goes to BESS" if x else "No — DG fills gap only (standard)",
-            index=1 if rules.get('dg_takeover_mode', False) else 0,
-            key='qa_dg_takeover',
-            label_visibility="collapsed"
-        )
-        update_wizard_state('rules', 'dg_takeover_mode', dg_takeover_mode)
-
-        if dg_takeover_mode:
-            st.caption("When DG runs: DG → Load (full), Solar → BESS. Zero DG curtailment.")
-
-        # Template card
-        st.markdown("**Dispatch Strategy:**")
-        template_id = infer_template(dg_enabled=True, dg_timing=dg_timing, dg_trigger=dg_trigger)
-        update_wizard_state('rules', 'inferred_template', template_id)
-        render_template_card(template_id, dg_charges_bess, dg_load_priority)
+    # Template card (full width below grid)
+    st.markdown("---")
+    template_id = infer_template(dg_enabled=True, dg_timing=dg_timing, dg_trigger=dg_trigger)
+    update_quick_analysis_rule('inferred_template', template_id)
+    render_template_card(template_id, dg_charges_bess, dg_load_priority)
 
 st.divider()
 
@@ -693,7 +778,6 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         # Monthly delivery chart
         st.markdown("#### Monthly Delivery Performance")
 
-        # Calculate monthly stats
         # Calculate month from hour index using non-leap year (2023) to match 8760 hours / 365 days
         full_year_df['month'] = full_year_df['hour'].apply(
             lambda h: min(11, (date(2023, 1, 1) + timedelta(hours=h)).month - 1)
@@ -702,55 +786,107 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+        # Calculate monthly stats with ENERGY (MWh) instead of hours
         monthly_stats = full_year_df.groupby('month').agg({
             'delivery': lambda x: (x == 'Yes').sum(),
-            'dg_state': lambda x: (x == 'ON').sum(),
-            'solar_to_load': lambda x: (x > 0).sum(),
-            'bess_to_load': lambda x: (x > 0).sum(),
-            'dg_to_load': lambda x: (x > 0).sum(),
             'load_mw': lambda x: (x > 0).sum(),  # Count hours with actual load
-            'hour': 'count'
+            'hour': 'count',
+            # Energy delivered by each source (MWh)
+            'solar_to_load': ['sum', lambda x: (x > 0).sum()],  # MWh and hours
+            'bess_to_load': ['sum', lambda x: (x > 0).sum()],
+            'dg_to_load': ['sum', lambda x: (x > 0).sum()],
+            # Solar curtailed
+            'solar_curtailed': 'sum',
         }).reset_index()
-        monthly_stats.columns = ['month', 'delivery_hours', 'dg_runtime_hours', 'solar_hrs', 'bess_hrs', 'dg_hrs', 'load_hours', 'total_hours']
-        # Calculate delivery % based on load hours (not total hours) for seasonal patterns
+
+        # Flatten column names
+        monthly_stats.columns = [
+            'month', 'delivery_hours', 'load_hours', 'total_hours',
+            'solar_mwh', 'solar_hrs', 'bess_mwh', 'bess_hrs', 'dg_mwh', 'dg_hrs',
+            'solar_curtailed_mwh'
+        ]
+
+        # Calculate total energy delivered to load each month
+        monthly_stats['total_load_mwh'] = (
+            monthly_stats['solar_mwh'] + monthly_stats['bess_mwh'] + monthly_stats['dg_mwh']
+        )
+
+        # Calculate percentage contribution by each source
+        monthly_stats['solar_pct'] = (monthly_stats['solar_mwh'] / monthly_stats['total_load_mwh'] * 100).fillna(0)
+        monthly_stats['bess_pct'] = (monthly_stats['bess_mwh'] / monthly_stats['total_load_mwh'] * 100).fillna(0)
+        monthly_stats['dg_pct'] = (monthly_stats['dg_mwh'] / monthly_stats['total_load_mwh'] * 100).fillna(0)
+
+        # Delivery % based on load hours
         monthly_stats['effective_hours'] = monthly_stats['load_hours'].apply(lambda x: x if x > 0 else 1)
         monthly_stats['delivery_pct'] = (monthly_stats['delivery_hours'] / monthly_stats['effective_hours'] * 100).clip(0, 100)
         monthly_stats['month_name'] = monthly_stats['month'].apply(lambda x: month_names[x])
 
-        # Create stacked bar chart for energy sources
+        # Create stacked bar chart showing % contribution
         fig_monthly = go.Figure()
 
-        # Solar hours (bottom of stack - orange)
+        # Build hover text for each source
+        # Solar: includes curtailed energy
+        solar_hover = monthly_stats.apply(
+            lambda r: f"<b>Solar</b><br>"
+                      f"Contribution: {r['solar_pct']:.1f}%<br>"
+                      f"Energy: {r['solar_mwh']:,.0f} MWh<br>"
+                      f"Hours: {int(r['solar_hrs'])} hrs<br>"
+                      f"<span style='color:#ff6b6b'>Wasted: {r['solar_curtailed_mwh']:,.0f} MWh</span>",
+            axis=1
+        )
+
+        # BESS hover
+        bess_hover = monthly_stats.apply(
+            lambda r: f"<b>BESS</b><br>"
+                      f"Contribution: {r['bess_pct']:.1f}%<br>"
+                      f"Energy: {r['bess_mwh']:,.0f} MWh<br>"
+                      f"Hours: {int(r['bess_hrs'])} hrs",
+            axis=1
+        )
+
+        # DG hover
+        dg_hover = monthly_stats.apply(
+            lambda r: f"<b>DG</b><br>"
+                      f"Contribution: {r['dg_pct']:.1f}%<br>"
+                      f"Energy: {r['dg_mwh']:,.0f} MWh<br>"
+                      f"Hours: {int(r['dg_hrs'])} hrs",
+            axis=1
+        )
+
+        # Solar % (bottom of stack - orange)
         fig_monthly.add_trace(go.Bar(
             x=monthly_stats['month_name'],
-            y=monthly_stats['solar_hrs'],
-            name='Solar Hours',
+            y=monthly_stats['solar_pct'],
+            name='Solar',
             marker_color='#FFA500',
-            hovertemplate='%{x}<br>Solar: %{y} hrs<extra></extra>'
+            customdata=solar_hover,
+            hovertemplate='%{customdata}<extra></extra>'
         ))
 
-        # BESS hours (middle of stack - blue)
+        # BESS % (middle of stack - blue)
         fig_monthly.add_trace(go.Bar(
             x=monthly_stats['month_name'],
-            y=monthly_stats['bess_hrs'],
-            name='BESS Hours',
+            y=monthly_stats['bess_pct'],
+            name='BESS',
             marker_color='#1f77b4',
-            hovertemplate='%{x}<br>BESS: %{y} hrs<extra></extra>'
+            customdata=bess_hover,
+            hovertemplate='%{customdata}<extra></extra>'
         ))
 
-        # DG hours (top of stack - red)
+        # DG % (top of stack - red)
         fig_monthly.add_trace(go.Bar(
             x=monthly_stats['month_name'],
-            y=monthly_stats['dg_hrs'],
-            name='DG Hours',
+            y=monthly_stats['dg_pct'],
+            name='DG',
             marker_color='#e74c3c',
-            hovertemplate='%{x}<br>DG: %{y} hrs<extra></extra>'
+            customdata=dg_hover,
+            hovertemplate='%{customdata}<extra></extra>'
         ))
 
-        # Delivery % line overlay with load hours context
-        # Build custom hover text showing delivery/load hours
-        monthly_stats['hover_text'] = monthly_stats.apply(
-            lambda r: f"{r['month_name']}<br>Delivery: {r['delivery_hours']}/{r['load_hours']} hrs ({r['delivery_pct']:.0f}%)",
+        # Delivery % line overlay
+        delivery_hover = monthly_stats.apply(
+            lambda r: f"<b>Delivery</b><br>"
+                      f"{r['delivery_hours']}/{int(r['load_hours'])} hrs ({r['delivery_pct']:.0f}%)",
             axis=1
         )
         fig_monthly.add_trace(go.Scatter(
@@ -763,17 +899,15 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             text=monthly_stats['delivery_pct'].apply(lambda x: f'{x:.0f}%'),
             textposition='top center',
             yaxis='y2',
-            hovertemplate='%{customdata}<extra></extra>',
-            customdata=monthly_stats['hover_text']
+            customdata=delivery_hover,
+            hovertemplate='%{customdata}<extra></extra>'
         ))
-
-        # Hours per month for non-leap year (matches 8760 hours / 365 days)
-        hours_per_month = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
 
         fig_monthly.update_layout(
             height=400,
             xaxis_title="Month",
-            yaxis_title="Hours Contributing to Load",
+            yaxis_title="% of Load Served by Source",
+            yaxis=dict(range=[0, 105]),
             yaxis2=dict(
                 title='Delivery %',
                 overlaying='y',
@@ -783,34 +917,35 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
             margin=dict(l=50, r=50, t=50, b=50),
             barmode='stack',
-            bargap=0.2
+            bargap=0.6
         )
 
         st.plotly_chart(fig_monthly, width='stretch')
 
+        st.caption("**Bars:** % of energy delivered by each source (adds to 100%). **Line:** % of hours with full delivery.")
+
         # Monthly breakdown table
         st.markdown("#### Monthly Breakdown")
 
-        # Calculate detailed monthly stats
-        monthly_detail = full_year_df.groupby('month').agg({
-            'solar_to_load': lambda x: (x > 0).sum(),  # Hours with solar contribution
-            'bess_to_load': lambda x: (x > 0).sum(),   # Hours with BESS contribution
-            'dg_to_load': lambda x: (x > 0).sum(),     # Hours with DG contribution
-            'solar_curtailed': 'sum',                   # Total solar curtailed MWh
-            'solar_mw': 'sum',                          # Total solar generated MWh
-        }).reset_index()
-        monthly_detail.columns = ['month', 'solar_hrs', 'bess_hrs', 'dg_hrs', 'curtailed_mwh', 'total_solar_mwh']
-        monthly_detail['wastage_pct'] = (monthly_detail['curtailed_mwh'] / monthly_detail['total_solar_mwh'] * 100).fillna(0)
-        monthly_detail['month_name'] = monthly_detail['month'].apply(lambda x: month_names[x])
+        # Reuse monthly_stats calculated above for consistency
+        # Add solar generation for wastage calculation
+        solar_gen_monthly = full_year_df.groupby('month')['solar_mw'].sum().reset_index()
+        solar_gen_monthly.columns = ['month', 'solar_gen_mwh']
+        monthly_stats = monthly_stats.merge(solar_gen_monthly, on='month')
+        monthly_stats['wastage_pct'] = (monthly_stats['solar_curtailed_mwh'] / monthly_stats['solar_gen_mwh'] * 100).fillna(0)
 
-        # Create display DataFrame
+        # Create display DataFrame with energy-based metrics
         monthly_table = pd.DataFrame({
-            'Month': monthly_detail['month_name'],
-            'Solar Hrs': monthly_detail['solar_hrs'].astype(int),
-            'BESS Hrs': monthly_detail['bess_hrs'].astype(int),
-            'DG Hrs': monthly_detail['dg_hrs'].astype(int),
-            'Curtailed (MWh)': monthly_detail['curtailed_mwh'].round(1),
-            'Wastage %': monthly_detail['wastage_pct'].round(1),
+            'Month': monthly_stats['month_name'],
+            'Solar (MWh)': monthly_stats['solar_mwh'].round(0).astype(int),
+            'Solar %': monthly_stats['solar_pct'].round(1),
+            'BESS (MWh)': monthly_stats['bess_mwh'].round(0).astype(int),
+            'BESS %': monthly_stats['bess_pct'].round(1),
+            'DG (MWh)': monthly_stats['dg_mwh'].round(0).astype(int),
+            'DG %': monthly_stats['dg_pct'].round(1),
+            'Total Load (MWh)': monthly_stats['total_load_mwh'].round(0).astype(int),
+            'Curtailed (MWh)': monthly_stats['solar_curtailed_mwh'].round(0).astype(int),
+            'Wastage %': monthly_stats['wastage_pct'].round(1),
         })
 
         st.dataframe(
@@ -819,10 +954,14 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             hide_index=True,
             column_config={
                 'Month': st.column_config.TextColumn('Month'),
-                'Solar Hrs': st.column_config.NumberColumn('Solar Hrs', help='Hours with solar contributing to load'),
-                'BESS Hrs': st.column_config.NumberColumn('BESS Hrs', help='Hours with BESS contributing to load'),
-                'DG Hrs': st.column_config.NumberColumn('DG Hrs', help='Hours with DG contributing to load'),
-                'Curtailed (MWh)': st.column_config.NumberColumn('Curtailed (MWh)', format='%.1f', help='Solar energy curtailed'),
+                'Solar (MWh)': st.column_config.NumberColumn('Solar', format='%d', help='Solar energy delivered to load'),
+                'Solar %': st.column_config.NumberColumn('Solar %', format='%.1f%%', help='% of load served by solar'),
+                'BESS (MWh)': st.column_config.NumberColumn('BESS', format='%d', help='BESS energy delivered to load'),
+                'BESS %': st.column_config.NumberColumn('BESS %', format='%.1f%%', help='% of load served by BESS'),
+                'DG (MWh)': st.column_config.NumberColumn('DG', format='%d', help='DG energy delivered to load'),
+                'DG %': st.column_config.NumberColumn('DG %', format='%.1f%%', help='% of load served by DG'),
+                'Total Load (MWh)': st.column_config.NumberColumn('Total Load', format='%d', help='Total energy delivered to load'),
+                'Curtailed (MWh)': st.column_config.NumberColumn('Curtailed', format='%d', help='Solar energy curtailed'),
                 'Wastage %': st.column_config.NumberColumn('Wastage %', format='%.1f%%', help='% of solar energy wasted'),
             }
         )
@@ -966,17 +1105,103 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         # ===========================================
 
         st.header("4️⃣ Multi-Year Projection")
-        st.markdown("Battery degradation impact on system performance (2% compound degradation per year).")
+
+        # -------------------------------------------
+        # Degradation and Sizing Strategy Configuration
+        # -------------------------------------------
+        st.markdown("#### Degradation & Sizing Strategy")
+
+        deg_col1, deg_col2, deg_col3 = st.columns(3)
+
+        with deg_col1:
+            with st.container(border=True):
+                st.markdown("##### Degradation Rate")
+                st.caption("Annual capacity loss (compound)")
+                degradation_pct = st.select_slider(
+                    "Degradation %/year",
+                    options=[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0],
+                    value=2.0,
+                    format_func=lambda x: f"{x}%/year",
+                    key='qa_degradation_rate',
+                    label_visibility="collapsed"
+                )
+                degradation_rate = degradation_pct / 100
+
+        with deg_col2:
+            with st.container(border=True):
+                st.markdown("##### Sizing Strategy")
+                st.caption("When should BESS meet target capacity?")
+                sizing_strategy = st.radio(
+                    "Strategy",
+                    options=['year1', 'year10', 'year20'],
+                    format_func=lambda x: {
+                        'year1': 'Year 1 (as configured)',
+                        'year10': 'Year 10 (oversize for EOL)',
+                        'year20': 'Year 20 (oversize for EOL)'
+                    }[x],
+                    index=0,
+                    key='qa_sizing_strategy',
+                    label_visibility="collapsed"
+                )
+
+        with deg_col3:
+            with st.container(border=True):
+                st.markdown("##### Effective Sizing")
+                # Calculate oversized capacity based on strategy
+                if sizing_strategy == 'year1':
+                    initial_capacity = bess_capacity
+                    oversize_factor = 1.0
+                    target_year = 1
+                elif sizing_strategy == 'year10':
+                    # Size so that Year 10 capacity = configured capacity
+                    # Year 10 capacity = initial * (1-deg)^9
+                    # initial = configured / (1-deg)^9
+                    oversize_factor = 1 / ((1 - degradation_rate) ** 9)
+                    initial_capacity = bess_capacity * oversize_factor
+                    target_year = 10
+                else:  # year20
+                    # Size so that Year 20 capacity = configured capacity
+                    oversize_factor = 1 / ((1 - degradation_rate) ** 19)
+                    initial_capacity = bess_capacity * oversize_factor
+                    target_year = 20
+
+                st.metric(
+                    "Initial Capacity",
+                    f"{initial_capacity:.0f} MWh",
+                    f"+{(oversize_factor - 1) * 100:.0f}% oversize" if oversize_factor > 1 else None
+                )
+                if sizing_strategy != 'year1':
+                    st.caption(f"Sized to have **{bess_capacity:.0f} MWh** at Year {target_year}")
+
+        # Show degradation preview
+        st.markdown("---")
+        year1_cap = initial_capacity
+        year10_cap = initial_capacity * ((1 - degradation_rate) ** 9)
+        year20_cap = initial_capacity * ((1 - degradation_rate) ** 19)
+
+        preview_cols = st.columns(4)
+        preview_cols[0].metric("Year 1", f"{year1_cap:.0f} MWh", "100%")
+        preview_cols[1].metric("Year 10", f"{year10_cap:.0f} MWh", f"{year10_cap/year1_cap*100:.0f}%")
+        preview_cols[2].metric("Year 20", f"{year20_cap:.0f} MWh", f"{year20_cap/year1_cap*100:.0f}%")
+        preview_cols[3].metric("Degradation", f"{degradation_pct}%/yr", f"{(1-(1-degradation_rate)**20)*100:.0f}% total loss")
+
+        st.divider()
         st.caption("**Note:** Running actual simulations for each year with degraded BESS capacity...")
 
         # Build 20-year monthly projection data using ACTUAL SIMULATIONS
         monthly_20yr_data = []
         yearly_projection_data = []  # For 10-year annual table
 
-        # Degradation rate and efficiency
-        degradation_rate = 0.02  # 2% per year
+        # Use initial_capacity (potentially oversized) for simulations
+        simulation_base_capacity = initial_capacity
+        simulation_base_power = initial_capacity / duration
+
+        # Efficiency calculations
         one_way_eff = (setup['bess_efficiency'] / 100) ** 0.5
         loss_factor = 1 - one_way_eff
+
+        # Hours per month for non-leap year (matches 8760 hours / 365 days)
+        hours_per_month = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
 
         # Progress bar for 20-year simulation
         progress_bar = st.progress(0, text="Simulating Year 1...")
@@ -990,10 +1215,10 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         for year in range(1, 21):
             progress_bar.progress(year / 20, text=f"Simulating Year {year}...")
 
-            # Compound degradation
+            # Compound degradation from initial (potentially oversized) capacity
             capacity_factor = (1 - degradation_rate) ** (year - 1)
-            effective_capacity = bess_capacity * capacity_factor
-            effective_power = power_mw * capacity_factor
+            effective_capacity = simulation_base_capacity * capacity_factor
+            effective_power = simulation_base_power * capacity_factor
 
             # Calculate initial SOC for this year
             if year == 1:
@@ -1261,12 +1486,13 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
         total_bess_losses = total_charging_loss + total_discharging_loss
 
         # Calculate initial BESS energy (energy already in battery at start of Year 1)
+        # Use simulation_base_capacity (potentially oversized based on sizing strategy)
         initial_soc_pct = setup['bess_initial_soc'] / 100  # Convert from % to fraction
-        initial_bess_energy = bess_capacity * initial_soc_pct  # MWh at Year 1 start
+        initial_bess_energy = simulation_base_capacity * initial_soc_pct  # MWh at Year 1 start
 
         # Calculate final BESS energy (what's left at end of Year 20)
         # Use Year 20's effective capacity and final SOC
-        year_20_capacity = yearly_totals[-1]['capacity'] if yearly_totals else bess_capacity
+        year_20_capacity = yearly_totals[-1]['capacity'] if yearly_totals else simulation_base_capacity
         year_20_final_soc = yearly_totals[-1]['final_soc_pct'] if yearly_totals else initial_soc_pct
         final_bess_energy = year_20_capacity * year_20_final_soc
 
@@ -1339,7 +1565,7 @@ if run_btn or (qa_state['simulation_results'] is not None and qa_state['cache_ke
             'Details': [
                 f"{total_solar_gen/20:,.0f} MWh/year avg",
                 f"{total_dg_gen/20:,.0f} MWh/year avg" if total_dg_gen > 0 else "DG disabled",
-                f"{bess_capacity:.0f} MWh × {setup['bess_initial_soc']:.0f}% SOC",
+                f"{simulation_base_capacity:.0f} MWh × {setup['bess_initial_soc']:.0f}% SOC",
                 '',
                 '',
                 f"Solar: {total_solar_to_load:,.0f} + BESS: {total_bess_to_load:,.0f} + DG: {total_dg_to_load:,.0f}",

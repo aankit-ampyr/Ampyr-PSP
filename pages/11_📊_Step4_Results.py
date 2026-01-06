@@ -2,19 +2,15 @@
 Step 4: Results
 
 Display and analyze simulation results:
+- Recommended configuration hero
 - Quick filters
 - Sortable table
 - Color-coded metrics
-- Detail view
-- Comparison view
+- Export options
 """
 
 import streamlit as st
-import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 
 # Add parent directory to path for imports
 import sys
@@ -24,7 +20,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.wizard_state import (
     init_wizard_state, get_wizard_state, update_wizard_state,
     set_current_step, get_step_status, can_navigate_to_step,
-    add_comparison_config, remove_comparison_config, clear_comparison_selection,
     set_results_filter, toggle_results_filter
 )
 from src.template_inference import get_template_info
@@ -155,107 +150,6 @@ def filter_results(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     return filtered
 
 
-def create_comparison_chart(configs: list, results_df: pd.DataFrame) -> go.Figure:
-    """Create side-by-side comparison chart."""
-    if not configs:
-        return None
-
-    rows = results_df.iloc[configs]
-
-    # Metrics to compare
-    metrics = ['delivery_pct', 'wastage_pct', 'bess_cycles', 'dg_hours']
-    metric_labels = ['Delivery %', 'Wastage %', 'BESS Cycles', 'DG Hours']
-
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=metric_labels
-    )
-
-    colors = ['#3498db', '#2ecc71', '#e74c3c']
-    config_labels = [f"{row['bess_mwh']:.0f} MWh / {row['duration_hrs']}-hr" for _, row in rows.iterrows()]
-
-    for i, (metric, label) in enumerate(zip(metrics, metric_labels)):
-        row_num = i // 2 + 1
-        col_num = i % 2 + 1
-
-        values = rows[metric].tolist()
-
-        fig.add_trace(
-            go.Bar(
-                x=config_labels,
-                y=values,
-                marker_color=colors[:len(values)],
-                showlegend=False,
-            ),
-            row=row_num, col=col_num
-        )
-
-    fig.update_layout(height=500, title_text="Configuration Comparison")
-    return fig
-
-
-def create_detail_charts(row: pd.Series) -> dict:
-    """Create detailed charts for a single configuration."""
-    charts = {}
-
-    # Key metrics gauge chart
-    fig_metrics = make_subplots(
-        rows=1, cols=3,
-        specs=[[{"type": "indicator"}, {"type": "indicator"}, {"type": "indicator"}]]
-    )
-
-    fig_metrics.add_trace(
-        go.Indicator(
-            mode="gauge+number",
-            value=row['delivery_pct'],
-            title={'text': "Delivery %"},
-            gauge={
-                'axis': {'range': [0, 100]},
-                'bar': {'color': get_delivery_color(row['delivery_pct'])},
-                'steps': [
-                    {'range': [0, 95], 'color': '#ffcccc'},
-                    {'range': [95, 99], 'color': '#ffffcc'},
-                    {'range': [99, 100], 'color': '#ccffcc'},
-                ],
-            }
-        ),
-        row=1, col=1
-    )
-
-    fig_metrics.add_trace(
-        go.Indicator(
-            mode="gauge+number",
-            value=row['wastage_pct'],
-            title={'text': "Wastage %"},
-            gauge={
-                'axis': {'range': [0, 20]},
-                'bar': {'color': get_wastage_color(row['wastage_pct'])},
-                'steps': [
-                    {'range': [0, 2], 'color': '#ccffcc'},
-                    {'range': [2, 5], 'color': '#ffffcc'},
-                    {'range': [5, 20], 'color': '#ffcccc'},
-                ],
-            }
-        ),
-        row=1, col=2
-    )
-
-    fig_metrics.add_trace(
-        go.Indicator(
-            mode="number+delta",
-            value=row['bess_mwh'],
-            title={'text': "BESS Size (MWh)"},
-            delta={'reference': 100, 'relative': True},
-        ),
-        row=1, col=3
-    )
-
-    fig_metrics.update_layout(height=250)
-    charts['metrics'] = fig_metrics
-
-    return charts
-
-
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
@@ -281,23 +175,6 @@ if results_df is None or len(results_df) == 0:
     if st.button("Go to Step 3"):
         st.switch_page("pages/10_📐_Step3_Sizing.py")
     st.stop()
-
-
-# =============================================================================
-# VIEW SELECTION
-# =============================================================================
-
-view_mode = st.radio(
-    "View Mode:",
-    options=['table', 'detail', 'compare'],
-    format_func=lambda x: {
-        'table': '📋 Results Table',
-        'detail': '🔍 Detail View',
-        'compare': '⚖️ Compare'
-    }.get(x),
-    horizontal=True,
-    key='view_mode_radio'
-)
 
 
 # =============================================================================
@@ -430,539 +307,157 @@ else:
 # TABLE VIEW
 # =============================================================================
 
-if view_mode == 'table':
-    st.markdown("---")
+st.markdown("---")
 
-    # Quick filters
-    st.markdown("### Quick Filters")
-    filter_cols = st.columns(4)
+# Quick filters
+st.markdown("### Quick Filters")
+filter_cols = st.columns(4)
 
-    filters = results_state.get('filters', {})
+filters = results_state.get('filters', {})
 
-    with filter_cols[0]:
-        full_delivery = st.checkbox(
-            "100% Delivery",
-            value=filters.get('full_delivery', False),
-            key='filter_full_delivery'
-        )
-        set_results_filter('full_delivery', full_delivery)
-
-    with filter_cols[1]:
-        zero_dg = st.checkbox(
-            "Zero DG",
-            value=filters.get('zero_dg', False),
-            key='filter_zero_dg'
-        )
-        set_results_filter('zero_dg', zero_dg)
-
-    with filter_cols[2]:
-        low_wastage = st.checkbox(
-            "Low Wastage (≤2%)",
-            value=filters.get('low_wastage', False),
-            key='filter_low_wastage'
-        )
-        set_results_filter('low_wastage', low_wastage)
-
-    with filter_cols[3]:
-        hide_dominated = st.checkbox(
-            "Hide Dominated",
-            value=filters.get('hide_dominated', False),
-            key='filter_hide_dominated'
-        )
-        set_results_filter('hide_dominated', hide_dominated)
-
-    # Apply filters
-    filtered_df = filter_results(results_df, {
-        'full_delivery': full_delivery,
-        'zero_dg': zero_dg,
-        'low_wastage': low_wastage,
-        'hide_dominated': hide_dominated,
-    })
-
-    st.caption(f"Showing {len(filtered_df)} of {len(results_df)} configurations")
-
-    st.markdown("---")
-
-    # THREE KEY METRICS - Always visible at top
-    st.markdown("### 🎯 Top Configuration")
-
-    if len(filtered_df) > 0:
-        # Best by delivery
-        best_row = filtered_df.loc[filtered_df['delivery_pct'].idxmax()]
-
-        metric_cols = st.columns(4)
-
-        with metric_cols[0]:
-            delivery_color = get_delivery_color(best_row['delivery_pct'])
-            st.markdown(f"""
-            <div style="
-                text-align: center;
-                padding: 20px;
-                border-radius: 10px;
-                border: 2px solid {delivery_color};
-            ">
-                <h1 style="color: {delivery_color}; margin: 0;">{best_row['delivery_pct']:.1f}%</h1>
-                <p style="margin: 5px 0;">Delivery Rate</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with metric_cols[1]:
-            wastage_color = get_wastage_color(best_row['wastage_pct'])
-            st.markdown(f"""
-            <div style="
-                text-align: center;
-                padding: 20px;
-                border-radius: 10px;
-                border: 2px solid {wastage_color};
-            ">
-                <h1 style="color: {wastage_color}; margin: 0;">{best_row['wastage_pct']:.1f}%</h1>
-                <p style="margin: 5px 0;">Total Wastage</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with metric_cols[2]:
-            # Wastage during load periods only
-            wastage_load_pct = best_row.get('wastage_load_pct', best_row['wastage_pct'])
-            wastage_load_color = get_wastage_color(wastage_load_pct)
-            st.markdown(f"""
-            <div style="
-                text-align: center;
-                padding: 20px;
-                border-radius: 10px;
-                border: 2px solid {wastage_load_color};
-            ">
-                <h1 style="color: {wastage_load_color}; margin: 0;">{wastage_load_pct:.1f}%</h1>
-                <p style="margin: 5px 0;">Load Period Wastage</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        with metric_cols[3]:
-            power_mw = best_row.get('power_mw', best_row['bess_mwh'] / best_row['duration_hrs'])
-            st.markdown(f"""
-            <div style="
-                text-align: center;
-                padding: 20px;
-                border-radius: 10px;
-                border: 2px solid #3498db;
-            ">
-                <h1 style="color: #3498db; margin: 0;">{best_row['bess_mwh']:.0f} MWh</h1>
-                <p style="margin: 5px 0; font-size: 14px;">{power_mw:.0f} MW × {best_row['duration_hrs']}-hr</p>
-                <p style="margin: 5px 0;">BESS Size</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # Configuration summary with DG info
-        config_summary = f"**Configuration:** {power_mw:.0f} MW × {best_row['duration_hrs']}-hr = {best_row['bess_mwh']:.0f} MWh"
-        if best_row['dg_mw'] > 0:
-            config_summary += f" | DG: {best_row['dg_mw']:.0f} MW"
-        st.markdown(config_summary)
-
-        # Select button for this configuration
-        best_idx = filtered_df['delivery_pct'].idxmax()
-        if st.button("📌 Select this configuration for comparison", key='select_top_config'):
-            selected = results_state.get('selected_configs', [])
-            if best_idx not in selected and len(selected) < 3:
-                add_comparison_config(best_idx)
-                st.success(f"Added to comparison: {power_mw:.0f} MW × {best_row['duration_hrs']}-hr")
-                st.rerun()
-
-    st.markdown("---")
-
-    # Results table
-    st.markdown("### All Configurations")
-
-    # Format display columns - check if wastage_load_pct exists
-    has_load_wastage = 'wastage_load_pct' in filtered_df.columns
-
-    if has_load_wastage:
-        display_df = filtered_df[[
-            'bess_mwh', 'duration_hrs', 'power_mw', 'dg_mw',
-            'delivery_pct', 'wastage_pct', 'wastage_load_pct', 'delivery_hours',
-            'dg_hours', 'bess_cycles'
-        ]].copy()
-    else:
-        display_df = filtered_df[[
-            'bess_mwh', 'duration_hrs', 'power_mw', 'dg_mw',
-            'delivery_pct', 'wastage_pct', 'delivery_hours',
-            'dg_hours', 'bess_cycles'
-        ]].copy()
-
-    # Add combined BESS Size column (MW × hr format)
-    display_df.insert(0, 'BESS Size',
-        display_df.apply(lambda r: f"{r['power_mw']:.0f} MW × {r['duration_hrs']:.0f}-hr", axis=1))
-
-    if has_load_wastage:
-        display_df.columns = [
-            'BESS Size', 'Capacity (MWh)', 'Duration (hrs)', 'Power (MW)', 'DG (MW)',
-            'Delivery %', 'Total Wastage %', 'Load Wastage %', 'Delivery Hours',
-            'DG Hours', 'BESS Cycles'
-        ]
-    else:
-        display_df.columns = [
-            'BESS Size', 'Capacity (MWh)', 'Duration (hrs)', 'Power (MW)', 'DG (MW)',
-            'Delivery %', 'Wastage %', 'Delivery Hours',
-            'DG Hours', 'BESS Cycles'
-        ]
-
-    # Round values
-    round_dict = {
-        'Delivery %': 1,
-        'Power (MW)': 1,
-        'BESS Cycles': 0,
-    }
-    if has_load_wastage:
-        round_dict['Total Wastage %'] = 1
-        round_dict['Load Wastage %'] = 1
-    else:
-        round_dict['Wastage %'] = 1
-
-    display_df = display_df.round(round_dict)
-
-    # Sortable dataframe
-    sort_col = st.selectbox(
-        "Sort by:",
-        options=display_df.columns.tolist(),
-        index=4,  # Default to Delivery %
-        key='sort_column'
+with filter_cols[0]:
+    full_delivery = st.checkbox(
+        "100% Delivery",
+        value=filters.get('full_delivery', False),
+        key='filter_full_delivery'
     )
+    set_results_filter('full_delivery', full_delivery)
 
-    sort_asc = st.checkbox("Ascending", value=False, key='sort_asc')
-    display_df = display_df.sort_values(by=sort_col, ascending=sort_asc)
-
-    st.dataframe(
-        display_df,
-        width='stretch',
-        height=400,
-        hide_index=True
+with filter_cols[1]:
+    zero_dg = st.checkbox(
+        "Zero DG",
+        value=filters.get('zero_dg', False),
+        key='filter_zero_dg'
     )
+    set_results_filter('zero_dg', zero_dg)
 
-    # Selection for comparison
-    st.markdown("### Select for Comparison")
-    st.caption("Select up to 3 configurations to compare")
-
-    selected = results_state.get('selected_configs', [])
-
-    select_cols = st.columns(4)
-    with select_cols[0]:
-        config_options = []
-        for i, row in filtered_df.iterrows():
-            pwr = row.get('power_mw', row['bess_mwh'] / row['duration_hrs'])
-            config_options.append(f"{i}: {pwr:.0f} MW × {row['duration_hrs']}-hr = {row['bess_mwh']:.0f} MWh")
-        selected_option = st.selectbox(
-            "Add configuration:",
-            options=[''] + config_options,
-            key='add_config_select'
-        )
-        if selected_option and selected_option != '':
-            idx = int(selected_option.split(':')[0])
-            if idx not in selected and len(selected) < 3:
-                add_comparison_config(idx)
-                st.rerun()
-
-    with select_cols[1]:
-        if selected:
-            # Show selected configs with MW × hr format
-            selected_labels = []
-            for idx in selected:
-                if idx in filtered_df.index:
-                    row = filtered_df.loc[idx]
-                    pwr = row.get('power_mw', row['bess_mwh'] / row['duration_hrs'])
-                    selected_labels.append(f"{pwr:.0f} MW × {row['duration_hrs']}-hr")
-            st.write("Selected:", ", ".join(selected_labels))
-
-    with select_cols[2]:
-        if selected and st.button("Clear Selection"):
-            clear_comparison_selection()
-            st.rerun()
-
-    with select_cols[3]:
-        if len(selected) >= 2:
-            if st.button("Compare Selected →", type="primary"):
-                st.session_state.view_mode_radio = 'compare'
-                st.rerun()
-
-    # Export
-    st.markdown("---")
-    st.markdown("### Export")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        csv_data = results_df.to_csv(index=False)
-        st.download_button(
-            "📥 Download CSV",
-            data=csv_data,
-            file_name="bess_sizing_results.csv",
-            mime="text/csv"
-        )
-
-    with col2:
-        # Summary export
-        summary = {
-            'Total Configurations': len(results_df),
-            'Best Delivery %': results_df['delivery_pct'].max(),
-            'Best BESS Size': results_df.loc[results_df['delivery_pct'].idxmax(), 'bess_mwh'],
-            'Min Wastage %': results_df['wastage_pct'].min(),
-        }
-        summary_df = pd.DataFrame([summary])
-        summary_csv = summary_df.to_csv(index=False)
-        st.download_button(
-            "📥 Download Summary",
-            data=summary_csv,
-            file_name="bess_sizing_summary.csv",
-            mime="text/csv"
-        )
-
-
-# =============================================================================
-# DETAIL VIEW
-# =============================================================================
-
-elif view_mode == 'detail':
-    st.markdown("---")
-    st.markdown("### Configuration Detail")
-
-    # Select configuration
-    config_options = [f"{i}: {row['bess_mwh']:.0f} MWh / {row['duration_hrs']}-hr / {row['dg_mw']:.0f} MW DG"
-                     for i, row in results_df.iterrows()]
-
-    selected_config = st.selectbox(
-        "Select configuration:",
-        options=config_options,
-        key='detail_config_select'
+with filter_cols[2]:
+    low_wastage = st.checkbox(
+        "Low Wastage (≤2%)",
+        value=filters.get('low_wastage', False),
+        key='filter_low_wastage'
     )
+    set_results_filter('low_wastage', low_wastage)
 
-    if selected_config:
-        idx = int(selected_config.split(':')[0])
-        row = results_df.iloc[idx]
+with filter_cols[3]:
+    hide_dominated = st.checkbox(
+        "Hide Dominated",
+        value=filters.get('hide_dominated', False),
+        key='filter_hide_dominated'
+    )
+    set_results_filter('hide_dominated', hide_dominated)
 
-        # Key metrics
-        st.markdown("### Key Metrics")
-        charts = create_detail_charts(row)
-        st.plotly_chart(charts['metrics'], width='stretch')
+# Apply filters
+filtered_df = filter_results(results_df, {
+    'full_delivery': full_delivery,
+    'zero_dg': zero_dg,
+    'low_wastage': low_wastage,
+    'hide_dominated': hide_dominated,
+})
 
-        # Detailed metrics table
-        col1, col2 = st.columns(2)
+st.caption(f"Showing {len(filtered_df)} of {len(results_df)} configurations")
 
-        with col1:
-            st.markdown("#### Configuration")
-            st.metric("BESS Capacity", f"{row['bess_mwh']:.0f} MWh")
-            st.metric("Duration", f"{row['duration_hrs']} hours")
-            st.metric("Power", f"{row['power_mw']:.1f} MW")
-            if setup['dg_enabled']:
-                st.metric("DG Capacity", f"{row['dg_mw']:.0f} MW")
+st.markdown("---")
 
-        with col2:
-            st.markdown("#### Performance")
-            st.metric("Delivery Rate", f"{row['delivery_pct']:.1f}%")
-            load_hours = row.get('load_hours', 8760)
-            st.metric("Delivery Hours", f"{row['delivery_hours']:,} / {load_hours:,}")
-            st.metric("Total Wastage", f"{row['wastage_pct']:.1f}%")
-            if 'wastage_load_pct' in results_df.columns:
-                st.metric("Load Period Wastage", f"{row['wastage_load_pct']:.1f}%")
-            st.metric("BESS Cycles", f"{row['bess_cycles']:.0f}")
-            if setup['dg_enabled']:
-                st.metric("DG Runtime", f"{row['dg_hours']:,} hours")
+# Results table
+st.markdown("### All Configurations")
 
+# Format display columns - check if wastage_load_pct exists
+has_load_wastage = 'wastage_load_pct' in filtered_df.columns
 
-# =============================================================================
-# COMPARE VIEW
-# =============================================================================
+if has_load_wastage:
+    display_df = filtered_df[[
+        'bess_mwh', 'duration_hrs', 'power_mw', 'dg_mw',
+        'delivery_pct', 'wastage_pct', 'wastage_load_pct', 'delivery_hours',
+        'dg_hours', 'bess_cycles'
+    ]].copy()
+else:
+    display_df = filtered_df[[
+        'bess_mwh', 'duration_hrs', 'power_mw', 'dg_mw',
+        'delivery_pct', 'wastage_pct', 'delivery_hours',
+        'dg_hours', 'bess_cycles'
+    ]].copy()
 
-elif view_mode == 'compare':
-    st.markdown("---")
-    st.markdown("### Side-by-Side Comparison")
+# Add combined BESS Size column (MW × hr format)
+display_df.insert(0, 'BESS Size',
+    display_df.apply(lambda r: f"{r['power_mw']:.0f} MW × {r['duration_hrs']:.0f}-hr", axis=1))
 
-    selected = results_state.get('selected_configs', [])
+if has_load_wastage:
+    display_df.columns = [
+        'BESS Size', 'Capacity (MWh)', 'Duration (hrs)', 'Power (MW)', 'DG (MW)',
+        'Delivery %', 'Total Wastage %', 'Load Wastage %', 'Delivery Hours',
+        'DG Hours', 'BESS Cycles'
+    ]
+else:
+    display_df.columns = [
+        'BESS Size', 'Capacity (MWh)', 'Duration (hrs)', 'Power (MW)', 'DG (MW)',
+        'Delivery %', 'Wastage %', 'Delivery Hours',
+        'DG Hours', 'BESS Cycles'
+    ]
 
-    if len(selected) < 2:
-        st.warning("Select at least 2 configurations from the Results Table to compare.")
+# Round values
+round_dict = {
+    'Delivery %': 1,
+    'Power (MW)': 1,
+    'BESS Cycles': 0,
+}
+if has_load_wastage:
+    round_dict['Total Wastage %'] = 1
+    round_dict['Load Wastage %'] = 1
+else:
+    round_dict['Wastage %'] = 1
 
-        # Quick select
-        st.markdown("### Quick Select")
-        config_options = [f"{i}: {row['bess_mwh']:.0f} MWh / {row['duration_hrs']}-hr"
-                        for i, row in results_df.iterrows()]
+display_df = display_df.round(round_dict)
 
-        cols = st.columns(3)
-        for i, col in enumerate(cols):
-            with col:
-                opt = st.selectbox(
-                    f"Config {i+1}:",
-                    options=[''] + config_options,
-                    key=f'compare_select_{i}'
-                )
-                if opt and opt != '':
-                    idx = int(opt.split(':')[0])
-                    if idx not in selected:
-                        add_comparison_config(idx)
-
-        if len(selected) >= 2 and st.button("Compare", type="primary"):
-            st.rerun()
-
-    else:
-        # Comparison chart
-        fig = create_comparison_chart(selected, results_df)
-        if fig:
-            st.plotly_chart(fig, width='stretch')
-
-        # Side-by-side metrics
-        st.markdown("### Metrics Comparison")
-
-        cols = st.columns(len(selected))
-
-        for i, idx in enumerate(selected):
-            row = results_df.iloc[idx]
-            with cols[i]:
-                st.markdown(f"#### Config {i+1}")
-                st.markdown(f"**{row['bess_mwh']:.0f} MWh / {row['duration_hrs']}-hr**")
-
-                # Find best values
-                is_best_delivery = row['delivery_pct'] == results_df.iloc[selected]['delivery_pct'].max()
-                is_best_wastage = row['wastage_pct'] == results_df.iloc[selected]['wastage_pct'].min()
-                is_best_dg = row['dg_hours'] == results_df.iloc[selected]['dg_hours'].min()
-
-                delivery_suffix = " ✓" if is_best_delivery else ""
-                wastage_suffix = " ✓" if is_best_wastage else ""
-                dg_suffix = " ✓" if is_best_dg else ""
-
-                st.metric("Delivery %", f"{row['delivery_pct']:.1f}%{delivery_suffix}")
-                st.metric("Total Wastage %", f"{row['wastage_pct']:.1f}%{wastage_suffix}")
-                if 'wastage_load_pct' in results_df.columns:
-                    is_best_load_wastage = row['wastage_load_pct'] == results_df.iloc[selected]['wastage_load_pct'].min()
-                    load_wastage_suffix = " ✓" if is_best_load_wastage else ""
-                    st.metric("Load Wastage %", f"{row['wastage_load_pct']:.1f}%{load_wastage_suffix}")
-                st.metric("BESS Cycles", f"{row['bess_cycles']:.0f}")
-                st.metric("DG Hours", f"{row['dg_hours']:,}{dg_suffix}")
-
-        st.caption("✓ = Best in category")
-
-        # Clear selection
-        if st.button("Clear Selection"):
-            clear_comparison_selection()
-            st.rerun()
-
-
-# =============================================================================
-# OPTIONAL FINANCIAL PROJECTION
-# =============================================================================
-
-st.divider()
-
-# Financial projection section (opt-in)
-financial_state = state.get('financial', {})
-show_financial = st.checkbox(
-    "📈 Show 20-Year Financial Projection",
-    value=financial_state.get('enabled', False),
-    key='show_financial_projection'
+# Sortable dataframe
+sort_col = st.selectbox(
+    "Sort by:",
+    options=display_df.columns.tolist(),
+    index=4,  # Default to Delivery %
+    key='sort_column'
 )
-update_wizard_state('financial', 'enabled', show_financial)
 
-if show_financial and ranked_recommendations and ranked_recommendations.get('recommended'):
-    recommended = ranked_recommendations['recommended']
+sort_asc = st.checkbox("Ascending", value=False, key='sort_asc')
+display_df = display_df.sort_values(by=sort_col, ascending=sort_asc)
 
-    st.markdown("### 💰 Financial Projection")
-    st.caption("Project 20-year lifecycle costs for the recommended configuration")
+st.dataframe(
+    display_df,
+    width='stretch',
+    height=400,
+    hide_index=True
+)
 
-    fin_col1, fin_col2, fin_col3 = st.columns(3)
+# Export
+st.markdown("---")
+st.markdown("### Export")
 
-    with fin_col1:
-        bess_cost = st.number_input(
-            "BESS Cost ($/MWh)",
-            min_value=100000,
-            max_value=1000000,
-            value=int(financial_state.get('bess_cost_per_mwh', 300000)),
-            step=10000,
-            key='fin_bess_cost'
-        )
-        update_wizard_state('financial', 'bess_cost_per_mwh', bess_cost)
+col1, col2 = st.columns(2)
 
-    with fin_col2:
-        discount_rate = st.number_input(
-            "Discount Rate (%)",
-            min_value=1.0,
-            max_value=20.0,
-            value=float(financial_state.get('discount_rate', 8.0)) * 100 if financial_state.get('discount_rate', 8.0) < 1 else float(financial_state.get('discount_rate', 8.0)),
-            step=0.5,
-            key='fin_discount_rate'
-        ) / 100
-        update_wizard_state('financial', 'discount_rate', discount_rate)
+with col1:
+    csv_data = results_df.to_csv(index=False)
+    st.download_button(
+        "📥 Download CSV",
+        data=csv_data,
+        file_name="bess_sizing_results.csv",
+        mime="text/csv"
+    )
 
-    with fin_col3:
-        project_life = st.number_input(
-            "Project Life (years)",
-            min_value=10,
-            max_value=30,
-            value=int(financial_state.get('project_life_years', 20)),
-            step=1,
-            key='fin_project_life'
-        )
-        update_wizard_state('financial', 'project_life_years', project_life)
-
-    if st.button("📊 Run Financial Projection", type="primary", key='run_financial'):
-        try:
-            from src.financial_model import FinancialConfig, FinancialProjection
-
-            # Create financial config
-            fin_config = FinancialConfig(
-                bess_capacity_mwh=recommended['bess_mwh'],
-                bess_power_mw=recommended['power_mw'],
-                dg_capacity_mw=recommended.get('dg_mw', 0),
-                bess_cost_per_mwh=bess_cost,
-                discount_rate=discount_rate,
-                project_life_years=project_life,
-            )
-
-            # Get degradation strategy from setup
-            deg_strategy = setup.get('degradation_strategy', 'standard')
-
-            # Run projection
-            projection = FinancialProjection(fin_config)
-            summary = projection.run_projection(
-                initial_cycles_per_year=recommended.get('bess_cycles', 300),
-                strategy=deg_strategy,
-                overbuild_factor=setup.get('overbuild_factor', 0.20),
-                augmentation_year=setup.get('augmentation_year', 8),
-            )
-
-            # Store results
-            update_wizard_state('financial', 'projection_results', {
-                'npv': summary.total_npv,
-                'lcoe': summary.levelized_cost,
-                'total_capex': summary.total_capex,
-                'total_opex': summary.total_opex_npv,
-                'payback_years': summary.simple_payback_years,
-            })
-
-            # Display results
-            st.success("Financial projection completed!")
-
-            result_cols = st.columns(4)
-
-            with result_cols[0]:
-                st.metric("Total CAPEX", f"${summary.total_capex:,.0f}")
-
-            with result_cols[1]:
-                st.metric("20-Year NPV", f"${summary.total_npv:,.0f}")
-
-            with result_cols[2]:
-                st.metric("LCOE", f"${summary.levelized_cost:,.2f}/MWh")
-
-            with result_cols[3]:
-                if summary.simple_payback_years:
-                    st.metric("Simple Payback", f"{summary.simple_payback_years:.1f} years")
-                else:
-                    st.metric("Simple Payback", "N/A")
-
-            # Capacity fade note
-            if deg_strategy == 'overbuild':
-                st.info(f"**Strategy:** Overbuild by {setup.get('overbuild_factor', 0.20)*100:.0f}% to maintain performance throughout project life")
-            elif deg_strategy == 'augmentation':
-                st.info(f"**Strategy:** Augmentation in Year {setup.get('augmentation_year', 8)} to compensate for degradation")
-            else:
-                st.info("**Strategy:** Standard sizing (capacity will degrade over time)")
-
-        except Exception as e:
-            st.error(f"Financial projection error: {str(e)}")
+with col2:
+    # Summary export
+    summary = {
+        'Total Configurations': len(results_df),
+        'Best Delivery %': results_df['delivery_pct'].max(),
+        'Best BESS Size': results_df.loc[results_df['delivery_pct'].idxmax(), 'bess_mwh'],
+        'Min Wastage %': results_df['wastage_pct'].min(),
+    }
+    summary_df = pd.DataFrame([summary])
+    summary_csv = summary_df.to_csv(index=False)
+    st.download_button(
+        "📥 Download Summary",
+        data=summary_csv,
+        file_name="bess_sizing_summary.csv",
+        mime="text/csv"
+    )
 
 
 # =============================================================================

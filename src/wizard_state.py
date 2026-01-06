@@ -77,7 +77,7 @@ DEFAULT_WIZARD_STATE = {
         'dg_trigger': 'reactive',  # 'reactive', 'soc_based', 'proactive'
         'dg_charges_bess': False,
         'dg_load_priority': 'bess_first',  # 'bess_first' or 'dg_first'
-        'dg_takeover_mode': False,  # When True: DG serves full load, solar goes to BESS
+        'dg_takeover_mode': True,  # When True: DG serves full load, solar goes to BESS
 
         # SoC thresholds (for soc_based trigger)
         'soc_on_threshold': 30.0,  # %
@@ -172,6 +172,9 @@ DEFAULT_WIZARD_STATE = {
         'dg_capacity': 10.0,  # MW
         'simulation_results': None,  # Cached HourlyResult list
         'cache_key': None,  # For change detection
+        'rules_synced': False,  # Whether rules have been synced from Step 2
+        # Quick Analysis has its own copy of rules (synced from Step 2 when simulation runs)
+        'rules': None,  # Will be populated from Step 2 rules when sizing simulation runs
     },
 }
 
@@ -209,6 +212,48 @@ def update_wizard_section(section: str, updates: Dict[str, Any]) -> None:
 def reset_wizard_state() -> None:
     """Reset wizard to default state."""
     st.session_state.wizard = deepcopy(DEFAULT_WIZARD_STATE)
+
+
+def sync_quick_analysis_rules() -> None:
+    """
+    Sync Step 2 rules to Quick Analysis page.
+    Called when sizing simulation runs to ensure Quick Analysis
+    starts with the same dispatch rules as the wizard.
+    """
+    init_wizard_state()
+    # Deep copy Step 2 rules to Quick Analysis
+    step2_rules = st.session_state.wizard['rules']
+    st.session_state.wizard['quick_analysis']['rules'] = deepcopy(step2_rules)
+    st.session_state.wizard['quick_analysis']['rules_synced'] = True
+    # Clear cached simulation results since rules changed
+    st.session_state.wizard['quick_analysis']['simulation_results'] = None
+    st.session_state.wizard['quick_analysis']['cache_key'] = None
+
+
+def get_quick_analysis_rules() -> Dict[str, Any]:
+    """
+    Get rules for Quick Analysis page.
+    Returns Quick Analysis rules if synced, otherwise returns Step 2 rules as default.
+    """
+    init_wizard_state()
+    qa_rules = st.session_state.wizard['quick_analysis'].get('rules')
+    if qa_rules is None:
+        # Not yet synced, return Step 2 rules as initial values
+        return deepcopy(st.session_state.wizard['rules'])
+    return qa_rules
+
+
+def update_quick_analysis_rule(key: str, value: Any) -> None:
+    """Update a specific rule in Quick Analysis (independent of Step 2)."""
+    init_wizard_state()
+    qa_state = st.session_state.wizard['quick_analysis']
+    # Initialize rules from Step 2 if not yet set
+    if qa_state.get('rules') is None:
+        qa_state['rules'] = deepcopy(st.session_state.wizard['rules'])
+    qa_state['rules'][key] = value
+    # Clear cache since rules changed
+    qa_state['simulation_results'] = None
+    qa_state['cache_key'] = None
 
 
 def get_current_step() -> int:
