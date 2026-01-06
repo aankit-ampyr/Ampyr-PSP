@@ -2,7 +2,6 @@
 Step 3: Sizing Range
 
 Define what configurations to simulate:
-- Sizing Mode vs Fixed Mode
 - BESS capacity range
 - Duration classes
 - DG capacity range (if enabled)
@@ -135,38 +134,31 @@ def run_batch_simulation(progress_bar, status_text):
     template_id = rules['inferred_template']
 
     # Generate configurations
-    if sizing['mode'] == 'fixed':
-        configs = [{
-            'capacity': sizing['fixed_capacity'],
-            'duration': sizing['fixed_duration'],
-            'dg_capacity': sizing['fixed_dg'] if setup['dg_enabled'] else 0,
-        }]
-    else:
-        configs = []
-        cap_values = np.arange(
-            sizing['capacity_min'],
-            sizing['capacity_max'] + sizing['capacity_step'],
-            sizing['capacity_step']
+    configs = []
+    cap_values = np.arange(
+        sizing['capacity_min'],
+        sizing['capacity_max'] + sizing['capacity_step'],
+        sizing['capacity_step']
+    )
+    dur_values = sizing['durations']
+
+    if setup['dg_enabled']:
+        dg_values = np.arange(
+            sizing['dg_min'],
+            sizing['dg_max'] + sizing['dg_step'],
+            sizing['dg_step']
         )
-        dur_values = sizing['durations']
+    else:
+        dg_values = [0]
 
-        if setup['dg_enabled']:
-            dg_values = np.arange(
-                sizing['dg_min'],
-                sizing['dg_max'] + sizing['dg_step'],
-                sizing['dg_step']
-            )
-        else:
-            dg_values = [0]
-
-        for cap in cap_values:
-            for dur in dur_values:
-                for dg in dg_values:
-                    configs.append({
-                        'capacity': cap,
-                        'duration': dur,
-                        'dg_capacity': dg,
-                    })
+    for cap in cap_values:
+        for dur in dur_values:
+            for dg in dg_values:
+                configs.append({
+                    'capacity': cap,
+                    'duration': dur,
+                    'dg_capacity': dg,
+                })
 
     # Run simulations
     results = []
@@ -265,186 +257,113 @@ dg_enabled = setup['dg_enabled']
 
 
 # =============================================================================
-# MODE SELECTION
+# SIZING CONFIGURATION
 # =============================================================================
 
-st.markdown("### Mode")
+col1, col2 = st.columns(2)
 
-mode = st.radio(
-    "Select sizing mode:",
-    options=['sizing', 'fixed'],
-    format_func=lambda x: "**Sizing Mode** — Test range of configurations" if x == 'sizing' else "**Fixed Mode** — Test single configuration",
-    index=0 if sizing['mode'] == 'sizing' else 1,
-    key='mode_radio',
-    horizontal=True
-)
-update_wizard_state('sizing', 'mode', mode)
+with col1:
+    st.markdown("### 🔋 Battery Capacity Range")
 
-st.divider()
+    cap_min = st.number_input(
+        "Minimum (MWh)",
+        min_value=10.0,
+        max_value=1000.0,
+        value=float(sizing['capacity_min']),
+        step=10.0,
+        key='cap_min_input'
+    )
+    update_wizard_state('sizing', 'capacity_min', cap_min)
 
+    cap_max = st.number_input(
+        "Maximum (MWh)",
+        min_value=cap_min,
+        max_value=2000.0,
+        value=max(float(sizing['capacity_max']), cap_min),
+        step=10.0,
+        key='cap_max_input'
+    )
+    update_wizard_state('sizing', 'capacity_max', cap_max)
 
-# =============================================================================
-# SIZING MODE - RANGES
-# =============================================================================
+    step_options = [5.0, 10.0, 25.0, 50.0, 100.0]
+    cap_step = st.selectbox(
+        "Step Size (MWh)",
+        options=step_options,
+        index=step_options.index(sizing['capacity_step']) if sizing['capacity_step'] in step_options else 1,
+        key='cap_step_select'
+    )
+    update_wizard_state('sizing', 'capacity_step', cap_step)
 
-if mode == 'sizing':
-    col1, col2 = st.columns(2)
+    # Duration classes
+    st.markdown("### ⏱️ Duration Classes")
+    st.caption("Power is auto-calculated: Power = Capacity / Duration")
 
-    with col1:
-        st.markdown("### 🔋 Battery Capacity Range")
+    duration_options = sizing['duration_options']
+    selected_durations = []
 
-        cap_min = st.number_input(
-            "Minimum (MWh)",
-            min_value=10.0,
-            max_value=1000.0,
-            value=float(sizing['capacity_min']),
-            step=10.0,
-            key='cap_min_input'
-        )
-        update_wizard_state('sizing', 'capacity_min', cap_min)
-
-        cap_max = st.number_input(
-            "Maximum (MWh)",
-            min_value=cap_min,
-            max_value=2000.0,
-            value=max(float(sizing['capacity_max']), cap_min),
-            step=10.0,
-            key='cap_max_input'
-        )
-        update_wizard_state('sizing', 'capacity_max', cap_max)
-
-        step_options = [5.0, 10.0, 25.0, 50.0, 100.0]
-        cap_step = st.selectbox(
-            "Step Size (MWh)",
-            options=step_options,
-            index=step_options.index(sizing['capacity_step']) if sizing['capacity_step'] in step_options else 1,
-            key='cap_step_select'
-        )
-        update_wizard_state('sizing', 'capacity_step', cap_step)
-
-        # Duration classes
-        st.markdown("### ⏱️ Duration Classes")
-        st.caption("Power is auto-calculated: Power = Capacity / Duration")
-
-        duration_options = sizing['duration_options']
-        selected_durations = []
-
-        dur_cols = st.columns(len(duration_options))
-        for i, dur in enumerate(duration_options):
-            with dur_cols[i]:
-                checked = st.checkbox(
-                    f"{dur}-hr",
-                    value=dur in sizing['durations'],
-                    key=f'dur_{dur}_check'
-                )
-                if checked:
-                    selected_durations.append(dur)
-
-        update_wizard_state('sizing', 'durations', selected_durations)
-
-        if not selected_durations:
-            st.error("Select at least one duration class")
-
-    with col2:
-        if dg_enabled:
-            st.markdown("### ⛽ Generator Capacity Range")
-
-            dg_min = st.number_input(
-                "Minimum (MW)",
-                min_value=0.0,
-                max_value=100.0,
-                value=float(sizing['dg_min']),
-                step=5.0,
-                key='dg_min_input'
+    dur_cols = st.columns(len(duration_options))
+    for i, dur in enumerate(duration_options):
+        with dur_cols[i]:
+            checked = st.checkbox(
+                f"{dur}-hr",
+                value=dur in sizing['durations'],
+                key=f'dur_{dur}_check'
             )
-            update_wizard_state('sizing', 'dg_min', dg_min)
+            if checked:
+                selected_durations.append(dur)
 
-            dg_max = st.number_input(
-                "Maximum (MW)",
-                min_value=dg_min,
-                max_value=200.0,
-                value=max(float(sizing['dg_max']), dg_min),
-                step=5.0,
-                key='dg_max_input'
-            )
-            update_wizard_state('sizing', 'dg_max', dg_max)
+    update_wizard_state('sizing', 'durations', selected_durations)
 
-            dg_step = st.selectbox(
-                "Step Size (MW)",
-                options=[5.0, 10.0, 20.0],
-                index=[5.0, 10.0, 20.0].index(sizing['dg_step']) if sizing['dg_step'] in [5.0, 10.0, 20.0] else 0,
-                key='dg_step_select'
-            )
-            update_wizard_state('sizing', 'dg_step', dg_step)
-        else:
-            st.info("Generator is disabled. Only Solar + BESS configurations will be tested.")
+    if not selected_durations:
+        st.error("Select at least one duration class")
 
-        # Configuration summary
-        st.markdown("### 📊 Simulation Summary")
+with col2:
+    if dg_enabled:
+        st.markdown("### ⛽ Generator Capacity Range")
 
-        num_configs = count_configurations()
-        est_time = estimate_simulation_time()
-
-        st.metric("Total Configurations", f"{num_configs:,}")
-        st.metric("Estimated Time", est_time)
-
-        if num_configs > 10000:
-            st.warning("⚠️ Large number of configurations. Consider reducing range or increasing step size.")
-        elif num_configs > 50000:
-            st.error("❌ Too many configurations. Please reduce the range.")
-
-
-# =============================================================================
-# FIXED MODE - SINGLE VALUES
-# =============================================================================
-
-else:
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown("### 🔋 Battery")
-
-        fixed_cap = st.number_input(
-            "Capacity (MWh)",
-            min_value=10.0,
-            max_value=1000.0,
-            value=float(sizing['fixed_capacity']),
-            step=10.0,
-            key='fixed_cap_input'
+        dg_min = st.number_input(
+            "Minimum (MW)",
+            min_value=0.0,
+            max_value=100.0,
+            value=float(sizing['dg_min']),
+            step=5.0,
+            key='dg_min_input'
         )
-        update_wizard_state('sizing', 'fixed_capacity', fixed_cap)
+        update_wizard_state('sizing', 'dg_min', dg_min)
 
-        fixed_dur = st.selectbox(
-            "Duration (hours)",
-            options=[1, 2, 4, 6, 8],
-            index=[1, 2, 4, 6, 8].index(sizing['fixed_duration']) if sizing['fixed_duration'] in [1, 2, 4, 6, 8] else 1,
-            key='fixed_dur_select'
+        dg_max = st.number_input(
+            "Maximum (MW)",
+            min_value=dg_min,
+            max_value=200.0,
+            value=max(float(sizing['dg_max']), dg_min),
+            step=5.0,
+            key='dg_max_input'
         )
-        update_wizard_state('sizing', 'fixed_duration', fixed_dur)
+        update_wizard_state('sizing', 'dg_max', dg_max)
 
-        fixed_power = fixed_cap / fixed_dur
-        st.metric("Power (MW)", f"{fixed_power:.1f}")
+        dg_step = st.selectbox(
+            "Step Size (MW)",
+            options=[5.0, 10.0, 20.0],
+            index=[5.0, 10.0, 20.0].index(sizing['dg_step']) if sizing['dg_step'] in [5.0, 10.0, 20.0] else 0,
+            key='dg_step_select'
+        )
+        update_wizard_state('sizing', 'dg_step', dg_step)
+    else:
+        st.info("Generator is disabled. Only Solar + BESS configurations will be tested.")
 
-    with col2:
-        if dg_enabled:
-            st.markdown("### ⛽ Generator")
+    # Configuration summary
+    st.markdown("### 📊 Simulation Summary")
 
-            fixed_dg = st.number_input(
-                "Capacity (MW)",
-                min_value=0.0,
-                max_value=100.0,
-                value=float(sizing['fixed_dg']),
-                step=5.0,
-                key='fixed_dg_input'
-            )
-            update_wizard_state('sizing', 'fixed_dg', fixed_dg)
-        else:
-            st.info("No generator in system")
+    num_configs = count_configurations()
+    est_time = estimate_simulation_time()
 
-    with col3:
-        st.markdown("### 📊 Summary")
-        st.metric("Total Configurations", "1")
-        st.metric("Estimated Time", "< 1 second")
+    st.metric("Total Configurations", f"{num_configs:,}")
+    st.metric("Estimated Time", est_time)
+
+    if num_configs > 10000:
+        st.warning("⚠️ Large number of configurations. Consider reducing range or increasing step size.")
+    elif num_configs > 50000:
+        st.error("❌ Too many configurations. Please reduce the range.")
 
 
 st.divider()
@@ -528,13 +447,7 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("**Step 3 - Sizing:**")
-    st.markdown(f"- Mode: {sizing['mode'].title()}")
-    if sizing['mode'] == 'sizing':
-        st.markdown(f"- BESS: {sizing['capacity_min']}-{sizing['capacity_max']} MWh")
-        st.markdown(f"- Durations: {sizing['durations']}")
-        if dg_enabled:
-            st.markdown(f"- DG: {sizing['dg_min']}-{sizing['dg_max']} MW")
-    else:
-        st.markdown(f"- BESS: {sizing['fixed_capacity']} MWh / {sizing['fixed_duration']}-hr")
-        if dg_enabled:
-            st.markdown(f"- DG: {sizing['fixed_dg']} MW")
+    st.markdown(f"- BESS: {sizing['capacity_min']}-{sizing['capacity_max']} MWh")
+    st.markdown(f"- Durations: {sizing['durations']}")
+    if dg_enabled:
+        st.markdown(f"- DG: {sizing['dg_min']}-{sizing['dg_max']} MW")

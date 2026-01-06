@@ -104,8 +104,6 @@ DEFAULT_WIZARD_STATE = {
 
     # Step 3: Sizing Range
     'sizing': {
-        'mode': 'sizing',  # 'sizing' or 'fixed'
-
         # BESS capacity range
         'capacity_min': 50.0,  # MWh
         'capacity_max': 200.0,  # MWh
@@ -119,11 +117,6 @@ DEFAULT_WIZARD_STATE = {
         'dg_min': 0.0,  # MW
         'dg_max': 20.0,  # MW
         'dg_step': 5.0,  # MW
-
-        # Fixed mode values
-        'fixed_capacity': 100.0,  # MWh
-        'fixed_duration': 2,  # hours
-        'fixed_dg': 10.0,  # MW
     },
 
     # Step 4: Results
@@ -306,39 +299,32 @@ def validate_step_3() -> tuple[bool, List[str]]:
     sizing = st.session_state.wizard['sizing']
     errors = []
 
-    if sizing['mode'] == 'sizing':
-        # Capacity range
-        if sizing['capacity_min'] <= 0:
-            errors.append("Minimum capacity must be positive")
-        if sizing['capacity_max'] < sizing['capacity_min']:
-            errors.append("Maximum capacity must be >= minimum")
-        if sizing['capacity_step'] <= 0:
-            errors.append("Capacity step must be positive")
+    # Capacity range
+    if sizing['capacity_min'] <= 0:
+        errors.append("Minimum capacity must be positive")
+    if sizing['capacity_max'] < sizing['capacity_min']:
+        errors.append("Maximum capacity must be >= minimum")
+    if sizing['capacity_step'] <= 0:
+        errors.append("Capacity step must be positive")
 
-        # Duration selection
-        if not sizing['durations']:
-            errors.append("At least one duration class must be selected")
+    # Duration selection
+    if not sizing['durations']:
+        errors.append("At least one duration class must be selected")
 
-        # DG range (if enabled)
-        setup = st.session_state.wizard['setup']
-        if setup['dg_enabled']:
-            if sizing['dg_max'] < sizing['dg_min']:
-                errors.append("Maximum DG must be >= minimum")
-            if sizing['dg_step'] <= 0:
-                errors.append("DG step must be positive")
+    # DG range (if enabled)
+    setup = st.session_state.wizard['setup']
+    if setup['dg_enabled']:
+        if sizing['dg_max'] < sizing['dg_min']:
+            errors.append("Maximum DG must be >= minimum")
+        if sizing['dg_step'] <= 0:
+            errors.append("DG step must be positive")
 
-        # Check total configurations
-        num_configs = count_configurations()
-        if num_configs > 50000:
-            errors.append(f"Too many configurations ({num_configs:,}). Maximum is 50,000")
-        elif num_configs > 10000:
-            errors.append(f"Warning: {num_configs:,} configurations may take several minutes")
-
-    else:  # Fixed mode
-        if sizing['fixed_capacity'] <= 0:
-            errors.append("Capacity must be positive")
-        if sizing['fixed_duration'] <= 0:
-            errors.append("Duration must be positive")
+    # Check total configurations
+    num_configs = count_configurations()
+    if num_configs > 50000:
+        errors.append(f"Too many configurations ({num_configs:,}). Maximum is 50,000")
+    elif num_configs > 10000:
+        errors.append(f"Warning: {num_configs:,} configurations may take several minutes")
 
     return len(errors) == 0, errors
 
@@ -352,9 +338,6 @@ def count_configurations() -> int:
     init_wizard_state()
     sizing = st.session_state.wizard['sizing']
     setup = st.session_state.wizard['setup']
-
-    if sizing['mode'] == 'fixed':
-        return 1
 
     # Count capacity values
     cap_range = sizing['capacity_max'] - sizing['capacity_min']
