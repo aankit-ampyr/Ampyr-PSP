@@ -16,7 +16,7 @@ from src.wizard_state import (
 from src.dispatch_engine import (
     SimulationParams, run_simulation, HourlyResult, calculate_metrics
 )
-from src.data_loader import load_solar_profile
+from src.data_loader import load_solar_profile, load_solar_profile_by_name
 from src.load_builder import build_load_profile
 
 
@@ -73,20 +73,27 @@ CONTAINER_SPECS = {
 
 def get_solar_profile(setup):
     """Get solar profile from setup configuration - matches Step 3 exactly."""
-    solar_source = setup.get('solar_source', 'default')
+    solar_source = setup.get('solar_source', 'inputs')
 
+    # Handle uploaded CSV data
     if solar_source == 'upload' and setup.get('solar_csv_data') is not None:
         solar_data = setup['solar_csv_data']
         if isinstance(solar_data, list):
             return solar_data[:8760] if len(solar_data) >= 8760 else solar_data
         return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
 
-    # Try default profile
-    if 'default_solar_profile' in st.session_state and st.session_state.default_solar_profile is not None:
-        solar_data = st.session_state.default_solar_profile
-        return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
+    # Handle selection from Inputs folder
+    if solar_source in ('inputs', 'default'):
+        selected_file = setup.get('solar_selected_file')
+        if selected_file:
+            try:
+                solar_data = load_solar_profile_by_name(selected_file)
+                if solar_data is not None and len(solar_data) > 0:
+                    return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
+            except Exception:
+                pass
 
-    # Fallback: load from file
+    # Fallback: load default profile
     try:
         solar_data = load_solar_profile()
         if solar_data is not None and len(solar_data) > 0:

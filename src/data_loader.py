@@ -6,17 +6,104 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from .config import SOLAR_PROFILE_PATH
-from utils.logger import get_logger
 
-# Set up module logger
-logger = get_logger(__name__)
+# Inputs folder path
+INPUTS_FOLDER = Path("Inputs")
+
+
+def list_solar_profiles():
+    """
+    List all available solar profile CSV files in the Inputs folder.
+
+    Returns:
+        list: List of (filename, display_name) tuples for available solar profiles
+    """
+    profiles = []
+
+    if not INPUTS_FOLDER.exists():
+        return profiles
+
+    # Find all CSV files that could be solar profiles
+    for csv_file in INPUTS_FOLDER.glob("*.csv"):
+        filename = csv_file.name
+        # Check if it's likely a solar profile (contains 'solar' in name, case-insensitive)
+        if 'solar' in filename.lower():
+            # Create display name by removing .csv extension
+            display_name = filename.replace('.csv', '')
+            profiles.append((filename, display_name))
+
+    # Sort alphabetically by display name
+    profiles.sort(key=lambda x: x[1].lower())
+
+    return profiles
+
+
+def load_solar_profile_by_name(filename):
+    """
+    Load a specific solar profile from the Inputs folder.
+
+    Args:
+        filename: Name of the CSV file (e.g., "Solar Profile.csv")
+
+    Returns:
+        numpy array: Hourly solar generation in MW for 8760 hours, or None if failed
+    """
+    file_path = INPUTS_FOLDER / filename
+
+    # Security: Ensure the resolved path is within Inputs folder
+    try:
+        resolved_path = file_path.resolve()
+        inputs_resolved = INPUTS_FOLDER.resolve()
+        if not str(resolved_path).startswith(str(inputs_resolved)):
+            return None
+    except Exception:
+        return None
+
+    if not file_path.exists():
+        return None
+
+    try:
+        df = pd.read_csv(file_path)
+
+        # Extract solar generation column
+        solar_column = None
+        for col in df.columns:
+            if any(keyword in col.lower() for keyword in ['solar', 'generation', 'mw']):
+                solar_column = col
+                break
+
+        if solar_column is None:
+            if len(df.columns) > 1:
+                solar_column = df.columns[1]
+            else:
+                solar_column = df.columns[0]
+
+        solar_profile = df[solar_column].values
+
+        if len(solar_profile) != 8760:
+            try:
+                import streamlit as st
+                st.warning(f"⚠️ Solar profile has {len(solar_profile)} hours, expected 8760.")
+            except ImportError:
+                pass
+
+        return solar_profile
+
+    except Exception as e:
+        try:
+            import streamlit as st
+            st.error(f"❌ Failed to load solar profile: {str(e)}")
+        except ImportError:
+            pass
+        return None
+
 
 def load_solar_profile(file_path=None):
     """
-    Load solar generation profile from CSV file.
+    Load solar generation profile from default CSV file.
 
     Security: Only loads from default path to prevent path traversal attacks.
-    For custom file uploads, use a separate upload handler function.
+    For custom file uploads, use load_solar_profile_by_name() instead.
 
     Args:
         file_path: Optional path to solar profile CSV. Must be None or default path.
@@ -33,17 +120,15 @@ def load_solar_profile(file_path=None):
         raise ValueError(
             f"Security: Custom file paths not allowed. "
             f"Only default solar profile can be loaded via this function. "
-            f"For custom uploads, use load_solar_profile_from_upload() instead."
+            f"For custom uploads, use load_solar_profile_by_name() instead."
         )
 
     file_path = SOLAR_PROFILE_PATH
 
     try:
-        # Read CSV file (validated to default path only)
         df = pd.read_csv(file_path)
 
         # Extract solar generation column
-        # Assuming column name contains 'Solar' or 'Generation' or 'MW'
         solar_column = None
         for col in df.columns:
             if any(keyword in col.lower() for keyword in ['solar', 'generation', 'mw']):
@@ -51,7 +136,6 @@ def load_solar_profile(file_path=None):
                 break
 
         if solar_column is None:
-            # If no matching column found, use the second column (first is usually datetime)
             if len(df.columns) > 1:
                 solar_column = df.columns[1]
             else:
@@ -59,35 +143,22 @@ def load_solar_profile(file_path=None):
 
         solar_profile = df[solar_column].values
 
-        # Ensure we have 8760 values
         if len(solar_profile) != 8760:
-            warning_msg = f"Solar profile has {len(solar_profile)} hours, expected 8760. Results may be inaccurate."
-            logger.warning(warning_msg)
-
             try:
                 import streamlit as st
-                st.warning(f"⚠️ {warning_msg}")
+                st.warning(f"⚠️ Solar profile has {len(solar_profile)} hours, expected 8760.")
             except ImportError:
-                pass  # Logger already handled the warning
+                pass
 
         return solar_profile
 
     except Exception as e:
-        # Log the error
-        logger.error(f"Failed to load solar profile: {str(e)}")
-        logger.error(f"Solar profile file '{SOLAR_PROFILE_PATH}' is required")
-
-        # Show user-visible error messages in Streamlit UI
         try:
             import streamlit as st
             st.error(f"❌ Failed to load solar profile: {str(e)}")
-            st.error("⚠️ Solar profile file is required to run simulations")
-            st.info(f"📝 Please ensure '{SOLAR_PROFILE_PATH}' exists with 8760 hourly values")
-            st.info("📤 Future versions will support uploading custom solar profile files")
         except ImportError:
-            pass  # Logger already handled the error
+            pass
 
-        # Return None - caller must handle missing solar profile
         return None
 
 

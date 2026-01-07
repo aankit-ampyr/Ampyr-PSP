@@ -29,7 +29,7 @@ from src.load_builder import (
     get_load_sparkline_data, LOAD_PRESETS,
     calculate_seasonal_stats, MONTH_NAMES_FULL
 )
-from src.data_loader import load_solar_profile
+from src.data_loader import load_solar_profile, list_solar_profiles, load_solar_profile_by_name
 
 
 # =============================================================================
@@ -410,25 +410,33 @@ st.divider()
 
 st.subheader("☀️ Solar Profile")
 
-# Load default solar profile once
-if 'default_solar_profile' not in st.session_state:
-    try:
-        default_solar = load_solar_profile()
-        if default_solar is not None and len(default_solar) > 0:
-            st.session_state.default_solar_profile = default_solar
-            st.session_state.default_solar_available = True
-        else:
-            st.session_state.default_solar_profile = None
-            st.session_state.default_solar_available = False
-    except Exception:
-        st.session_state.default_solar_profile = None
-        st.session_state.default_solar_available = False
+# Get available solar profiles from Inputs folder
+available_profiles = list_solar_profiles()
+
+# Determine source options based on available profiles
+if len(available_profiles) > 0:
+    source_options = ['inputs', 'upload']
+    source_labels = {
+        'inputs': f"Select from Inputs folder ({len(available_profiles)} file{'s' if len(available_profiles) > 1 else ''})",
+        'upload': "Upload Custom CSV"
+    }
+else:
+    source_options = ['upload']
+    source_labels = {'upload': "Upload Custom CSV"}
+
+# Get current source from state, default to 'inputs' if available
+current_source = setup.get('solar_source', 'inputs' if len(available_profiles) > 0 else 'upload')
+if current_source == 'default':
+    current_source = 'inputs'  # Migrate old 'default' to 'inputs'
+if current_source not in source_options:
+    current_source = source_options[0]
 
 solar_source = st.radio(
     "Solar generation profile source:",
-    options=['default', 'upload'],
-    format_func=lambda x: "Use Default Profile (Inputs/Solar Profile.csv)" if x == 'default' else "Upload Custom CSV",
+    options=source_options,
+    format_func=lambda x: source_labels[x],
     horizontal=True,
+    index=source_options.index(current_source),
     key='solar_source_radio'
 )
 update_wizard_state('setup', 'solar_source', solar_source)
@@ -436,13 +444,39 @@ update_wizard_state('setup', 'solar_source', solar_source)
 # Active solar profile variable
 active_solar_profile = None
 
-if solar_source == 'default':
-    # Use default solar profile
-    if st.session_state.default_solar_available:
-        active_solar_profile = st.session_state.default_solar_profile
-        st.success(f"✅ Default solar profile loaded: {len(active_solar_profile)} hours")
+if solar_source == 'inputs':
+    # Select from available profiles in Inputs folder
+    if len(available_profiles) == 1:
+        # Only one file - auto-select it
+        selected_file = available_profiles[0][0]
+        st.info(f"Using: **{available_profiles[0][1]}**")
     else:
-        st.error("❌ Default solar profile not found. Please upload a custom profile or check that 'Inputs/Solar Profile.csv' exists.")
+        # Multiple files - show dropdown
+        # Get previously selected file from state
+        prev_selected = setup.get('solar_selected_file', available_profiles[0][0])
+        # Validate it's still available
+        available_filenames = [p[0] for p in available_profiles]
+        if prev_selected not in available_filenames:
+            prev_selected = available_profiles[0][0]
+
+        selected_file = st.selectbox(
+            "Select solar profile:",
+            options=[p[0] for p in available_profiles],
+            format_func=lambda x: next((p[1] for p in available_profiles if p[0] == x), x),
+            index=available_filenames.index(prev_selected),
+            key='solar_file_select'
+        )
+
+    # Store selected file
+    update_wizard_state('setup', 'solar_selected_file', selected_file)
+
+    # Load the selected profile
+    solar_data = load_solar_profile_by_name(selected_file)
+    if solar_data is not None and len(solar_data) > 0:
+        active_solar_profile = solar_data
+        st.success(f"✅ Loaded: {len(active_solar_profile)} hours")
+    else:
+        st.error(f"❌ Failed to load '{selected_file}'. Please check the file format.")
 
 else:
     # Upload custom solar profile
@@ -491,8 +525,8 @@ if active_solar_profile is not None and len(active_solar_profile) > 0:
     st.plotly_chart(create_monthly_generation_chart(active_solar_profile), width='stretch')
 
     # Store the active solar profile for use in simulation
-    if solar_source == 'default':
-        update_wizard_state('setup', 'solar_csv_data', None)  # Clear uploaded data when using default
+    if solar_source == 'inputs':
+        update_wizard_state('setup', 'solar_csv_data', None)  # Clear uploaded data when using Inputs folder
 else:
     st.warning("⚠️ No valid solar profile available. Simulation requires a solar profile.")
 

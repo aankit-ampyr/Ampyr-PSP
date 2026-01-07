@@ -39,7 +39,8 @@ DEFAULT_WIZARD_STATE = {
 
         # Solar profile
         'solar_capacity_mw': 100.0,
-        'solar_source': 'default',  # 'default' or 'uploaded'
+        'solar_source': 'inputs',  # 'inputs' (from folder) or 'upload' (custom CSV)
+        'solar_selected_file': None,  # Selected filename from Inputs folder
         'solar_csv_data': None,  # numpy array if CSV uploaded
 
         # BESS parameters
