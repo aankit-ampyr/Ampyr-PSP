@@ -126,6 +126,46 @@ def create_solar_preview_chart(solar: np.ndarray) -> go.Figure:
     return fig
 
 
+def create_monthly_generation_chart(solar: np.ndarray) -> go.Figure:
+    """Create a monthly solar generation bar chart."""
+    import pandas as pd
+
+    # Create datetime index for a full year (non-leap)
+    start_date = pd.Timestamp('2024-01-01')
+    date_range = pd.date_range(start=start_date, periods=len(solar), freq='h')
+
+    # Create DataFrame with solar data
+    df = pd.DataFrame({'solar_mw': solar}, index=date_range)
+
+    # Calculate monthly totals (MWh = MW * 1 hour)
+    monthly_generation = df.groupby(df.index.month)['solar_mw'].sum()
+
+    month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=month_names,
+        y=monthly_generation.values,
+        marker_color='#f4a460',  # Sandy brown for solar
+        name='Generation',
+        text=[f'{v:,.0f}' for v in monthly_generation.values],
+        textposition='outside',
+        textfont=dict(size=10)
+    ))
+
+    fig.update_layout(
+        height=250,
+        margin=dict(l=40, r=20, t=30, b=40),
+        xaxis_title="Month",
+        yaxis_title="MWh",
+        showlegend=False,
+        title=dict(text="Monthly Solar Generation", font=dict(size=14)),
+    )
+
+    return fig
+
+
 # =============================================================================
 # MAIN PAGE
 # =============================================================================
@@ -447,6 +487,9 @@ if active_solar_profile is not None and len(active_solar_profile) > 0:
 
     st.plotly_chart(create_solar_preview_chart(active_solar_profile), width='stretch')
 
+    # Monthly generation profile
+    st.plotly_chart(create_monthly_generation_chart(active_solar_profile), width='stretch')
+
     # Store the active solar profile for use in simulation
     if solar_source == 'default':
         update_wizard_state('setup', 'solar_csv_data', None)  # Clear uploaded data when using default
@@ -458,10 +501,128 @@ st.divider()
 
 
 # =============================================================================
+# STORABLE SOLAR CHART (Dynamic based on Load & Solar profiles)
+# =============================================================================
+
+# Determine if we have both profiles available
+have_load_profile = False
+have_solar_profile = active_solar_profile is not None and len(active_solar_profile) > 0
+
+# Get load profile based on source
+if load_source == 'builder':
+    current_load_profile = load_profile
+    have_load_profile = True
+elif load_source == 'csv' and setup.get('load_csv_data') is not None:
+    current_load_profile = build_load_profile('csv', {'data': setup['load_csv_data']})
+    have_load_profile = True
+else:
+    current_load_profile = None
+
+if have_load_profile and have_solar_profile:
+    st.subheader("⚡ Storable Solar Analysis")
+    st.caption("Excess solar available for battery storage after serving load")
+
+    # Calculate storable solar
+    solar_arr = np.array(active_solar_profile)
+    load_arr = np.array(current_load_profile)
+
+    # Ensure same length (use minimum)
+    min_len = min(len(solar_arr), len(load_arr))
+    solar_arr = solar_arr[:min_len]
+    load_arr = load_arr[:min_len]
+
+    storable_solar = np.maximum(solar_arr - load_arr, 0)
+
+    # Summary metrics
+    excess_hours = int(np.sum(storable_solar > 0))
+    max_storable = float(storable_solar.max())
+    total_storable = float(storable_solar.sum())
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Max Storable", f"{max_storable:.2f} MW")
+    col2.metric("Hours with Excess", f"{excess_hours:,}")
+    col3.metric("Total Storable", f"{total_storable:,.0f} MWh")
+
+    # Availability of max storable (as % of excess hours)
+    if excess_hours > 0:
+        hours_at_max = int(np.sum(storable_solar >= max_storable * 0.99))
+        max_availability_pct = hours_at_max / excess_hours * 100
+        col4.metric("Max Available", f"{max_availability_pct:.1f}%", f"{hours_at_max} hrs")
+    else:
+        col4.metric("Max Available", "N/A")
+
+    # Create storable solar curve
+    hours = np.arange(len(storable_solar))
+
+    fig_storable = go.Figure()
+
+    fig_storable.add_trace(go.Scatter(
+        x=hours,
+        y=storable_solar,
+        mode='lines',
+        name='Storable Solar',
+        fill='tozeroy',
+        fillcolor='rgba(255, 165, 0, 0.3)',
+        line=dict(color='orange', width=1)
+    ))
+
+    fig_storable.add_hline(
+        y=max_storable,
+        line_dash="dash",
+        line_color="red",
+        annotation_text=f"Max: {max_storable:.2f} MW"
+    )
+
+    fig_storable.update_layout(
+        title="Storable Solar Throughout the Year (Solar - Load when positive)",
+        xaxis_title="Hour of Year",
+        yaxis_title="Storable Solar (MW)",
+        height=350,
+        margin=dict(l=40, r=20, t=40, b=40),
+        hovermode='x unified'
+    )
+
+    st.plotly_chart(fig_storable, use_container_width=True)
+
+
+st.divider()
+
+
+# =============================================================================
 # BESS PARAMETERS SECTION
 # =============================================================================
 
 st.subheader("🔋 Battery (BESS)")
+
+# Container Type Selection
+st.markdown("**Container Configuration**")
+container_options = {
+    '5mwh_2.5mw': '5 MWh / 2.5 MW (2-hour, 0.5C)',
+    '5mwh_1.25mw': '5 MWh / 1.25 MW (4-hour, 0.25C)',
+}
+current_containers = setup.get('bess_container_types', ['5mwh_2.5mw', '5mwh_1.25mw'])
+
+container_types = st.multiselect(
+    "Standard container sizes to evaluate:",
+    options=list(container_options.keys()),
+    default=current_containers,
+    format_func=lambda x: container_options[x],
+    key='bess_container_types_multiselect'
+)
+update_wizard_state('setup', 'bess_container_types', container_types)
+
+# Show specs for selected containers
+if container_types:
+    specs_text = []
+    if '5mwh_2.5mw' in container_types:
+        specs_text.append("2-hour: 5 MWh / 2.5 MW per container")
+    if '5mwh_1.25mw' in container_types:
+        specs_text.append("4-hour: 5 MWh / 1.25 MW per container")
+    st.caption(" | ".join(specs_text))
+else:
+    st.warning("Please select at least one container type")
+
+st.markdown("---")
 
 col1, col2, col3 = st.columns(3)
 
@@ -531,99 +692,6 @@ with st.expander("⚙️ Advanced BESS Settings"):
             key='bess_enforce_limit_check'
         )
         update_wizard_state('setup', 'bess_enforce_cycle_limit', bess_enforce_limit)
-
-
-st.divider()
-
-
-# =============================================================================
-# DEGRADATION & SIZING STRATEGY SECTION
-# =============================================================================
-
-st.subheader("📉 Degradation & Sizing Strategy")
-
-strategy_options = ['standard', 'overbuild', 'augmentation']
-current_strategy = setup.get('degradation_strategy', 'standard')
-strategy_index = strategy_options.index(current_strategy) if current_strategy in strategy_options else 0
-
-degradation_strategy = st.radio(
-    "Battery Sizing Strategy",
-    options=strategy_options,
-    index=strategy_index,
-    format_func=lambda x: {
-        'standard': 'Standard — Size for Year 1 performance',
-        'overbuild': 'Overbuild — Add capacity buffer for degradation',
-        'augmentation': 'Augmentation — Plan mid-life capacity addition'
-    }.get(x, x),
-    horizontal=True,
-    key='degradation_strategy_radio'
-)
-update_wizard_state('setup', 'degradation_strategy', degradation_strategy)
-
-# Strategy-specific inputs
-col1, col2 = st.columns(2)
-
-with col1:
-    if degradation_strategy == 'overbuild':
-        overbuild_pct = st.slider(
-            "Overbuild Factor (%)",
-            min_value=10,
-            max_value=50,
-            value=int(setup.get('overbuild_factor', 0.20) * 100),
-            step=5,
-            help="Extra capacity to compensate for degradation over project life",
-            key='overbuild_factor_slider'
-        )
-        update_wizard_state('setup', 'overbuild_factor', overbuild_pct / 100)
-
-        st.info(f"Example: 100 MWh required x {1 + overbuild_pct/100:.2f} = {100 * (1 + overbuild_pct/100):.0f} MWh installed")
-
-    elif degradation_strategy == 'augmentation':
-        aug_year = st.number_input(
-            "Augmentation Year",
-            min_value=3,
-            max_value=15,
-            value=int(setup.get('augmentation_year', 8)),
-            step=1,
-            help="Year to add replacement capacity to restore performance",
-            key='augmentation_year_input'
-        )
-        update_wizard_state('setup', 'augmentation_year', aug_year)
-
-        st.info(f"Capacity will be restored in Year {aug_year} to maintain target delivery")
-
-    else:
-        st.caption("Standard sizing: Battery sized for Year 1 requirements. Performance may degrade over time.")
-
-with col2:
-    # Advanced degradation settings
-    with st.expander("⚙️ Advanced Degradation Settings"):
-        calendar_rate = st.slider(
-            "Calendar Degradation (%/year)",
-            min_value=0.5,
-            max_value=5.0,
-            value=float(setup.get('calendar_degradation_rate', 0.02) * 100),
-            step=0.5,
-            help="Baseline capacity loss per year from calendar aging",
-            key='calendar_deg_slider'
-        )
-        update_wizard_state('setup', 'calendar_degradation_rate', calendar_rate / 100)
-
-        use_rainflow = st.checkbox(
-            "Use Rainflow Cycle Counting",
-            value=setup.get('use_rainflow_counting', True),
-            help="Advanced DoD-weighted cycle counting for more accurate degradation",
-            key='use_rainflow_check'
-        )
-        update_wizard_state('setup', 'use_rainflow_counting', use_rainflow)
-
-        include_calendar = st.checkbox(
-            "Include Calendar Aging",
-            value=setup.get('include_calendar_aging', True),
-            help="Add time-based degradation in addition to cycle degradation",
-            key='include_calendar_check'
-        )
-        update_wizard_state('setup', 'include_calendar_aging', include_calendar)
 
 
 st.divider()
@@ -775,16 +843,10 @@ if errors:
 
 col1, col2, col3 = st.columns([1, 1, 1])
 
-with col2:
-    if st.button("⚡ Quick Analysis", disabled=not is_valid, width='stretch',
-                 help="Skip the wizard - configure and analyze in one page"):
-        mark_step_completed(1)
-        st.switch_page("pages/13_⚡_Quick_Analysis.py")
-
 with col3:
     if st.button("Next → Dispatch Rules", type="primary", disabled=not is_valid, width='stretch'):
         mark_step_completed(1)
-        st.switch_page("pages/9_📋_Step2_Rules.py")
+        st.switch_page("pages/Step2_Rules.py")
 
 # Summary box
 with st.sidebar:

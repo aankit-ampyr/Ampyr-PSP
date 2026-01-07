@@ -43,6 +43,7 @@ DEFAULT_WIZARD_STATE = {
         'solar_csv_data': None,  # numpy array if CSV uploaded
 
         # BESS parameters
+        'bess_container_types': ['5mwh_2.5mw', '5mwh_1.25mw'],  # List of container types to evaluate
         'bess_efficiency': 87.0,  # %
         'bess_min_soc': 5.0,  # %
         'bess_max_soc': 95.0,  # %

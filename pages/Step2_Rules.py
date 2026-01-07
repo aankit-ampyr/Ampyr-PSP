@@ -41,7 +41,7 @@ set_current_step(2)
 if not can_navigate_to_step(2):
     st.warning("Please complete Step 1 first.")
     if st.button("Go to Step 1"):
-        st.switch_page("pages/8_🚀_Step1_Setup.py")
+        st.switch_page("pages/Step1_Setup.py")
     st.stop()
 
 
@@ -405,13 +405,13 @@ if errors:
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Setup", width='stretch'):
-        st.switch_page("pages/8_🚀_Step1_Setup.py")
+    if st.button("← Back to Setup", use_container_width=True):
+        st.switch_page("pages/Step1_Setup.py")
 
 with col3:
-    if st.button("Next → Sizing Range", type="primary", disabled=not is_valid, width='stretch'):
+    if st.button("Next → Sizing", type="primary", disabled=not is_valid, use_container_width=True):
         mark_step_completed(2)
-        st.switch_page("pages/10_📐_Step3_Sizing.py")
+        st.switch_page("pages/Step3_Sizing.py")
 
 
 # Sidebar summary

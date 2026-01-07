@@ -66,10 +66,9 @@ See [CHANGELOG.md](CHANGELOG.md) for complete release notes.
 ├── docs/
 │   └── NewConcept/           # Dispatch template specifications (T0-T6)
 ├── pages/
-│   ├── 8_Step1_Setup.py      # System configuration wizard
-│   ├── 9_Step2_Rules.py      # Dispatch rules configuration
-│   ├── 10_Step3_Sizing.py    # Battery sizing simulation
-│   └── 11_Step4_Results.py   # Results and analysis
+│   ├── Step1_Setup.py        # System configuration wizard
+│   ├── Step2_Rules.py        # Dispatch rules configuration
+│   └── archive/              # Archived pages (Step3-5, etc.)
 ├── src/
 │   ├── __init__.py           # Package exports
 │   ├── dispatch_engine.py    # Core dispatch simulation engine

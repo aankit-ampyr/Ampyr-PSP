@@ -246,7 +246,8 @@ def create_dg_hourly_dataframe(hourly_data):
 def calculate_ranked_recommendations(
     results_df,
     optimization_goal=None,
-    top_n=5
+    top_n=5,
+    solar_peak_mw=None
 ):
     """
     Calculate ranked recommendations based on user-defined optimization goals.
@@ -260,6 +261,8 @@ def calculate_ranked_recommendations(
             - max_wastage_pct: optional max wastage constraint
             - max_dg_hours: optional max DG runtime constraint
         top_n: Number of alternatives to include
+        solar_peak_mw: Peak solar generation (MW). Used to filter out configs where
+                       power < solar_peak (cannot capture all solar excess)
 
     Returns:
         dict: {
@@ -300,6 +303,7 @@ def calculate_ranked_recommendations(
         'dg_hours': ['dg_hours', 'DG Hours', 'dg_runtime_hours'],
         'bess_cycles': ['bess_cycles', 'Total Cycles', 'total_cycles'],
         'wastage_pct': ['wastage_pct', 'Wastage (%)', 'Solar Wastage (%)'],
+        'green_hours': ['green_hours', 'Green Hours', 'hours_green_delivery'],
     }
 
     # Find actual column names
@@ -312,11 +316,13 @@ def calculate_ranked_recommendations(
     delivery_col = find_col('delivery_hours')
     bess_col = find_col('bess_mwh')
     duration_col = find_col('duration_hrs')
+    power_col = find_col('power_mw')
     dg_col = find_col('dg_mw')
     dg_hours_col = find_col('dg_hours')
     cycles_col = find_col('bess_cycles')
     wastage_col = find_col('wastage_pct')
     delivery_pct_col = find_col('delivery_pct')
+    green_hours_col = find_col('green_hours')
 
     # Store original count
     original_count = len(df)
@@ -393,21 +399,87 @@ def calculate_ranked_recommendations(
 
     sort_col, sort_asc, sort_desc = sort_configs.get(optimize_for, (bess_col, True, "smallest BESS"))
 
-    # For 'maximize' mode, first sort by delivery (desc), then by optimization priority
+    # For 'maximize' mode, find smallest BESS that achieves max delivery
     if delivery_mode == 'maximize':
-        # Primary: max delivery, Secondary: optimization priority
-        df_sorted = df_filtered.sort_values(
-            by=[delivery_col, sort_col],
-            ascending=[False, sort_asc]
-        ).reset_index(drop=True)
-        selection_method = f"max_delivery_then_{optimize_for}"
+        # First, find the max delivery achieved
+        max_delivery_pct = df_filtered[delivery_pct_col].max()
+        # Filter to configs achieving within 0.1% of max (to handle floating point)
+        near_max_delivery = df_filtered[df_filtered[delivery_pct_col] >= max_delivery_pct - 0.1].copy()
+
+        # Special handling for min_wastage optimization:
+        # Apply multi-level sorting algorithm:
+        # 1. Filter configs where power >= solar_peak (can capture all solar)
+        # 2. Sort by wastage ASC (lowest first)
+        # 3. Sort by green_hours DESC (max solar utilization)
+        # 4. Sort by power_mw ASC (smallest power that works)
+        if optimize_for == 'min_wastage' and power_col in near_max_delivery.columns:
+            # Apply power constraint if solar_peak_mw provided
+            if solar_peak_mw is not None and solar_peak_mw > 0:
+                # Filter out configs where power < solar peak (cannot capture all solar)
+                power_sufficient = near_max_delivery[near_max_delivery[power_col] >= solar_peak_mw].copy()
+                if len(power_sufficient) > 0:
+                    near_max_delivery = power_sufficient
+                    constraint_descs.append(f"power ≥ {solar_peak_mw:.0f} MW solar peak")
+
+            # Multi-level sort for min_wastage:
+            # 1. wastage_pct ASC, 2. green_hours DESC, 3. power_mw ASC
+            sort_columns = [wastage_col]
+            sort_ascending = [True]
+
+            if green_hours_col in near_max_delivery.columns:
+                sort_columns.append(green_hours_col)
+                sort_ascending.append(False)  # DESC for green hours
+
+            sort_columns.append(power_col)
+            sort_ascending.append(True)  # ASC for power (smallest)
+
+            df_sorted = near_max_delivery.sort_values(
+                by=sort_columns,
+                ascending=sort_ascending
+            ).reset_index(drop=True)
+            selection_method = "min_wastage_multi_level"
+        else:
+            # Standard single-column sort for other optimization priorities
+            df_sorted = near_max_delivery.sort_values(
+                by=sort_col,
+                ascending=sort_asc
+            ).reset_index(drop=True)
+            selection_method = f"smallest_at_max_delivery_{optimize_for}"
     else:
-        # All configs meet delivery requirement, sort by optimization priority only
-        df_sorted = df_filtered.sort_values(
-            by=sort_col,
-            ascending=sort_asc
-        ).reset_index(drop=True)
-        selection_method = optimize_for
+        # All configs meet delivery requirement
+        # Apply same multi-level logic for min_wastage
+        if optimize_for == 'min_wastage' and power_col in df_filtered.columns:
+            # Apply power constraint if solar_peak_mw provided
+            working_df = df_filtered.copy()
+            if solar_peak_mw is not None and solar_peak_mw > 0:
+                power_sufficient = working_df[working_df[power_col] >= solar_peak_mw].copy()
+                if len(power_sufficient) > 0:
+                    working_df = power_sufficient
+                    constraint_descs.append(f"power ≥ {solar_peak_mw:.0f} MW solar peak")
+
+            # Multi-level sort
+            sort_columns = [wastage_col]
+            sort_ascending = [True]
+
+            if green_hours_col in working_df.columns:
+                sort_columns.append(green_hours_col)
+                sort_ascending.append(False)
+
+            sort_columns.append(power_col)
+            sort_ascending.append(True)
+
+            df_sorted = working_df.sort_values(
+                by=sort_columns,
+                ascending=sort_ascending
+            ).reset_index(drop=True)
+            selection_method = "min_wastage_multi_level"
+        else:
+            # Standard single-column sort
+            df_sorted = df_filtered.sort_values(
+                by=sort_col,
+                ascending=sort_asc
+            ).reset_index(drop=True)
+            selection_method = optimize_for
 
     # ===========================================
     # STEP 4: Build recommendation
@@ -418,10 +490,11 @@ def calculate_ranked_recommendations(
     # Build reasoning string
     reasoning_parts = []
     if delivery_mode == 'maximize':
-        reasoning_parts.append(f"Highest delivery ({rec_row.get(delivery_pct_col, 0):.1f}%)")
+        reasoning_parts.append(f"Achieves max delivery ({rec_row.get(delivery_pct_col, 0):.1f}%)")
+        reasoning_parts.append(f"with {sort_desc}")
     else:
         reasoning_parts.append(f"Meets {delivery_filter_desc}")
-    reasoning_parts.append(f"with {sort_desc}")
+        reasoning_parts.append(f"with {sort_desc}")
     if constraint_descs:
         reasoning_parts.append(f"within constraints ({', '.join(constraint_descs)})")
 
@@ -572,4 +645,243 @@ def calculate_simulation_params(min_size, max_size, step_size, max_simulations=N
         'was_adjusted': was_adjusted,
         'original_step_size': step_size,
         'battery_sizes': battery_sizes
+    }
+
+
+def find_top_capacities(
+    target_delivery_pct: float,
+    solar_profile: list,
+    load_profile: list,
+    setup: dict,
+    rules: dict,
+    run_simulation_func,
+    calculate_metrics_func,
+    capacity_range: tuple = (100, 500, 25),
+    duration_options: list = None,
+    top_n: int = 3,
+    factory_degradation: float = 0.08,
+):
+    """
+    Find top N smallest capacities meeting delivery target using capacity-first approach.
+
+    This algorithm:
+    1. Determines minimum power required to capture solar
+    2. Scans all capacities with valid durations
+    3. Groups results by capacity, selecting best duration for each
+    4. Returns top N smallest capacities meeting the target
+
+    Args:
+        target_delivery_pct: Target delivery percentage (e.g., 95.0)
+        solar_profile: List of 8760 hourly solar values (MW)
+        load_profile: List of 8760 hourly load values (MW)
+        setup: Setup configuration dict (contains bess_efficiency, etc.)
+        rules: Dispatch rules dict (contains template, DG settings, etc.)
+        run_simulation_func: Function to run simulation (from dispatch_engine)
+        calculate_metrics_func: Function to calculate metrics
+        capacity_range: Tuple of (min_mwh, max_mwh, step_mwh)
+        duration_options: List of duration hours to test (default: [2, 4, 6])
+        top_n: Number of top capacities to return (default: 3)
+        factory_degradation: Factory degradation percentage (default: 0.08 = 8%)
+
+    Returns:
+        dict: {
+            'min_power_required': float - Minimum power to capture all solar,
+            'solar_peak_mw': float - Peak solar generation,
+            'top_capacities': [
+                {
+                    'capacity_mwh': float,
+                    'best_duration_hrs': int,
+                    'best_power_mw': float,
+                    'delivery_hours': int,
+                    'delivery_pct': float,
+                    'wastage_pct': float,
+                    'dg_hours': int,
+                    'cycles': float,
+                    'nameplate_mwh': float,  # capacity / (1 - factory_degradation)
+                    'all_durations': [{duration, power, delivery_hours, ...}],
+                },
+                ...
+            ],
+            'scan_summary': {
+                'total_capacities_tested': int,
+                'capacities_meeting_target': int,
+                'min_capacity_for_target': float,
+                'max_delivery_achieved': float,
+            },
+            'all_capacity_results': list,  # Full results for charting
+        }
+    """
+    from src.dispatch_engine import SimulationParams
+
+    if duration_options is None:
+        duration_options = [2, 4, 6]
+
+    min_cap, max_cap, step_cap = capacity_range
+
+    # ===========================================
+    # PHASE 1: Determine minimum power requirement
+    # ===========================================
+    solar_peak_mw = max(solar_profile) if solar_profile else 0
+
+    # If DG takeover mode is ON, all solar goes to BESS, so need power >= solar_peak
+    # Otherwise, only excess solar goes to BESS
+    dg_takeover = rules.get('dg_takeover_mode', False)
+    load_mw = setup.get('load_mw', 25)
+
+    if dg_takeover:
+        min_power_required = solar_peak_mw
+    else:
+        min_power_required = max(0, solar_peak_mw - load_mw)
+
+    # ===========================================
+    # PHASE 2: Scan all capacities
+    # ===========================================
+    all_capacity_results = []
+    capacity_best_configs = {}  # Group by capacity, track best duration
+
+    capacities = list(range(int(min_cap), int(max_cap) + int(step_cap), int(step_cap)))
+
+    for capacity in capacities:
+        duration_results = []
+
+        for duration in duration_options:
+            power = capacity / duration
+
+            # Skip if power is too low to capture solar (will curtail significantly)
+            # We still run the simulation but flag it
+            power_sufficient = power >= min_power_required
+
+            # Build simulation params
+            params = SimulationParams(
+                load_profile=load_profile,
+                solar_profile=solar_profile,
+                bess_capacity=capacity,
+                bess_charge_power=power,
+                bess_discharge_power=power,
+                bess_efficiency=setup.get('bess_efficiency', 87),
+                bess_min_soc=setup.get('bess_min_soc', 10),
+                bess_max_soc=setup.get('bess_max_soc', 90),
+                bess_initial_soc=setup.get('bess_initial_soc', 50),
+                bess_daily_cycle_limit=setup.get('bess_daily_cycle_limit', 2.0),
+                bess_enforce_cycle_limit=setup.get('bess_enforce_cycle_limit', False),
+                dg_enabled=setup.get('dg_enabled', True),
+                dg_capacity=setup.get('dg_capacity_mw', 30),
+                dg_charges_bess=rules.get('dg_charges_bess', False),
+                dg_load_priority=rules.get('dg_load_priority', 'bess_first'),
+                dg_takeover_mode=rules.get('dg_takeover_mode', False),
+                night_start_hour=rules.get('night_start', 18),
+                night_end_hour=rules.get('night_end', 6),
+                day_start_hour=rules.get('day_start', 6),
+                day_end_hour=rules.get('day_end', 18),
+                blackout_start_hour=rules.get('blackout_start', 0),
+                blackout_end_hour=rules.get('blackout_end', 0),
+                dg_soc_on_threshold=rules.get('soc_on_threshold', 30),
+                dg_soc_off_threshold=rules.get('soc_off_threshold', 80),
+                dg_fuel_curve_enabled=setup.get('dg_fuel_curve_enabled', False),
+                dg_fuel_f0=setup.get('dg_fuel_f0', 0.03),
+                dg_fuel_f1=setup.get('dg_fuel_f1', 0.22),
+                dg_fuel_flat_rate=setup.get('dg_fuel_flat_rate', 0.25),
+                cycle_charging_enabled=rules.get('cycle_charging_enabled', False),
+                cycle_charging_min_load_pct=rules.get('cycle_charging_min_load_pct', 70.0),
+                cycle_charging_off_soc=rules.get('cycle_charging_off_soc', 80.0),
+            )
+
+            # Run simulation
+            template_id = rules.get('inferred_template', 'T1')
+            hourly_results = run_simulation_func(params, template_id, num_hours=8760)
+            metrics = calculate_metrics_func(hourly_results, params)
+
+            duration_result = {
+                'duration_hrs': duration,
+                'power_mw': power,
+                'power_sufficient': power_sufficient,
+                'delivery_hours': metrics.hours_full_delivery,
+                'delivery_pct': metrics.pct_full_delivery,
+                'wastage_pct': metrics.pct_solar_curtailed,
+                'dg_hours': metrics.dg_runtime_hours,
+                'cycles': metrics.bess_equivalent_cycles,
+                'green_hours': metrics.hours_green_delivery,
+            }
+            duration_results.append(duration_result)
+
+        # Find best duration for this capacity (max delivery hours)
+        if duration_results:
+            best = max(duration_results, key=lambda x: x['delivery_hours'])
+
+            capacity_result = {
+                'capacity_mwh': capacity,
+                'best_duration_hrs': best['duration_hrs'],
+                'best_power_mw': best['power_mw'],
+                'power_sufficient': best['power_sufficient'],
+                'delivery_hours': best['delivery_hours'],
+                'delivery_pct': best['delivery_pct'],
+                'wastage_pct': best['wastage_pct'],
+                'dg_hours': best['dg_hours'],
+                'cycles': best['cycles'],
+                'green_hours': best['green_hours'],
+                'nameplate_mwh': capacity / (1 - factory_degradation),  # Nameplate to order
+                'all_durations': duration_results,
+            }
+
+            all_capacity_results.append(capacity_result)
+            capacity_best_configs[capacity] = capacity_result
+
+    # ===========================================
+    # PHASE 3: Filter and select top N
+    # ===========================================
+    # Filter capacities meeting target
+    meeting_target = [r for r in all_capacity_results if r['delivery_pct'] >= target_delivery_pct]
+
+    # Sort by capacity (smallest first)
+    meeting_target_sorted = sorted(meeting_target, key=lambda x: x['capacity_mwh'])
+
+    # Select top N smallest
+    top_capacities = meeting_target_sorted[:top_n]
+
+    # Add comparison metrics to alternatives
+    if top_capacities:
+        base = top_capacities[0]
+        for i, cap in enumerate(top_capacities):
+            if i == 0:
+                cap['vs_smallest'] = None
+            else:
+                cap['vs_smallest'] = {
+                    'extra_capacity_mwh': cap['capacity_mwh'] - base['capacity_mwh'],
+                    'extra_delivery_pct': cap['delivery_pct'] - base['delivery_pct'],
+                    'extra_delivery_hours': cap['delivery_hours'] - base['delivery_hours'],
+                    'dg_hours_saved': base['dg_hours'] - cap['dg_hours'],
+                }
+
+    # ===========================================
+    # PHASE 4: Calculate marginal analysis
+    # ===========================================
+    for i in range(1, len(all_capacity_results)):
+        prev = all_capacity_results[i - 1]
+        curr = all_capacity_results[i]
+        delta_cap = curr['capacity_mwh'] - prev['capacity_mwh']
+        delta_hours = curr['delivery_hours'] - prev['delivery_hours']
+        curr['marginal_gain'] = delta_hours / delta_cap if delta_cap > 0 else 0
+
+    if all_capacity_results:
+        all_capacity_results[0]['marginal_gain'] = 0
+
+    # ===========================================
+    # Build summary
+    # ===========================================
+    scan_summary = {
+        'total_capacities_tested': len(all_capacity_results),
+        'capacities_meeting_target': len(meeting_target),
+        'min_capacity_for_target': meeting_target_sorted[0]['capacity_mwh'] if meeting_target_sorted else None,
+        'max_delivery_achieved': max(r['delivery_pct'] for r in all_capacity_results) if all_capacity_results else 0,
+        'target_delivery_pct': target_delivery_pct,
+    }
+
+    return {
+        'min_power_required': min_power_required,
+        'solar_peak_mw': solar_peak_mw,
+        'dg_takeover_mode': dg_takeover,
+        'factory_degradation_pct': factory_degradation * 100,
+        'top_capacities': top_capacities,
+        'scan_summary': scan_summary,
+        'all_capacity_results': all_capacity_results,
     }

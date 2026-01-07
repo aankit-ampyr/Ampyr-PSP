@@ -125,10 +125,9 @@ streamlit run app.py --server.headless true
   - `metrics.py` - Metrics calculation
   - `config_manager.py` - Configuration state management
 - `/pages/` - Streamlit multipage components (new wizard UI)
-  - `8_Step1_Setup.py` - System configuration wizard
-  - `9_Step2_Rules.py` - Dispatch rules configuration
-  - `10_Step3_Sizing.py` - Battery sizing simulation
-  - `11_Step4_Results.py` - Results and analysis
+  - `Step1_Setup.py` - System configuration wizard
+  - `Step2_Rules.py` - Dispatch rules configuration
+  - `archive/` - Archived pages (Step3-5, Quick Analysis, etc.)
 - `/tests/` - Unit and integration tests
 - `app.py` - Main application entry point
 - `setup.py` - Python package configuration (for dependency management changes)
