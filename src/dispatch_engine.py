@@ -14,6 +14,7 @@ from typing import List, Optional, Tuple
 
 # Import fuel model for DG fuel consumption calculations
 from src.fuel_model import calculate_fuel_rate, calculate_fuel_consumption
+from src.config import FLOATING_POINT_TOLERANCE
 
 
 # =============================================================================
@@ -505,7 +506,7 @@ def check_dg_takeover(params: SimulationParams, state: SimulationState,
     )
     total_green_capacity = hour.solar + bess_can_provide
 
-    if total_green_capacity >= hour.load - 0.001:
+    if total_green_capacity >= hour.load - FLOATING_POINT_TOLERANCE:
         # Green sources can meet load - no takeover
         return False, remaining_load, False, 0
 
@@ -593,7 +594,7 @@ def dispatch_template_1(params: SimulationParams, state: SimulationState,
         total_green_capacity = hour.solar + bess_can_provide
 
         # Check if green sources can meet load
-        if total_green_capacity >= hour.load - 0.001:
+        if total_green_capacity >= hour.load - FLOATING_POINT_TOLERANCE:
             # GREEN MODE: Solar + BESS can meet load - proceed normally
             # Charge BESS with excess solar
             if excess_solar > 0 and not state.bess_disabled_today:
@@ -645,7 +646,7 @@ def dispatch_template_1(params: SimulationParams, state: SimulationState,
         if params.dg_load_priority == 'dg_first':
             # DG First: Solar -> DG -> BESS -> Unserved
             # DG activation first (when load exceeds solar)
-            if remaining_load > 0.001 and state.dg_capacity > 0:
+            if remaining_load > FLOATING_POINT_TOLERANCE and state.dg_capacity > 0:
                 remaining_load, charge_power_used = activate_dg(
                     state, params, hour, remaining_load, bess_discharged, charge_power_used)
 
@@ -661,7 +662,7 @@ def dispatch_template_1(params: SimulationParams, state: SimulationState,
                 remaining_load -= hour.bess_to_load
 
             # DG activation (reactive - only when BESS insufficient)
-            if remaining_load > 0.001 and state.dg_capacity > 0:
+            if remaining_load > FLOATING_POINT_TOLERANCE and state.dg_capacity > 0:
                 remaining_load, charge_power_used = activate_dg(
                     state, params, hour, remaining_load, bess_discharged, charge_power_used)
 
@@ -762,7 +763,7 @@ def dispatch_template_3(params: SimulationParams, state: SimulationState,
 
     if params.dg_load_priority == 'dg_first' and dg_available:
         # DG First: Solar -> DG -> BESS -> Unserved
-        if remaining_load > 0.001:
+        if remaining_load > FLOATING_POINT_TOLERANCE:
             remaining_load, charge_power_used = activate_dg(
                 state, params, hour, remaining_load, bess_discharged, charge_power_used)
 
@@ -775,7 +776,7 @@ def dispatch_template_3(params: SimulationParams, state: SimulationState,
             hour.bess_to_load, bess_discharged = discharge_bess(state, params, remaining_load)
             remaining_load -= hour.bess_to_load
 
-        if dg_available and remaining_load > 0.001:
+        if dg_available and remaining_load > FLOATING_POINT_TOLERANCE:
             remaining_load, charge_power_used = activate_dg(
                 state, params, hour, remaining_load, bess_discharged, charge_power_used)
 
@@ -1097,7 +1098,7 @@ def run_simulation(params: SimulationParams, template_id: int,
             params, state, hour, remaining_load, excess_solar)
 
         # Unserved
-        hour.unserved = remaining_load if remaining_load > 0.001 else 0
+        hour.unserved = remaining_load if remaining_load > FLOATING_POINT_TOLERANCE else 0
 
         # SoC clamping
         state.soc = max(state.min_soc_mwh, min(state.soc, state.max_soc_mwh))
@@ -1144,8 +1145,8 @@ def calculate_metrics(results: List[HourlyResult], params: SimulationParams) -> 
     metrics.hours_with_load = sum(1 for r in results if r.load > 0)
 
     # Delivery hours: only count hours where there was load AND it was fully served
-    metrics.hours_full_delivery = sum(1 for r in results if r.load > 0 and r.unserved < 0.001)
-    metrics.hours_green_delivery = sum(1 for r in results if r.load > 0 and r.unserved < 0.001 and not r.dg_running)
+    metrics.hours_full_delivery = sum(1 for r in results if r.load > 0 and r.unserved < FLOATING_POINT_TOLERANCE)
+    metrics.hours_green_delivery = sum(1 for r in results if r.load > 0 and r.unserved < FLOATING_POINT_TOLERANCE and not r.dg_running)
     metrics.hours_with_dg = sum(1 for r in results if r.dg_running)
 
     # Calculate percentages against hours with load (not total hours)

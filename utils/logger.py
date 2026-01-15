@@ -2,21 +2,26 @@
 Centralized logging configuration for BESS Sizing Tool
 
 Provides consistent logging across all modules with appropriate formatting,
-log levels, and output handling.
+log levels, and output handling. Supports both console and file logging.
 """
 
 import logging
 import sys
 from pathlib import Path
+from datetime import datetime
+
+# Default log directory
+LOG_DIR = Path("logs")
 
 
-def setup_logger(name, level=logging.INFO):
+def setup_logger(name, level=logging.INFO, log_to_file=True):
     """
     Set up a logger with consistent formatting.
 
     Args:
         name: Logger name (typically __name__ of the calling module)
         level: Logging level (default: logging.INFO)
+        log_to_file: Whether to also log to a file (default: True)
 
     Returns:
         logging.Logger: Configured logger instance
@@ -36,19 +41,30 @@ def setup_logger(name, level=logging.INFO):
     if logger.handlers:
         return logger
 
-    # Create console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(level)
-
     # Create formatter
     formatter = logging.Formatter(
         fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
-    console_handler.setFormatter(formatter)
 
-    # Add handler to logger
+    # Create console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
+
+    # Create file handler for persistent logging
+    if log_to_file:
+        try:
+            LOG_DIR.mkdir(parents=True, exist_ok=True)
+            log_file = LOG_DIR / f"bess_sizing_{datetime.now().strftime('%Y%m%d')}.log"
+            file_handler = logging.FileHandler(log_file, encoding='utf-8')
+            file_handler.setLevel(level)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+        except (OSError, PermissionError) as e:
+            # If we can't write to log file, continue with console-only logging
+            logger.warning(f"Could not create log file: {e}. Continuing with console-only logging.")
 
     return logger
 

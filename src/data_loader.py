@@ -2,10 +2,14 @@
 Data loader module for reading solar profile data
 """
 
+import logging
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from .config import SOLAR_PROFILE_PATH
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Inputs folder path
 INPUTS_FOLDER = Path("Inputs")
@@ -55,8 +59,10 @@ def load_solar_profile_by_name(filename):
         resolved_path = file_path.resolve()
         inputs_resolved = INPUTS_FOLDER.resolve()
         if not str(resolved_path).startswith(str(inputs_resolved)):
+            logger.warning(f"Security: Path traversal attempt blocked for '{filename}'")
             return None
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to resolve path for '{filename}': {e}")
         return None
 
     if not file_path.exists():
@@ -90,9 +96,10 @@ def load_solar_profile_by_name(filename):
         return solar_profile
 
     except Exception as e:
+        logger.error(f"Failed to load solar profile '{filename}': {e}")
         try:
             import streamlit as st
-            st.error(f"❌ Failed to load solar profile: {str(e)}")
+            st.error(f"Failed to load solar profile: {str(e)}")
         except ImportError:
             pass
         return None
@@ -153,9 +160,10 @@ def load_solar_profile(file_path=None):
         return solar_profile
 
     except Exception as e:
+        logger.error(f"Failed to load default solar profile from '{file_path}': {e}")
         try:
             import streamlit as st
-            st.error(f"❌ Failed to load solar profile: {str(e)}")
+            st.error(f"Failed to load solar profile: {str(e)}")
         except ImportError:
             pass
 
@@ -172,12 +180,13 @@ def get_solar_statistics(solar_profile):
     Returns:
         dict: Statistics including max, min, mean, total
     """
+    peak_mw = np.max(solar_profile)
     return {
-        'max_mw': np.max(solar_profile),
+        'max_mw': peak_mw,
         'min_mw': np.min(solar_profile),
         'mean_mw': np.mean(solar_profile),
         'total_mwh': np.sum(solar_profile),
-        'capacity_factor': np.mean(solar_profile) / 67.0,
+        'capacity_factor': np.mean(solar_profile) / peak_mw if peak_mw > 0 else 0,
         'zero_hours': np.sum(solar_profile == 0)
     }
 

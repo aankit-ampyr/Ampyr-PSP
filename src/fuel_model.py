@@ -195,13 +195,15 @@ def calculate_efficiency_at_load(
     p_actual_mw = p_rated_mw * (load_pct / 100)
     fuel_rate = calculate_fuel_rate(p_rated_mw, p_actual_mw, f0, f1)
 
-    # Avoid division by zero
+    # Avoid division by zero - use 0 instead of infinity for edge cases
     p_actual_kw = p_actual_mw * 1000
     if p_actual_kw > 0 and fuel_rate > 0:
         specific_consumption = fuel_rate / p_actual_kw  # L/kWh
         efficiency = 1 / specific_consumption  # kWh/L
     else:
-        specific_consumption = float('inf') if p_actual_kw == 0 else 0
+        # When DG is not running or no fuel consumed, use 0 for both metrics
+        # Avoids float('inf') which can propagate and cause NaN in later calculations
+        specific_consumption = 0
         efficiency = 0
 
     return {

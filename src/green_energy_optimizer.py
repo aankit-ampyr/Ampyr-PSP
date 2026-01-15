@@ -268,6 +268,7 @@ def run_green_energy_optimization(
                     is_viable = meets_green_target and meets_wastage_limit
 
                     # Create result with all metrics
+                    # Note: All metrics fields are guaranteed to exist in SummaryMetrics dataclass
                     result = GreenEnergyResult(
                         # Configuration
                         solar_capacity_mw=solar_mw,
@@ -279,23 +280,23 @@ def run_green_energy_optimization(
                         # Delivery metrics
                         delivery_pct=metrics.pct_full_delivery,
                         green_energy_pct=metrics.pct_green_energy,
-                        green_hours_pct=metrics.pct_green_delivery if hasattr(metrics, 'pct_green_delivery') else 0.0,
+                        green_hours_pct=metrics.pct_green_delivery,
                         wastage_pct=metrics.pct_solar_curtailed,
                         # Hour counts
                         delivery_hours=metrics.hours_full_delivery,
-                        load_hours=metrics.hours_with_load if hasattr(metrics, 'hours_with_load') else 8760,
-                        green_hours=metrics.hours_green_delivery if hasattr(metrics, 'hours_green_delivery') else 0,
+                        load_hours=metrics.hours_with_load,
+                        green_hours=metrics.hours_green_delivery,
                         dg_runtime_hours=metrics.dg_runtime_hours,
-                        dg_starts=metrics.dg_starts if hasattr(metrics, 'dg_starts') else 0,
+                        dg_starts=metrics.dg_starts,
                         # Other metrics
                         total_cycles=metrics.bess_equivalent_cycles,
-                        unserved_mwh=metrics.total_unserved if hasattr(metrics, 'total_unserved') else 0.0,
-                        fuel_liters=metrics.total_fuel_consumed if hasattr(metrics, 'total_fuel_consumed') else 0.0,
+                        unserved_mwh=metrics.total_unserved,
+                        fuel_liters=metrics.total_fuel_consumed,
                         # Energy totals
-                        total_solar_generated_gwh=metrics.total_solar_generation / 1000 if hasattr(metrics, 'total_solar_generation') else 0.0,
-                        total_solar_curtailed_gwh=metrics.total_solar_curtailed / 1000 if hasattr(metrics, 'total_solar_curtailed') else 0.0,
-                        total_green_delivered_gwh=metrics.total_green_energy_delivered / 1000 if hasattr(metrics, 'total_green_energy_delivered') else 0.0,
-                        total_energy_delivered_gwh=metrics.total_energy_delivered / 1000 if hasattr(metrics, 'total_energy_delivered') else 0.0,
+                        total_solar_generated_gwh=metrics.total_solar_generation / 1000,
+                        total_solar_curtailed_gwh=metrics.total_solar_curtailed / 1000,
+                        total_green_delivered_gwh=metrics.total_green_energy_delivered / 1000,
+                        total_energy_delivered_gwh=metrics.total_energy_delivered / 1000,
                         # Viability
                         meets_green_target=meets_green_target,
                         meets_wastage_limit=meets_wastage_limit,
