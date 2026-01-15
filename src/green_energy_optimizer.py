@@ -13,6 +13,40 @@ from src.dispatch_engine import SimulationParams, run_simulation, calculate_metr
 from src.data_loader import scale_solar_profile, get_base_solar_peak_capacity
 
 
+def parse_template_id(template_id):
+    """Convert template ID from string ('T0'-'T6') or int (0-6) to int.
+
+    Args:
+        template_id: Either 'T0'-'T6' (str) or 0-6 (int)
+
+    Returns:
+        int: Template ID as integer (0-6), defaults to 0 if invalid
+
+    Examples:
+        >>> parse_template_id('T0')
+        0
+        >>> parse_template_id('T3')
+        3
+        >>> parse_template_id(5)
+        5
+        >>> parse_template_id('invalid')
+        0
+    """
+    if isinstance(template_id, int):
+        return max(0, min(6, template_id))  # Clamp to valid range
+    if isinstance(template_id, str) and template_id.startswith('T'):
+        try:
+            tid = int(template_id[1:])
+            return max(0, min(6, tid))  # Clamp to valid range
+        except (ValueError, IndexError):
+            return 0
+    # Fallback for numeric strings
+    try:
+        return max(0, min(6, int(template_id)))
+    except (ValueError, TypeError):
+        return 0
+
+
 # Container specifications (matching Step 3)
 CONTAINER_SPECS = {
     '5mwh_2.5mw': {'energy_mwh': 5, 'power_mw': 2.5, 'duration_hr': 2, 'label': '2-hour (0.5C)'},
@@ -118,7 +152,6 @@ def run_green_energy_optimization(
         dict: {
             'all_results': List[GreenEnergyResult],
             'viable_configs': List[GreenEnergyResult],
-            'best_by_solar': Dict[float, GreenEnergyResult],
             'summary': dict,
             'optimization_params': dict
         }
@@ -155,7 +188,6 @@ def run_green_energy_optimization(
     current_sim = 0
 
     all_results = []
-    best_by_solar = {}
 
     # 4D Sweep: Solar × BESS × Container × DG
     for solar_mw in solar_capacities:
@@ -221,7 +253,7 @@ def run_green_energy_optimization(
                     )
 
                     # Run simulation
-                    template_id = opt_params.dispatch_template
+                    template_id = parse_template_id(opt_params.dispatch_template)
                     hourly_results = run_simulation(sim_params, template_id, num_hours=8760)
                     metrics = calculate_metrics(hourly_results, sim_params)
 
@@ -273,14 +305,6 @@ def run_green_energy_optimization(
                     all_results.append(result)
                     solar_results.append(result)
 
-        # Find best config for this solar capacity
-        viable_for_solar = [r for r in solar_results if r.is_viable]
-        if viable_for_solar:
-            # Best = smallest BESS meeting targets
-            best_by_solar[solar_mw] = min(viable_for_solar, key=lambda r: r.bess_capacity_mwh)
-        elif solar_results:
-            best_by_solar[solar_mw] = max(solar_results, key=lambda r: r.green_energy_pct)
-
     # Filter viable configurations
     viable_configs = [r for r in all_results if r.is_viable]
 
@@ -308,7 +332,6 @@ def run_green_energy_optimization(
     return {
         'all_results': all_results,
         'viable_configs': viable_configs,
-        'best_by_solar': best_by_solar,
         'summary': summary,
         'optimization_params': asdict(opt_params)
     }

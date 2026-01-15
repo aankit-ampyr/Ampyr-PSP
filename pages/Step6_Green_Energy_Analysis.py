@@ -17,7 +17,8 @@ from src.green_energy_optimizer import (
     run_green_energy_optimization,
     GreenEnergyOptimizationParams,
     create_results_dataframe,
-    CONTAINER_SPECS
+    CONTAINER_SPECS,
+    parse_template_id
 )
 
 
@@ -145,26 +146,26 @@ def main():
         st.subheader("Solar Capacity Range")
         solar_min = st.number_input(
             "Minimum Solar (MWp)",
-            min_value=10.0,
-            max_value=500.0,
-            value=50.0,
-            step=10.0,
+            min_value=10,
+            max_value=500,
+            value=50,
+            step=10,
             key='solar_min'
         )
         solar_max = st.number_input(
             "Maximum Solar (MWp)",
             min_value=solar_min,
-            max_value=500.0,
-            value=150.0,
-            step=10.0,
+            max_value=500,
+            value=150,
+            step=10,
             key='solar_max'
         )
         solar_step = st.number_input(
             "Solar Step (MWp)",
-            min_value=5.0,
-            max_value=50.0,
-            value=25.0,
-            step=5.0,
+            min_value=5,
+            max_value=50,
+            value=25,
+            step=5,
             key='solar_step'
         )
 
@@ -697,70 +698,6 @@ def main():
         st.divider()
 
         # ===========================
-        # Heatmaps
-        # ===========================
-        st.subheader("Green Energy % Heatmap")
-
-        # Aggregate by Solar × BESS (average across containers and DG)
-        heatmap_df = df_all.groupby(['solar_capacity_mw', 'bess_capacity_mwh']).agg({
-            'green_energy_pct': 'mean',
-            'wastage_pct': 'mean'
-        }).reset_index()
-
-        pivot_green = heatmap_df.pivot(
-            index='bess_capacity_mwh',
-            columns='solar_capacity_mw',
-            values='green_energy_pct'
-        )
-
-        fig_green = go.Figure(data=go.Heatmap(
-            z=pivot_green.values,
-            x=pivot_green.columns,
-            y=pivot_green.index,
-            colorscale='RdYlGn',
-            colorbar=dict(title="Green %"),
-            hovertemplate='Solar: %{x} MWp<br>BESS: %{y} MWh<br>Green: %{z:.1f}%<extra></extra>'
-        ))
-
-        fig_green.update_layout(
-            title="Average Green Energy % by Solar × BESS",
-            xaxis_title="Solar Capacity (MWp)",
-            yaxis_title="BESS Capacity (MWh)",
-            height=500
-        )
-
-        st.plotly_chart(fig_green, use_container_width=True)
-
-        # Wastage heatmap
-        st.subheader("Solar Wastage % Heatmap")
-
-        pivot_wastage = heatmap_df.pivot(
-            index='bess_capacity_mwh',
-            columns='solar_capacity_mw',
-            values='wastage_pct'
-        )
-
-        fig_wastage = go.Figure(data=go.Heatmap(
-            z=pivot_wastage.values,
-            x=pivot_wastage.columns,
-            y=pivot_wastage.index,
-            colorscale='YlOrRd',
-            colorbar=dict(title="Wastage %"),
-            hovertemplate='Solar: %{x} MWp<br>BESS: %{y} MWh<br>Wastage: %{z:.1f}%<extra></extra>'
-        ))
-
-        fig_wastage.update_layout(
-            title="Average Solar Wastage % by Solar × BESS",
-            xaxis_title="Solar Capacity (MWp)",
-            yaxis_title="BESS Capacity (MWh)",
-            height=500
-        )
-
-        st.plotly_chart(fig_wastage, use_container_width=True)
-
-        st.divider()
-
-        # ===========================
         # Export
         # ===========================
         st.subheader("Export Results")
@@ -942,7 +879,7 @@ def main():
                 )
 
                 # Run simulation
-                template_id = rules.get('inferred_template', 'T0')
+                template_id = parse_template_id(rules.get('inferred_template', 'T0'))
                 hourly_results = run_simulation(sim_params, template_id, num_hours=8760)
 
                 # Convert to DataFrame
@@ -1012,6 +949,115 @@ def main():
                 file_name=filename,
                 mime="text/csv",
                 type="primary"
+            )
+
+            # ===========================
+            # Monthly Performance Summary
+            # ===========================
+            st.divider()
+            st.subheader("Monthly Performance Summary")
+
+            # Calculate monthly metrics from hourly_df
+            monthly_data = []
+            month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+            # Calculate month using accurate day-based calculation
+            days_in_months = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            cumulative_hours = []
+            cumsum = 0
+            for days in days_in_months:
+                cumsum += days * 24
+                cumulative_hours.append(cumsum)
+
+            def get_month(hour):
+                for i, cum_hrs in enumerate(cumulative_hours):
+                    if hour <= cum_hrs:
+                        return i + 1
+                return 12
+
+            hourly_df['Month'] = hourly_df['Hour'].apply(get_month)
+
+            for month_num in range(1, 13):
+                # Filter data for this month
+                month_df = hourly_df[hourly_df['Month'] == month_num]
+
+                if len(month_df) == 0:
+                    continue
+
+                # Calculate metrics for this month
+                month_hours = len(month_df)
+                month_load_hours = (month_df['Load_MW'] > 0).sum()
+                month_delivery = (month_df['Full_Delivery'] == 'Yes').sum()
+                month_green = (month_df['Green_Delivery'] == 'Yes').sum()
+                month_dg_hours = (month_df['DG_Running'] == 'Yes').sum()
+                month_solar = month_df['Solar_MW'].sum()
+                month_curtailed = month_df['Solar_Curtailed_MW'].sum()
+                month_unserved = month_df['Unserved_MW'].sum()
+                month_fuel = month_df['DG_Fuel_L'].sum()
+
+                # Solar delivery hours: hours where solar contributed to load during full delivery
+                month_solar_delivery_hrs = ((month_df['Full_Delivery'] == 'Yes') & (month_df['Solar_to_Load_MW'] > 0)).sum()
+                # BESS delivery hours: hours where BESS contributed to load during full delivery
+                month_bess_delivery_hrs = ((month_df['Full_Delivery'] == 'Yes') & (month_df['BESS_to_Load_MW'] > 0)).sum()
+
+                effective_hours = month_load_hours if month_load_hours > 0 else month_hours
+                delivery_pct = (month_delivery / effective_hours * 100) if effective_hours > 0 else 0
+                green_pct = (month_green / month_delivery * 100) if month_delivery > 0 else 0
+                wastage_pct = (month_curtailed / month_solar * 100) if month_solar > 0 else 0
+
+                monthly_data.append({
+                    'Month': month_names[month_num - 1],
+                    'Delivery %': round(delivery_pct, 1),
+                    'Green %': round(max(0, green_pct), 1),
+                    'Wastage %': round(wastage_pct, 1),
+                    'Delivery Hrs': int(month_delivery),
+                    'Load Hrs': int(month_load_hours),
+                    'Green Hrs': int(month_green),
+                    'Solar Hrs': int(month_solar_delivery_hrs),
+                    'BESS Hrs': int(month_bess_delivery_hrs),
+                    'DG Hrs': int(month_dg_hours),
+                    'Curtailed (MWh)': round(month_curtailed, 1),
+                    'Unserved (MWh)': round(month_unserved, 1),
+                    'Fuel (L)': round(month_fuel, 1),
+                })
+
+            monthly_summary_df = pd.DataFrame(monthly_data)
+
+            st.dataframe(
+                monthly_summary_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    'Delivery %': st.column_config.ProgressColumn(
+                        'Delivery %',
+                        min_value=0,
+                        max_value=100,
+                        format="%.1f%%"
+                    ),
+                    'Green %': st.column_config.ProgressColumn(
+                        'Green %',
+                        min_value=0,
+                        max_value=100,
+                        format="%.1f%%"
+                    ),
+                    'Wastage %': st.column_config.NumberColumn(
+                        'Wastage %',
+                        format="%.1f%%"
+                    ),
+                }
+            )
+
+            # Download monthly summary
+            csv_monthly = monthly_summary_df.to_csv(index=False)
+            monthly_filename = (f"monthly_summary_Solar{config.get('solar_mwp', 0):.0f}MWp_"
+                               f"BESS{config.get('bess_mwh', 0):.0f}MWh_"
+                               f"DG{config.get('dg_mw', 0):.0f}MW.csv")
+
+            st.download_button(
+                "Download Monthly Summary (CSV)",
+                data=csv_monthly,
+                file_name=monthly_filename,
+                mime="text/csv"
             )
 
 
