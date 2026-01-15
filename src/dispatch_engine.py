@@ -202,6 +202,11 @@ class SummaryMetrics:
     specific_fuel_consumption: float = 0  # L/kWh delivered
     cycle_charging_hours: int = 0  # Hours DG was in cycle charging mode
 
+    # Energy-based green delivery metrics (for green energy optimization)
+    total_green_energy_delivered: float = 0.0  # MWh from solar + BESS
+    total_energy_delivered: float = 0.0  # MWh from all sources
+    pct_green_energy: float = 0.0  # Energy-based green %
+
 
 # =============================================================================
 # INITIALIZATION FUNCTIONS
@@ -1184,5 +1189,23 @@ def calculate_metrics(results: List[HourlyResult], params: SimulationParams) -> 
     if total_dg_delivered > 0:
         # L per MWh delivered
         metrics.specific_fuel_consumption = metrics.total_fuel_consumed / total_dg_delivered
+
+    # Energy-based green delivery metrics
+    metrics.total_green_energy_delivered = (
+        metrics.total_solar_to_load + metrics.total_bess_to_load
+    )
+    metrics.total_energy_delivered = (
+        metrics.total_solar_to_load +
+        metrics.total_bess_to_load +
+        metrics.total_dg_to_load
+    )
+
+    if metrics.total_energy_delivered > 0:
+        metrics.pct_green_energy = (
+            metrics.total_green_energy_delivered /
+            metrics.total_energy_delivered * 100
+        )
+    else:
+        metrics.pct_green_energy = 0.0
 
     return metrics
