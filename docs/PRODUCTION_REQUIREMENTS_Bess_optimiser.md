@@ -1,7 +1,7 @@
 # BESS Sizing Tool - Production Application Requirements
 
 **Document Version:** 1.0
-**Date:** January 2025
+**Date:** January 2026
 **Status:** Ready for Contractor Estimation
 
 ---
@@ -180,6 +180,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 #### 3.3.3 Simulation File Format
 
 **metadata.json:**
+
 ```json
 {
   "id": "sim_20240115_143022",
@@ -228,6 +229,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 ```
 
 **results.parquet:** Contains all simulation result rows with columns:
+
 - Configuration: solar_capacity_mw, bess_capacity_mwh, duration_hr, power_mw, containers, dg_capacity_mw
 - Metrics: delivery_pct, green_energy_pct, green_hours_pct, wastage_pct
 - Hour counts: delivery_hours, load_hours, green_hours, dg_runtime_hours, dg_starts
@@ -241,6 +243,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 | **API Cache** | FastAPI built-in | Cache expensive computations | Time-based (configurable) |
 
 **Session Cache Behavior:**
+
 - User runs simulation (e.g., 2000 configs) → Results stored in memory
 - User analyzes, filters, visualizes → Fast access from cache
 - User saves simulation → Persisted to Parquet + JSON
@@ -641,13 +644,13 @@ Key BESS simulation concepts documented in `CLAUDE.md`:
 
 | Resource | URL |
 |----------|-----|
-| FastAPI Documentation | https://fastapi.tiangolo.com/ |
-| React Documentation | https://react.dev/ |
-| PostgreSQL Documentation | https://www.postgresql.org/docs/ |
-| Docker Compose | https://docs.docker.com/compose/ |
-| Cloudflare Tunnel | https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/ |
-| Plotly.js | https://plotly.com/javascript/ |
-| Parquet Format | https://parquet.apache.org/ |
+| FastAPI Documentation | <https://fastapi.tiangolo.com/> |
+| React Documentation | <https://react.dev/> |
+| PostgreSQL Documentation | <https://www.postgresql.org/docs/> |
+| Docker Compose | <https://docs.docker.com/compose/> |
+| Cloudflare Tunnel | <https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/> |
+| Plotly.js | <https://plotly.com/javascript/> |
+| Parquet Format | <https://parquet.apache.org/> |
 
 ---
 

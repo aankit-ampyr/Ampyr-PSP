@@ -308,6 +308,14 @@ def calculate_ranked_recommendations(
 
     # Find actual column names
     def find_col(key):
+        """Find the actual column name in DataFrame for a given key.
+
+        Args:
+            key: The standardized column key to look up
+
+        Returns:
+            str: The actual column name found in the DataFrame, or the key itself if not found
+        """
         for possible in col_mapping.get(key, [key]):
             if possible in df.columns:
                 return possible
@@ -632,7 +640,9 @@ def calculate_simulation_params(min_size, max_size, step_size, max_simulations=N
     max_size_int = int(max_size)
     step_size_int = max(1, int(step_size))  # Ensure step is at least 1
 
-    num_simulations = len(list(range(min_size_int, max_size_int + step_size_int, step_size_int)))
+    # Use max_size_int + 1 to include max_size if it falls on a step boundary
+    # This prevents exceeding max_size when step doesn't divide evenly
+    num_simulations = len(list(range(min_size_int, max_size_int + 1, step_size_int)))
     actual_step_size = step_size_int
     was_adjusted = False
 
@@ -641,7 +651,8 @@ def calculate_simulation_params(min_size, max_size, step_size, max_simulations=N
         actual_step_size = max(1, (max_size_int - min_size_int) // max_simulations + 1)
         was_adjusted = True
 
-    battery_sizes = list(range(min_size_int, max_size_int + actual_step_size, actual_step_size))
+    # Generate battery sizes, ensuring we don't exceed max_size
+    battery_sizes = list(range(min_size_int, max_size_int + 1, actual_step_size))
     num_simulations = len(battery_sizes)
 
     return {
