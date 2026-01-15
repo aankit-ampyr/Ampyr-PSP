@@ -438,17 +438,100 @@ def main():
         # ===========================
         st.subheader("All Configurations")
 
-        # Filters
-        filter_col1, filter_col2, filter_col3 = st.columns(3)
+        # Filters section
+        st.markdown("**Filters**")
 
-        with filter_col1:
-            filter_viable = st.checkbox("Show only viable configs", value=False, key='filter_viable')
-        with filter_col2:
-            filter_zero_dg = st.checkbox("Show only zero DG hours", value=False, key='filter_zero_dg')
-        with filter_col3:
+        # Row 1: Checkbox filters
+        filter_row1 = st.columns(4)
+        with filter_row1[0]:
+            filter_viable = st.checkbox("Viable only", value=False, key='filter_viable')
+        with filter_row1[1]:
+            filter_zero_dg = st.checkbox("Zero DG hours", value=False, key='filter_zero_dg')
+        with filter_row1[2]:
+            filter_100_delivery = st.checkbox("100% Delivery", value=False, key='filter_100_delivery')
+        with filter_row1[3]:
+            filter_no_unserved = st.checkbox("No unserved", value=False, key='filter_no_unserved')
+
+        # Row 2: Range filters
+        filter_row2 = st.columns(4)
+
+        with filter_row2[0]:
+            solar_values = sorted(df_all['solar_capacity_mw'].unique())
+            solar_range = st.select_slider(
+                "Solar (MWp)",
+                options=solar_values,
+                value=(solar_values[0], solar_values[-1]),
+                key='filter_solar_range'
+            )
+
+        with filter_row2[1]:
+            bess_values = sorted(df_all['bess_capacity_mwh'].unique())
+            bess_range = st.select_slider(
+                "BESS (MWh)",
+                options=bess_values,
+                value=(bess_values[0], bess_values[-1]),
+                key='filter_bess_range'
+            )
+
+        with filter_row2[2]:
+            duration_values = sorted(df_all['duration_hr'].unique())
+            selected_durations = st.multiselect(
+                "Duration (hr)",
+                options=duration_values,
+                default=duration_values,
+                key='filter_duration'
+            )
+
+        with filter_row2[3]:
+            dg_values = sorted(df_all['dg_capacity_mw'].unique())
+            if len(dg_values) > 1:
+                selected_dg = st.multiselect(
+                    "DG (MW)",
+                    options=dg_values,
+                    default=dg_values,
+                    format_func=lambda x: f"{x:.0f} MW" if x > 0 else "No DG",
+                    key='filter_dg'
+                )
+            else:
+                selected_dg = dg_values
+
+        # Row 3: Percentage range filters
+        filter_row3 = st.columns(4)
+
+        with filter_row3[0]:
+            green_min = st.number_input(
+                "Min Green %",
+                min_value=0.0,
+                max_value=100.0,
+                value=0.0,
+                step=5.0,
+                key='filter_green_min'
+            )
+
+        with filter_row3[1]:
+            wastage_max = st.number_input(
+                "Max Wastage %",
+                min_value=0.0,
+                max_value=100.0,
+                value=100.0,
+                step=5.0,
+                key='filter_wastage_max'
+            )
+
+        with filter_row3[2]:
+            delivery_min = st.number_input(
+                "Min Delivery %",
+                min_value=0.0,
+                max_value=100.0,
+                value=0.0,
+                step=5.0,
+                key='filter_delivery_min'
+            )
+
+        with filter_row3[3]:
             sort_by = st.selectbox(
                 "Sort by",
-                options=['delivery_pct', 'solar_capacity_mw', 'bess_capacity_mwh', 'green_energy_pct', 'wastage_pct', 'dg_runtime_hours'],
+                options=['delivery_pct', 'green_energy_pct', 'wastage_pct', 'solar_capacity_mw', 'bess_capacity_mwh', 'dg_runtime_hours'],
                 format_func=lambda x: {
                     'delivery_pct': 'Delivery %',
                     'solar_capacity_mw': 'Solar (MWp)',
@@ -463,10 +546,37 @@ def main():
 
         # Apply filters
         filtered_df = df_all.copy()
+
+        # Checkbox filters
         if filter_viable:
             filtered_df = filtered_df[filtered_df['is_viable'] == True]
         if filter_zero_dg:
             filtered_df = filtered_df[filtered_df['dg_runtime_hours'] == 0]
+        if filter_100_delivery:
+            filtered_df = filtered_df[filtered_df['delivery_pct'] >= 99.9]
+        if filter_no_unserved:
+            filtered_df = filtered_df[filtered_df['unserved_mwh'] == 0]
+
+        # Range filters
+        filtered_df = filtered_df[
+            (filtered_df['solar_capacity_mw'] >= solar_range[0]) &
+            (filtered_df['solar_capacity_mw'] <= solar_range[1])
+        ]
+        filtered_df = filtered_df[
+            (filtered_df['bess_capacity_mwh'] >= bess_range[0]) &
+            (filtered_df['bess_capacity_mwh'] <= bess_range[1])
+        ]
+
+        # Multiselect filters
+        if selected_durations:
+            filtered_df = filtered_df[filtered_df['duration_hr'].isin(selected_durations)]
+        if selected_dg:
+            filtered_df = filtered_df[filtered_df['dg_capacity_mw'].isin(selected_dg)]
+
+        # Percentage filters
+        filtered_df = filtered_df[filtered_df['green_energy_pct'] >= green_min]
+        filtered_df = filtered_df[filtered_df['wastage_pct'] <= wastage_max]
+        filtered_df = filtered_df[filtered_df['delivery_pct'] >= delivery_min]
 
         # Sort
         ascending = sort_by in ['solar_capacity_mw', 'bess_capacity_mwh', 'wastage_pct', 'dg_runtime_hours']
