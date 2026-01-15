@@ -77,9 +77,51 @@ def update_config(key, value):
     Args:
         key: Configuration key to update
         value: New value for the configuration
+
+    Raises:
+        ValueError: If key is not a valid configuration parameter
+        ValueError: If value is outside valid bounds for the parameter
     """
     if 'config' not in st.session_state:
         get_config()  # Initialize if needed
+
+    # Validate key exists
+    if key not in st.session_state.config:
+        raise ValueError(f"Unknown configuration key: '{key}'. Valid keys: {list(st.session_state.config.keys())}")
+
+    # Validate value bounds for known parameters
+    # Format: (min_val, max_val, message, exclusive_lower_bound)
+    # exclusive_lower_bound=True means value must be > min_val (not >= min_val)
+    validation_rules = {
+        'MIN_SOC': (0, 1, "must be between 0 and 1", False),
+        'MAX_SOC': (0, 1, "must be between 0 and 1", False),
+        'ROUND_TRIP_EFFICIENCY': (0, 1, "must be between 0 and 1", True),  # Can't be 0
+        'ONE_WAY_EFFICIENCY': (0, 1, "must be between 0 and 1", True),  # Can't be 0
+        'C_RATE_CHARGE': (0, float('inf'), "must be positive", True),  # Can't be 0
+        'C_RATE_DISCHARGE': (0, float('inf'), "must be positive", True),  # Can't be 0
+        'MIN_BATTERY_SIZE_MWH': (0, float('inf'), "must be positive", True),  # Can't be 0
+        'MAX_BATTERY_SIZE_MWH': (0, float('inf'), "must be positive", True),  # Can't be 0
+        'BATTERY_SIZE_STEP_MWH': (0, float('inf'), "must be positive", True),  # Can't be 0
+        'TARGET_DELIVERY_MW': (0, float('inf'), "must be positive", True),  # Can't be 0
+        'SOLAR_CAPACITY_MW': (0, float('inf'), "must be non-negative", False),  # Can be 0 (no solar)
+        'MAX_DAILY_CYCLES': (0, float('inf'), "must be positive", True),  # Can't be 0
+        'INITIAL_SOC': (0, 1, "must be between 0 and 1", False),
+        'DG_CAPACITY_MW': (0, float('inf'), "must be non-negative", False),  # Can be 0 (DG disabled)
+        'DG_SOC_ON_THRESHOLD': (0, 1, "must be between 0 and 1", False),
+        'DG_SOC_OFF_THRESHOLD': (0, 1, "must be between 0 and 1", False),
+        'DG_LOAD_MW': (0, float('inf'), "must be non-negative", False),  # Can be 0
+    }
+
+    if key in validation_rules:
+        min_val, max_val, msg, exclusive_lower = validation_rules[key]
+        if exclusive_lower:
+            # Value must be > min_val (exclusive lower bound)
+            if not (min_val < value <= max_val):
+                raise ValueError(f"{key} {msg}, got {value}")
+        else:
+            # Value must be >= min_val (inclusive lower bound)
+            if not (min_val <= value <= max_val):
+                raise ValueError(f"{key} {msg}, got {value}")
 
     st.session_state.config[key] = value
 

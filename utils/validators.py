@@ -105,6 +105,35 @@ def validate_battery_config(config):
             f"Marginal increment must be positive (got {config['MARGINAL_INCREMENT_MWH']} MWh)"
         )
 
+    # Critical Validation #11: DG Parameters (if present)
+    if 'DG_CAPACITY_MW' in config and config['DG_CAPACITY_MW'] < 0:
+        errors.append(f"DG capacity cannot be negative (got {config['DG_CAPACITY_MW']} MW)")
+
+    if 'DG_SOC_ON_THRESHOLD' in config:
+        if not (0 <= config['DG_SOC_ON_THRESHOLD'] <= 1):
+            errors.append(
+                f"DG SOC ON threshold must be between 0 and 1 "
+                f"(got {config['DG_SOC_ON_THRESHOLD']})"
+            )
+
+    if 'DG_SOC_OFF_THRESHOLD' in config:
+        if not (0 <= config['DG_SOC_OFF_THRESHOLD'] <= 1):
+            errors.append(
+                f"DG SOC OFF threshold must be between 0 and 1 "
+                f"(got {config['DG_SOC_OFF_THRESHOLD']})"
+            )
+
+    # DG threshold relationship: ON should be less than OFF
+    if 'DG_SOC_ON_THRESHOLD' in config and 'DG_SOC_OFF_THRESHOLD' in config:
+        if config['DG_SOC_ON_THRESHOLD'] >= config['DG_SOC_OFF_THRESHOLD']:
+            errors.append(
+                f"DG_SOC_ON_THRESHOLD ({config['DG_SOC_ON_THRESHOLD']*100:.0f}%) "
+                f"must be less than DG_SOC_OFF_THRESHOLD ({config['DG_SOC_OFF_THRESHOLD']*100:.0f}%)"
+            )
+
+    if 'DG_LOAD_MW' in config and config['DG_LOAD_MW'] < 0:
+        errors.append(f"DG load cannot be negative (got {config['DG_LOAD_MW']} MW)")
+
     # Return validation result
     is_valid = len(errors) == 0
     return is_valid, errors

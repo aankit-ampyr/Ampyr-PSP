@@ -39,7 +39,7 @@ def calculate_metrics_summary(battery_capacity_mwh, simulation_results):
     metrics = {
         'Battery Size (MWh)': battery_capacity_mwh,
         'Delivery Hours': simulation_results['hours_delivered'],
-        'Delivery Rate (%)': round(simulation_results['hours_delivered'] / (HOURS_PER_YEAR / 100), 1),
+        'Delivery Rate (%)': round((simulation_results['hours_delivered'] / HOURS_PER_YEAR) * 100, 1),
         'Energy Delivered (GWh)': round(simulation_results['energy_delivered_mwh'] / 1000, 2),
         'Solar Charged (MWh)': round(simulation_results['solar_charged_mwh'], 1),
         'Solar Wasted (MWh)': round(simulation_results['solar_wasted_mwh'], 1),
@@ -308,6 +308,14 @@ def calculate_ranked_recommendations(
 
     # Find actual column names
     def find_col(key):
+        """Find the actual column name in DataFrame for a given key.
+
+        Args:
+            key: The standardized column key to look up
+
+        Returns:
+            str: The actual column name found in the DataFrame, or the key itself if not found
+        """
         for possible in col_mapping.get(key, [key]):
             if possible in df.columns:
                 return possible
@@ -611,15 +619,15 @@ def calculate_simulation_params(min_size, max_size, step_size, max_simulations=N
     Calculate simulation parameters with auto-adjustment for resource limits.
 
     Args:
-        min_size: Minimum battery size (MWh)
-        max_size: Maximum battery size (MWh)
-        step_size: Step size between simulations (MWh)
+        min_size: Minimum battery size (MWh) - can be int or float
+        max_size: Maximum battery size (MWh) - can be int or float
+        step_size: Step size between simulations (MWh) - can be int or float
         max_simulations: Maximum allowed simulations (defaults to MAX_SIMULATIONS)
 
     Returns:
         dict: {
             'num_simulations': int - Number of simulations to run
-            'actual_step_size': int - Adjusted step size
+            'actual_step_size': float - Adjusted step size
             'was_adjusted': bool - Whether step size was auto-adjusted
             'battery_sizes': list - List of battery sizes to test
         }
@@ -627,16 +635,24 @@ def calculate_simulation_params(min_size, max_size, step_size, max_simulations=N
     if max_simulations is None:
         max_simulations = MAX_SIMULATIONS
 
-    num_simulations = len(list(range(min_size, max_size + step_size, step_size)))
-    actual_step_size = step_size
+    # Convert to integers for range() - use int() to handle float inputs
+    min_size_int = int(min_size)
+    max_size_int = int(max_size)
+    step_size_int = max(1, int(step_size))  # Ensure step is at least 1
+
+    # Use max_size_int + 1 to include max_size if it falls on a step boundary
+    # This prevents exceeding max_size when step doesn't divide evenly
+    num_simulations = len(list(range(min_size_int, max_size_int + 1, step_size_int)))
+    actual_step_size = step_size_int
     was_adjusted = False
 
     if num_simulations > max_simulations:
         # Auto-adjust step size to cap at max_simulations
-        actual_step_size = (max_size - min_size) // max_simulations + 1
+        actual_step_size = max(1, (max_size_int - min_size_int) // max_simulations + 1)
         was_adjusted = True
 
-    battery_sizes = list(range(min_size, max_size + actual_step_size, actual_step_size))
+    # Generate battery sizes, ensuring we don't exceed max_size
+    battery_sizes = list(range(min_size_int, max_size_int + 1, actual_step_size))
     num_simulations = len(battery_sizes)
 
     return {

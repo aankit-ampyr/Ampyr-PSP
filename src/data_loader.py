@@ -2,10 +2,14 @@
 Data loader module for reading solar profile data
 """
 
+import logging
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from .config import SOLAR_PROFILE_PATH
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Inputs folder path
 INPUTS_FOLDER = Path("Inputs")
@@ -55,8 +59,10 @@ def load_solar_profile_by_name(filename):
         resolved_path = file_path.resolve()
         inputs_resolved = INPUTS_FOLDER.resolve()
         if not str(resolved_path).startswith(str(inputs_resolved)):
+            logger.warning(f"Security: Path traversal attempt blocked for '{filename}'")
             return None
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to resolve path for '{filename}': {e}")
         return None
 
     if not file_path.exists():
@@ -90,9 +96,10 @@ def load_solar_profile_by_name(filename):
         return solar_profile
 
     except Exception as e:
+        logger.error(f"Failed to load solar profile '{filename}': {e}")
         try:
             import streamlit as st
-            st.error(f"❌ Failed to load solar profile: {str(e)}")
+            st.error(f"Failed to load solar profile: {str(e)}")
         except ImportError:
             pass
         return None
@@ -153,9 +160,10 @@ def load_solar_profile(file_path=None):
         return solar_profile
 
     except Exception as e:
+        logger.error(f"Failed to load default solar profile from '{file_path}': {e}")
         try:
             import streamlit as st
-            st.error(f"❌ Failed to load solar profile: {str(e)}")
+            st.error(f"Failed to load solar profile: {str(e)}")
         except ImportError:
             pass
 
@@ -172,11 +180,67 @@ def get_solar_statistics(solar_profile):
     Returns:
         dict: Statistics including max, min, mean, total
     """
+    peak_mw = np.max(solar_profile)
     return {
-        'max_mw': np.max(solar_profile),
+        'max_mw': peak_mw,
         'min_mw': np.min(solar_profile),
         'mean_mw': np.mean(solar_profile),
         'total_mwh': np.sum(solar_profile),
-        'capacity_factor': np.mean(solar_profile) / 67.0,
+        'capacity_factor': np.mean(solar_profile) / peak_mw if peak_mw > 0 else 0,
         'zero_hours': np.sum(solar_profile == 0)
     }
+
+
+def scale_solar_profile(base_profile, base_capacity_mw, target_capacity_mw):
+    """
+    Scale solar profile to different capacity while maintaining shape.
+
+    This function proportionally scales a solar generation profile from one
+    capacity to another, preserving the temporal pattern while adjusting
+    the magnitude.
+
+    Args:
+        base_profile: Original 8760-hour solar profile (MW) - list or numpy array
+        base_capacity_mw: Peak capacity of base profile (e.g., 67.9)
+        target_capacity_mw: Desired peak capacity (e.g., 100.0)
+
+    Returns:
+        list: Scaled profile with target capacity
+
+    Raises:
+        ValueError: If base_capacity_mw is not positive
+
+    Example:
+        >>> base = [33.95, 67.9, 50.0, ...]  # 67.9 MW peak
+        >>> scaled = scale_solar_profile(base, 67.9, 100.0)
+        >>> # Returns [50.0, 100.0, 73.6, ...]  # 100 MW peak
+    """
+    if base_capacity_mw <= 0:
+        raise ValueError("Base capacity must be positive")
+
+    scaling_factor = target_capacity_mw / base_capacity_mw
+    scaled_profile = [hour * scaling_factor for hour in base_profile]
+
+    return scaled_profile
+
+
+def get_base_solar_peak_capacity(profile):
+    """
+    Get peak capacity of solar profile.
+
+    Args:
+        profile: Solar profile (MW) - list or numpy array
+
+    Returns:
+        float: Peak MW generation
+
+    Example:
+        >>> profile = [10.5, 45.2, 67.9, 23.1, ...]
+        >>> get_base_solar_peak_capacity(profile)
+        67.9
+    """
+    if profile is None:
+        return 0.0
+    if hasattr(profile, '__len__') and len(profile) == 0:
+        return 0.0
+    return float(max(profile))
