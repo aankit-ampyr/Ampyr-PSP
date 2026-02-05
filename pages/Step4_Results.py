@@ -590,6 +590,10 @@ if st.session_state.analysis_results is not None:
         month_solar = month_df['solar_mw'].sum()
         month_curtailed = month_df['solar_curtailed'].sum()
 
+        # Energy-based calculations (MWh per month)
+        month_green_energy = month_df['solar_to_load'].sum() + month_df['bess_to_load'].sum()
+        month_dg_energy = month_df['dg_to_load'].sum()
+
         effective_hours = month_load_hours if month_load_hours > 0 else month_hours
         delivery_pct = (month_delivery / effective_hours * 100) if effective_hours > 0 else 0
         green_delivery = month_delivery - month_dg_hours  # Approximate green hours
@@ -604,6 +608,8 @@ if st.session_state.analysis_results is not None:
             'Delivery Hrs': int(month_delivery),
             'Load Hrs': int(month_load_hours),
             'DG Hrs': int(month_dg_hours),
+            'Green Energy to Load (MWh)': round(month_green_energy, 1),
+            'DG to Load (MWh)': round(month_dg_energy, 1),
             'Curtailed (MWh)': round(month_curtailed, 1),
         })
 
@@ -629,6 +635,14 @@ if st.session_state.analysis_results is not None:
             'Wastage %': st.column_config.NumberColumn(
                 'Wastage %',
                 format="%.1f%%"
+            ),
+            'Green Energy to Load (MWh)': st.column_config.NumberColumn(
+                'Green Energy to Load (MWh)',
+                format="%.1f"
+            ),
+            'DG to Load (MWh)': st.column_config.NumberColumn(
+                'DG to Load (MWh)',
+                format="%.1f"
             ),
         }
     )
@@ -780,24 +794,51 @@ if st.session_state.analysis_results is not None:
 
         # Export buttons
         st.markdown("---")
-        col1, col2 = st.columns(2)
+        st.subheader("📥 Download Results")
+
+        col1, col2, col3 = st.columns(3)
 
         with col1:
-            csv_data = filtered_df.to_csv(index=False)
+            # Prepare hourly export with energy columns
+            hourly_export_df = filtered_df.copy()
+            hourly_export_df['Green_Energy_to_Load_MWh'] = (
+                hourly_export_df['solar_to_load'] + hourly_export_df['bess_to_load']
+            ).round(3)
+            hourly_export_df['DG_to_Load_MWh'] = hourly_export_df['dg_to_load'].round(3)
+
+            csv_data = hourly_export_df.to_csv(index=False)
             st.download_button(
-                "📥 Download Selected Range CSV",
+                "📥 Hourly Data (Selected Range)",
                 data=csv_data,
-                file_name=f"results_{bess_capacity}mwh_{start_date}_to_{end_date}.csv",
+                file_name=f"hourly_{bess_capacity}mwh_{start_date}_to_{end_date}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
 
         with col2:
-            full_year_csv = hourly_df.to_csv(index=False)
+            # Full year hourly export with energy columns
+            full_year_export = hourly_df.copy()
+            full_year_export['Green_Energy_to_Load_MWh'] = (
+                full_year_export['solar_to_load'] + full_year_export['bess_to_load']
+            ).round(3)
+            full_year_export['DG_to_Load_MWh'] = full_year_export['dg_to_load'].round(3)
+
+            full_year_csv = full_year_export.to_csv(index=False)
             st.download_button(
-                "📥 Download Full Year CSV (8760 hours)",
+                "📥 Hourly Data (Full Year)",
                 data=full_year_csv,
-                file_name=f"results_{bess_capacity}mwh_full_year.csv",
+                file_name=f"hourly_{bess_capacity}mwh_full_year.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
+
+        with col3:
+            # Monthly summary export
+            monthly_csv = monthly_df.to_csv(index=False)
+            st.download_button(
+                "📥 Monthly Summary",
+                data=monthly_csv,
+                file_name=f"monthly_summary_{bess_capacity}mwh.csv",
                 mime="text/csv",
                 use_container_width=True
             )

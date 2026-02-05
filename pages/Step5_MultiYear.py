@@ -496,6 +496,9 @@ if run_projection:
         effective_load_hrs = year_load_hrs if year_load_hrs > 0 else 8760
         delivery_pct = min(100.0, round(year_delivery_hrs / effective_load_hrs * 100, 1))
 
+        # Calculate green energy to load (solar + BESS)
+        year_green_energy_to_load = year_solar_to_load + year_bess_to_load
+
         yearly_projection_data.append({
             'Year': year,
             'Capacity (MWh)': round(effective_capacity, 1),
@@ -504,13 +507,15 @@ if run_projection:
             'Load Hrs': year_load_hrs,
             'Delivery %': delivery_pct,
             'DG Hrs': year_dg_hrs,
+            'Green Energy to Load (MWh)': round(year_green_energy_to_load, 1),
+            'DG to Load (MWh)': round(year_dg_to_load, 1),
             'Solar Hrs': year_solar_hrs,
             'BESS Hrs': year_bess_hrs,
             'Curtailed (MWh)': round(year_solar_curtailed, 0),
             'Total Wastage %': round(year_wastage_pct, 1),
             'Load Wastage %': round(year_load_wastage_pct, 1),
             'BESS Loss (MWh)': round(year_charging_loss + year_discharging_loss, 0),
-            # Energy summary fields
+            # Energy summary fields (hidden from export)
             '_solar_gen': year_solar_gen,
             '_dg_gen': year_dg_gen,
             '_solar_to_load': year_solar_to_load,
@@ -540,6 +545,12 @@ if run_projection:
             month_solar_gen = month_data['solar_mw'].sum()
             month_wastage_pct = (month_curtailed / month_solar_gen * 100) if month_solar_gen > 0 else 0
 
+            # Energy-based calculations for monthly data
+            month_solar_to_load = month_data['solar_to_load'].sum()
+            month_bess_to_load = month_data['bess_to_load'].sum()
+            month_dg_to_load = month_data['dg_to_load'].sum()
+            month_green_energy = month_solar_to_load + month_bess_to_load
+
             monthly_20yr_data.append({
                 'Year': year,
                 'Month': MONTH_NAMES[month_idx],
@@ -548,6 +559,8 @@ if run_projection:
                 'Delivery_Hrs': month_delivery_hrs,
                 'Delivery_%': round(month_delivery_hrs / HOURS_PER_MONTH[month_idx] * 100, 1),
                 'DG_Hrs': month_dg_hrs,
+                'Green_Energy_to_Load_MWh': round(month_green_energy, 1),
+                'DG_to_Load_MWh': round(month_dg_to_load, 1),
                 'Curtailed_MWh': round(month_curtailed, 1),
                 'Wastage_%': round(month_wastage_pct, 1),
             })
@@ -588,6 +601,8 @@ if 'multiyear_yearly' in st.session_state:
             'Load Hrs': st.column_config.NumberColumn('Load Hrs', format='%d'),
             'Delivery %': st.column_config.ProgressColumn('Delivery %', min_value=0, max_value=100, format='%.1f%%'),
             'DG Hrs': st.column_config.NumberColumn('DG Hrs', format='%d'),
+            'Green Energy to Load (MWh)': st.column_config.NumberColumn('Green Energy to Load', format='%.1f'),
+            'DG to Load (MWh)': st.column_config.NumberColumn('DG to Load', format='%.1f'),
             'Solar Hrs': st.column_config.NumberColumn('Solar Hrs', format='%d'),
             'BESS Hrs': st.column_config.NumberColumn('BESS Hrs', format='%d'),
             'Curtailed (MWh)': st.column_config.NumberColumn('Curtailed', format='%d'),
@@ -639,6 +654,8 @@ if 'multiyear_yearly' in st.session_state:
             'Load Hrs': st.column_config.NumberColumn('Load Hrs', format='%d'),
             'Delivery %': st.column_config.ProgressColumn('Delivery %', min_value=0, max_value=100, format='%.1f%%'),
             'DG Hrs': st.column_config.NumberColumn('DG Hrs', format='%d'),
+            'Green Energy to Load (MWh)': st.column_config.NumberColumn('Green Energy to Load', format='%.1f'),
+            'DG to Load (MWh)': st.column_config.NumberColumn('DG to Load', format='%.1f'),
             'Solar Hrs': st.column_config.NumberColumn('Solar Hrs', format='%d'),
             'BESS Hrs': st.column_config.NumberColumn('BESS Hrs', format='%d'),
             'Curtailed (MWh)': st.column_config.NumberColumn('Curtailed', format='%d'),
