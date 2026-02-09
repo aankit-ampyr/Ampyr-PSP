@@ -69,6 +69,7 @@ class GreenEnergyResult:
     delivery_pct: float
     green_energy_pct: float      # Energy-based (MWh)
     green_hours_pct: float       # Time-based (hours)
+    green_hours_pct_mar_oct: float  # Time-based (hours) for March-October
     wastage_pct: float
 
     # Hour counts
@@ -281,6 +282,7 @@ def run_green_energy_optimization(
                         delivery_pct=metrics.pct_full_delivery,
                         green_energy_pct=metrics.pct_green_energy,
                         green_hours_pct=metrics.pct_green_delivery,
+                        green_hours_pct_mar_oct=metrics.pct_green_delivery_mar_oct,
                         wastage_pct=metrics.pct_solar_curtailed,
                         # Hour counts
                         delivery_hours=metrics.hours_full_delivery,
@@ -358,6 +360,7 @@ def create_results_dataframe(results: List[GreenEnergyResult]) -> pd.DataFrame:
         'delivery_pct',
         'green_energy_pct',
         'green_hours_pct',
+        'green_hours_pct_mar_oct',
         'wastage_pct',
         # Hour counts
         'delivery_hours',

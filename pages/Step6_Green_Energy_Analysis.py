@@ -594,6 +594,7 @@ def main():
             'delivery_pct': 'Delivery %',
             'green_energy_pct': 'Green % (Energy)',
             'green_hours_pct': 'Green % (Hours)',
+            'green_hours_pct_mar_oct': 'Green % (Mar-Oct)',
             'wastage_pct': 'Wastage %',
             'delivery_hours': 'Delivery Hrs',
             'load_hours': 'Load Hrs',
@@ -616,6 +617,7 @@ def main():
             'Delivery %',
             'Green % (Energy)',
             'Green % (Hours)',
+            'Green % (Mar-Oct)',
             'Wastage %',
             'Delivery Hrs',
             'Load Hrs',
@@ -651,6 +653,12 @@ def main():
                 ),
                 'Green % (Hours)': st.column_config.ProgressColumn(
                     'Green % (Hours)',
+                    min_value=0,
+                    max_value=100,
+                    format="%.1f%%"
+                ),
+                'Green % (Mar-Oct)': st.column_config.ProgressColumn(
+                    'Green % (Mar-Oct)',
                     min_value=0,
                     max_value=100,
                     format="%.1f%%"
