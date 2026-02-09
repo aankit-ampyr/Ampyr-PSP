@@ -208,6 +208,11 @@ class SummaryMetrics:
     total_energy_delivered: float = 0.0  # MWh from all sources
     pct_green_energy: float = 0.0  # Energy-based green %
 
+    # Seasonal metrics (March-October: days 60-304)
+    hours_green_delivery_mar_oct: int = 0
+    hours_full_delivery_mar_oct: int = 0
+    pct_green_delivery_mar_oct: float = 0.0
+
 
 # =============================================================================
 # INITIALIZATION FUNCTIONS
@@ -1156,6 +1161,30 @@ def calculate_metrics(results: List[HourlyResult], params: SimulationParams) -> 
     else:
         metrics.pct_full_delivery = 100.0  # No load = 100% delivery by default
         metrics.pct_green_delivery = 100.0
+
+    # Seasonal green delivery (March-October: days 60-304)
+    MAR_START_DAY = 60
+    OCT_END_DAY = 304
+
+    metrics.hours_full_delivery_mar_oct = sum(
+        1 for r in results
+        if MAR_START_DAY <= r.day <= OCT_END_DAY
+        and r.load > 0
+        and r.unserved < FLOATING_POINT_TOLERANCE
+    )
+    metrics.hours_green_delivery_mar_oct = sum(
+        1 for r in results
+        if MAR_START_DAY <= r.day <= OCT_END_DAY
+        and r.load > 0
+        and r.unserved < FLOATING_POINT_TOLERANCE
+        and not r.dg_running
+    )
+
+    if metrics.hours_full_delivery_mar_oct > 0:
+        metrics.pct_green_delivery_mar_oct = (
+            metrics.hours_green_delivery_mar_oct /
+            metrics.hours_full_delivery_mar_oct * 100
+        )
 
     if metrics.total_load > 0:
         metrics.pct_unserved = metrics.total_unserved / metrics.total_load * 100
