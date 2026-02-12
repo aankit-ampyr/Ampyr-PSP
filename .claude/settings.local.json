@@ -53,7 +53,8 @@
       "Bash(git -C \"c:\\\\repos\\\\bess-sizing\" rm -f \"pages/archive/10_📐_Step3_Sizing.py\" \"pages/archive/11_📊_Step4_Results.py\" \"pages/archive/12_🔍_Step5_Analysis.py\" \"pages/archive/13_⚡_Quick_Analysis.py\" \"pages/archive/14_🗓️_DG_Scheduler.py\")",
       "Bash(git -C \"c:\\\\repos\\\\bess-sizing\" rm -f nul)",
       "Bash(git -C \"c:\\\\repos\\\\bess-sizing\" status --short)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(start \"\" \"C:\\\\repos\\\\bess-sizing\\\\Production\\\\wireframes\\\\bess-wireframe-v3.html\")"
     ],
     "deny": [],
     "ask": []
