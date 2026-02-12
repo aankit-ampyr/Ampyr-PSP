@@ -8,14 +8,14 @@ import streamlit as st
 
 # Page configuration
 st.set_page_config(
-    page_title="BESS Sizing Tool",
+    page_title="Project Sizing Platform",
     page_icon="🔋",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # Main page content
-st.title("🔋 BESS Sizing Tool")
+st.title("🔋 Project Sizing Platform")
 st.markdown("---")
 
 st.markdown("""
