@@ -179,6 +179,11 @@ def main():
             step=5,
             key='bess_min'
         )
+
+        # Validate and fix session state to prevent min_value conflict
+        if 'bess_max' in st.session_state and st.session_state.bess_max < bess_min:
+            st.session_state.bess_max = max(150, bess_min)
+
         bess_max = st.number_input(
             "Maximum BESS (MWh)",
             min_value=bess_min,
@@ -219,6 +224,11 @@ def main():
                 step=5,
                 key='dg_min'
             )
+
+        # Validate and fix session state to prevent min_value conflict
+        if 'dg_max' in st.session_state and st.session_state.dg_max < dg_min:
+            st.session_state.dg_max = max(load_mw, dg_min)
+
         with col4:
             dg_max = st.number_input(
                 "Maximum DG (MW)",
