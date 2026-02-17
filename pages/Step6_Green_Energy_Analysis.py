@@ -188,7 +188,7 @@ def main():
             "Maximum BESS (MWh)",
             min_value=bess_min,
             max_value=1000,
-            value=150,
+            value=max(150, bess_min),
             step=5,
             key='bess_max'
         )

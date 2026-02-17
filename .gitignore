@@ -55,3 +55,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Financial files (development in progress)
+Financials/*.xlsm
+Financials/*.xlsx
+Financials/*.xls
