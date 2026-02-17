@@ -54,7 +54,11 @@
       "Bash(git -C \"c:\\\\repos\\\\bess-sizing\" rm -f nul)",
       "Bash(git -C \"c:\\\\repos\\\\bess-sizing\" status --short)",
       "Bash(wc:*)",
-      "Bash(start \"\" \"C:\\\\repos\\\\bess-sizing\\\\Production\\\\wireframes\\\\bess-wireframe-v3.html\")"
+      "Bash(start \"\" \"C:\\\\repos\\\\bess-sizing\\\\Production\\\\wireframes\\\\bess-wireframe-v3.html\")",
+      "Bash(python3:*)",
+      "Bash(pip show:*)",
+      "Bash(where /R \"C:\\\\Program Files\" EXCEL.EXE)",
+      "Bash(where:*)"
     ],
     "deny": [],
     "ask": []
