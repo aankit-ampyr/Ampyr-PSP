@@ -152,11 +152,16 @@ def main():
             step=10,
             key='solar_min'
         )
+
+        # Validate and fix session state to prevent min_value conflict
+        if 'solar_max' in st.session_state and st.session_state.solar_max < solar_min:
+            st.session_state.solar_max = max(150, solar_min)
+
         solar_max = st.number_input(
             "Maximum Solar (MWp)",
             min_value=solar_min,
             max_value=500,
-            value=150,
+            value=max(150, solar_min),
             step=10,
             key='solar_max'
         )
@@ -234,7 +239,7 @@ def main():
                 "Maximum DG (MW)",
                 min_value=dg_min,
                 max_value=200,
-                value=load_mw,
+                value=max(load_mw, dg_min),
                 step=5,
                 key='dg_max'
             )
