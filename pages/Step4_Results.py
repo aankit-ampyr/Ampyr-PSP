@@ -43,9 +43,11 @@ def render_step_indicator():
         ("3", "Sizing", get_step_status(3)),
         ("4", "Results", 'current'),
         ("5", "Multi-Year", get_step_status(5)),
+        ("6", "Green Energy", get_step_status(6)),
+        ("7", "Financial", get_step_status(7)),
     ]
 
-    cols = st.columns(5)
+    cols = st.columns(7)
     for i, (num, label, status) in enumerate(steps):
         with cols[i]:
             if status == 'completed':

@@ -154,17 +154,142 @@ DEFAULT_WIZARD_STATE = {
         'recommendation_generated': False,
     },
 
-    # Financial Analysis
+    # Financial Analysis (GBP-based, mirrors Excel model Off-Grid Solution v8.xlsm)
     'financial': {
-        'enabled': False,  # Enable financial analysis
-        'bess_cost_per_mwh': 300000,  # $/MWh
-        'dg_cost_per_mw': 200000,  # $/MW
-        'augmentation_cost_per_mwh': 250000,  # $/MWh
-        'discount_rate': 0.08,  # 8%
-        'project_life_years': 20,
-        'fuel_price_per_liter': 1.50,
-        'delivery_value_per_mwh': 100,  # $/MWh
-        'projection_results': None,  # Cached projection results
+        'enabled': False,
+
+        # --- Timing ---
+        'model_start': None,       # date object
+        'dev_start': None,
+        'dev_time_months': 12,
+        'construction_start': None,
+        'construction_months': 18,
+        'cod_date': None,
+        'project_life_years': 35,
+
+        # --- Solar ---
+        'solar_capacity_mwp': 82.0,
+        'generation_selection': 'P90',
+        'yield_p50': 967.0,
+        'yield_p75': 936.0,
+        'yield_p90': 895.0,
+        'degradation_pct': 0.3,      # display % (0.3 = 0.003 decimal)
+        'outage_selection': 0,
+        'outage_month_idx': 0,
+        'outage_length_days': 14,
+
+        # --- BESS ---
+        'bess_switch': 1,
+        'bess_capacity_mw': 62.5,
+        'bess_duration_hrs': 4.0,
+        'bess_operating_life': 15,
+        'bess_degradation_pct': 2.5,
+        'bess_merchant_switch': 1,
+        'bess_scenario': 1,
+        'bess_merchant_discount': 5.0,  # display %
+
+        # --- PPA ---
+        'ppa_selection': 1,
+        'ppa_flex_pct': 0.0,
+        'ppa_indexation': 'CPI',
+
+        # --- REGOs ---
+        'rego_switch': 1,
+        'rego_price': 5.0,
+        'rego_indexation': 'CPI',
+        'rego_tenor_years': 15,
+
+        # --- Capacity Market ---
+        'cm_t1_value': 20.0,
+        'cm_t1_derating': 27.15,   # display %
+        'cm_t1_tenor': 1,
+        'cm_t4_value': 0.0,
+        'cm_t4_derating': 0.0,
+        'cm_t4_tenor': 0,
+
+        # --- Embedded Benefits ---
+        'emb_benefits_switch': 0,
+        'emb_benefits_tenor': 15,
+        'emb_benefits_index': 'CPI',
+
+        # --- BESS Floor ---
+        'bess_floor_switch': 1,
+        'bess_floor_price': 40.0,
+        'bess_floor_rev_share': 10.0,
+        'bess_floor_tenor': 10,
+
+        # --- CAPEX (GBP/kWp) ---
+        'capex_epc': 400.0,
+        'capex_grid': 30.0,
+        'capex_development': 15.0,
+        'capex_acquisition': 0.0,
+        'capex_dd': 5.0,
+        'capex_discharge': 0.0,
+        'capex_sdlt': 0.0,
+        'capex_land_legal': 2.0,
+        'capex_other_finance': 0.0,
+        'capex_other_legal': 2.0,
+        'capex_land_purchase': 0.0,
+        'capex_ampyr_tech': 0.0,
+        'capex_success_fee': 0.0,
+        'capex_community': 0.0,
+        'capex_bess': 80.0,
+        'capex_landowner_fees': 0.0,
+        'capex_insurance': 3.0,
+        'capex_land_lease_constr': 0.0,
+        'capex_asset_adoption': 0.0,
+        'capex_others': 0.0,
+        'capex_misc': 0.0,
+        'capex_contingency_pct': 1.0,  # display %
+
+        # --- Solar OPEX (GBP/kWp/Yr) ---
+        'opex_pv_om': 5.48,
+        'opex_grid_conn': 1.5,
+        'opex_greenkeeping': 0.5,
+        'opex_community': 0.0,
+        'opex_real_estate_tax': 1.0,
+        'opex_non_tech_am': 1.0,
+        'opex_subsidy_loss': 0.0,
+        'opex_insurance': 2.02,
+        'opex_fixed_lease': 0.0,
+        'opex_corrective_maint': 3.2,
+        'opex_tech_am': 1.5,
+        'opex_social_cost': 0.0,       # GBP/MWh
+        'opex_balancing_cfd': 0.0,     # GBP/MWh
+
+        # --- BESS OPEX (GBPk/MW/Yr) ---
+        'bess_opex_om': 7.06,
+        'bess_opex_import': 0.0,
+        'bess_opex_rates': 0.0,
+        'bess_opex_lease': 0.0,
+
+        # --- Land ---
+        'fixed_lease_switch': 0,
+        'fixed_lease_acres': 200.0,
+        'fixed_lease_price': 800.0,
+        'rev_dep_lease_switch': 0,
+        'rev_share_yr1_10': 5.0,
+        'rev_share_yr11_35': 7.5,
+        'land_purchase_switch': 0,
+        'land_purchase_acres': 0.0,
+        'land_purchase_price': 10000.0,
+        'construction_rent_sw': 0,
+        'construction_rent': 500.0,
+
+        # --- Tax ---
+        'corp_tax_rate_low': 19.0,
+        'corp_tax_rate_high': 25.0,
+        'corp_tax_threshold': 250.0,   # GBPk
+        'taxation_month': 12,
+
+        # --- Working Capital & Financial ---
+        'wc_debtors_days': 45,
+        'wc_creditors_days': 30,
+        'project_discount_rate': 8.0,  # display %
+        'cost_of_capital': 6.0,        # display %
+
+        # --- Results (cached) ---
+        'screening_results': None,
     },
 
     # Quick Analysis (alternative to 5-step wizard)
@@ -386,6 +511,38 @@ def validate_step_3() -> tuple[bool, List[str]]:
         errors.append(f"Too many configurations ({num_configs:,}). Maximum is 50,000")
     elif num_configs > 10000:
         errors.append(f"Warning: {num_configs:,} configurations may take several minutes")
+
+    return len(errors) == 0, errors
+
+
+def validate_step_7() -> tuple[bool, List[str]]:
+    """Validate Step 7 (Financial) data. Returns (is_valid, error_messages)."""
+    init_wizard_state()
+    fin = st.session_state.wizard['financial']
+    errors = []
+
+    # Must be enabled
+    if not fin.get('enabled'):
+        errors.append("Financial inputs have not been saved yet")
+        return False, errors
+
+    # Timing
+    if fin.get('project_life_years', 0) < 10:
+        errors.append("Project life must be at least 10 years")
+    if fin.get('construction_months', 0) < 1:
+        errors.append("Construction time must be at least 1 month")
+
+    # Solar
+    if fin.get('solar_capacity_mwp', 0) <= 0:
+        errors.append("Solar capacity must be positive")
+
+    # CAPEX
+    if fin.get('capex_epc', 0) <= 0:
+        errors.append("EPC cost must be positive")
+
+    # Financial
+    if fin.get('project_discount_rate', 0) <= 0:
+        errors.append("Discount rate must be positive")
 
     return len(errors) == 0, errors
 
