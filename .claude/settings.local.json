@@ -58,7 +58,9 @@
       "Bash(python3:*)",
       "Bash(pip show:*)",
       "Bash(where /R \"C:\\\\Program Files\" EXCEL.EXE)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(pip install:*)",
+      "Bash(iconv:*)"
     ],
     "deny": [],
     "ask": []
