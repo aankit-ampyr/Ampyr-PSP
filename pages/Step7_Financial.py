@@ -11,6 +11,8 @@ Monthly periods: up to 420 months (35-year project life)
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import date, datetime
 
 from src.wizard_state import (
@@ -19,6 +21,10 @@ from src.wizard_state import (
 )
 from src.financial_config import (
     INPUT_CELLS, REFERENCE_CASE, ITERATION_A1_PARAMS, ITERATION_A2_PARAMS,
+)
+from src.financial_model import (
+    FinancialInputs, FinancialResults,
+    run_financial_model, inputs_from_wizard_state,
 )
 
 
@@ -1117,30 +1123,160 @@ def main():
         st.success("Financial inputs saved successfully.")
 
     # =========================================================================
-    # SECTION 10: SCREENING RESULTS (Placeholder)
+    # SECTION 10: FINANCIAL ANALYSIS RESULTS
     # =========================================================================
     st.divider()
-    st.header("10. Financial Screening Results")
+    st.header("10. Financial Analysis Results")
 
-    if not has_multiyear:
-        st.info(
-            "Financial screening will be available once Step 5 (Multi-Year Projection) "
-            "is completed. The engine uses monthly delivery hours, DG hours, and energy "
-            "flows from the multi-year simulation to calculate the FCFF and Project IRR."
-        )
-    else:
-        st.markdown("""
-        **Status**: Engine not yet wired up.
-        Once the Python financial engine (Phase A) is complete, this section will:
-        - Read sized configurations from Step 3/4
-        - Apply financial inputs from above
-        - Calculate monthly FCFF for each configuration
-        - Compute XIRR (ungeared Project IRR)
-        - Display results table with IRR, NPV, CAPEX, payback period
-        """)
+    st.markdown("""
+    Run the ungeared FCFF model using the inputs configured above.
+    The engine calculates monthly Revenue, OPEX, CAPEX, Depreciation,
+    Tax (two-tier UK with loss carry-forward), and NWC over the project life,
+    then computes **XIRR** (Project IRR) and **XNPV**.
+    """)
 
-        if st.button("Run Financial Screening", disabled=True):
-            pass
+    if st.button("Run Financial Analysis", type="primary", use_container_width=True):
+        # Build inputs from current wizard state
+        fin_state = get_financial_state()
+        if not fin_state.get('enabled'):
+            st.warning("Please save financial inputs first (button above).")
+        else:
+            with st.spinner("Running financial model..."):
+                try:
+                    fi = inputs_from_wizard_state(fin_state)
+                    results = run_financial_model(fi)
+                    st.session_state['financial_results'] = results
+                except Exception as e:
+                    st.error(f"Financial model error: {e}")
+
+    # Display results if available
+    if 'financial_results' in st.session_state:
+        results: FinancialResults = st.session_state['financial_results']
+
+        # --- Summary metrics ---
+        st.subheader("Summary")
+        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+        with m_col1:
+            irr_pct = results.project_irr * 100 if not np.isnan(results.project_irr) else 0
+            st.metric("Project IRR", f"{irr_pct:.2f}%")
+        with m_col2:
+            st.metric("Project NPV (GBPm)", f"{results.project_npv / 1000:,.2f}")
+        with m_col3:
+            st.metric("Total CAPEX (GBPm)", f"{results.total_capex / 1000:,.2f}")
+        with m_col4:
+            payback_yrs = results.payback_month / 12 if results.payback_month > 0 else 0
+            st.metric("Payback", f"{payback_yrs:.1f} yrs" if payback_yrs > 0 else "N/A")
+
+        m2_col1, m2_col2, m2_col3 = st.columns(3)
+        with m2_col1:
+            st.metric("Lifetime Revenue (GBPm)", f"{results.total_revenue_lifetime / 1000:,.1f}")
+        with m2_col2:
+            st.metric("Lifetime OPEX (GBPm)", f"{results.total_opex_lifetime / 1000:,.1f}")
+        with m2_col3:
+            net = results.total_revenue_lifetime - results.total_opex_lifetime
+            st.metric("Lifetime EBITDA (GBPm)", f"{net / 1000:,.1f}")
+
+        # --- Charts ---
+        st.subheader("Monthly Cash Flows")
+
+        # Annual aggregation for cleaner chart
+        if len(results.dates) > 0:
+            # Build annual summary
+            annual_data = {}
+            for i, d in enumerate(results.dates):
+                yr = d.year
+                if yr not in annual_data:
+                    annual_data[yr] = {'revenue': 0, 'opex': 0, 'capex': 0,
+                                       'tax': 0, 'fcff': 0}
+                annual_data[yr]['revenue'] += results.revenue[i]
+                annual_data[yr]['opex'] += results.opex[i]
+                annual_data[yr]['capex'] += results.capex[i]
+                annual_data[yr]['tax'] += results.tax[i]
+                annual_data[yr]['fcff'] += results.fcff[i]
+
+            years = sorted(annual_data.keys())
+            rev_annual = [annual_data[y]['revenue'] / 1000 for y in years]  # GBPm
+            opex_annual = [annual_data[y]['opex'] / 1000 for y in years]
+            capex_annual = [annual_data[y]['capex'] / 1000 for y in years]
+            tax_annual = [annual_data[y]['tax'] / 1000 for y in years]
+            fcff_annual = [annual_data[y]['fcff'] / 1000 for y in years]
+
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                subplot_titles=("Annual Cash Flow Components (GBPm)",
+                                                "Annual FCFF (GBPm)"),
+                                vertical_spacing=0.12)
+
+            fig.add_trace(go.Bar(x=years, y=rev_annual, name="Revenue",
+                                 marker_color="#2ecc71"), row=1, col=1)
+            fig.add_trace(go.Bar(x=years, y=opex_annual, name="OPEX",
+                                 marker_color="#e74c3c"), row=1, col=1)
+            fig.add_trace(go.Bar(x=years, y=capex_annual, name="CAPEX",
+                                 marker_color="#3498db"), row=1, col=1)
+            fig.add_trace(go.Bar(x=years, y=tax_annual, name="Tax",
+                                 marker_color="#f39c12"), row=1, col=1)
+
+            # FCFF bar chart with conditional coloring
+            fcff_colors = ["#2ecc71" if v >= 0 else "#e74c3c" for v in fcff_annual]
+            fig.add_trace(go.Bar(x=years, y=fcff_annual, name="FCFF",
+                                 marker_color=fcff_colors,
+                                 showlegend=False), row=2, col=1)
+
+            fig.update_layout(
+                height=700,
+                barmode='relative',
+                legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                            xanchor="right", x=1),
+            )
+            fig.update_yaxes(title_text="GBPm", row=1, col=1)
+            fig.update_yaxes(title_text="GBPm", row=2, col=1)
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        # --- Cumulative FCFF ---
+        st.subheader("Cumulative FCFF")
+
+        if len(results.dates) > 0:
+            # Annual cumulative
+            cum_annual = np.cumsum(fcff_annual)
+
+            fig_cum = go.Figure()
+            fig_cum.add_trace(go.Scatter(
+                x=years, y=cum_annual.tolist(),
+                mode='lines+markers',
+                name='Cumulative FCFF',
+                line=dict(color='#2c3e50', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(46,204,113,0.1)',
+            ))
+            fig_cum.add_hline(y=0, line_dash="dash", line_color="grey")
+            fig_cum.update_layout(
+                height=350,
+                yaxis_title="Cumulative FCFF (GBPm)",
+                xaxis_title="Year",
+            )
+            st.plotly_chart(fig_cum, use_container_width=True)
+
+        # --- Data table ---
+        with st.expander("Detailed Annual Data"):
+            if len(results.dates) > 0:
+                annual_df = pd.DataFrame({
+                    'Year': years,
+                    'Revenue (GBPk)': [annual_data[y]['revenue'] for y in years],
+                    'OPEX (GBPk)': [annual_data[y]['opex'] for y in years],
+                    'CAPEX (GBPk)': [annual_data[y]['capex'] for y in years],
+                    'Tax (GBPk)': [annual_data[y]['tax'] for y in years],
+                    'FCFF (GBPk)': [annual_data[y]['fcff'] for y in years],
+                })
+                annual_df = annual_df.round(1)
+                st.dataframe(annual_df, use_container_width=True, hide_index=True)
+
+                csv = annual_df.to_csv(index=False)
+                st.download_button(
+                    "Download Annual Data (CSV)",
+                    data=csv,
+                    file_name="financial_analysis_annual.csv",
+                    mime="text/csv",
+                )
 
     # =========================================================================
     # SECTION 11: EXCEL EXPORT (Placeholder — Windows/COM only)
