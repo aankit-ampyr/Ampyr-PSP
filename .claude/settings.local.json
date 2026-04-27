@@ -60,7 +60,11 @@
       "Bash(where /R \"C:\\\\Program Files\" EXCEL.EXE)",
       "Bash(where:*)",
       "Bash(pip install:*)",
-      "Bash(iconv:*)"
+      "Bash(iconv:*)",
+      "Bash(git show-branch:*)",
+      "Bash(git config:*)",
+      "Bash(git describe:*)",
+      "Bash(git -C c:/repos/Ampyr-PSP status --short claude.md)"
     ],
     "deny": [],
     "ask": []

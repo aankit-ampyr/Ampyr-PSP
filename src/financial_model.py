@@ -1003,3 +1003,450 @@ def inputs_from_wizard_state(fin: dict) -> FinancialInputs:
     )
 
     return inputs
+
+
+# =============================================================================
+# TARIFF-BASED MODEL (Data Centre PPA — Off-Grid Solution v8)
+# =============================================================================
+
+@dataclass
+class TariffModelInputs:
+    """Inputs for tariff-based Solar+BESS financial model (DC PPA mode)."""
+
+    # Timing
+    construction_start: date = field(default_factory=lambda: date(2026, 10, 1))
+    construction_months: int = 9
+    cod_date: date = field(default_factory=lambda: date(2027, 7, 1))
+    project_life_years: int = 35
+
+    # Solar
+    solar_capacity_mwp: float = 82.0
+    yield_p50: float = 967.0
+    yield_p75: float = 936.0
+    yield_p90: float = 895.0
+    generation_selection: str = "P50"
+    degradation_pct: float = 0.003  # decimal (0.003 = 0.3%)
+    seasonality: list = field(default_factory=lambda: [1/12]*12)
+
+    # BESS
+    bess_switch: int = 1
+    bess_capacity_mw: float = 62.5
+    bess_duration_hrs: float = 4.0
+    bess_operating_life: int = 10
+
+    # PPA & Tariff
+    tariff_gbp_mwh: float = 170.0
+    ppa_tenor_years: int = 10
+    tariff_escalation: float = 0.0
+
+    # Merchant (post-PPA solar)
+    merchant_prices: dict = field(default_factory=dict)  # {year: GBP/MWh}
+    merchant_price_default: float = 67.0
+
+    # REGOs
+    rego_switch: int = 1
+    rego_price: float = 2.5
+    rego_tenor: int = 35
+
+    # Embedded benefits (GBP/MWh, 12 monthly values)
+    emb_switch: int = 1
+    emb_benefits: list = field(default_factory=lambda: [
+        5.38, 6.27, 8.31, 8.19, 9.40, 10.38, 10.78, 10.05, 7.54, 5.95, 5.37, 5.37
+    ])
+    emb_tenor: int = 15
+
+    # CAPEX (GBP/kWp)
+    capex_items_sum: float = 0.0  # pre-computed sum of all line items
+    capex_contingency_pct: float = 0.01  # decimal
+
+    # OPEX
+    solar_opex_rate: float = 0.0  # GBP/kWp/Yr (pre-computed sum)
+    bess_opex_rate: float = 0.0   # GBPk/MW/Yr (pre-computed sum)
+    opex_variable_rate: float = 0.0  # GBP/MWh
+    land_fixed_lease_annual: float = 0.0  # GBPk/yr
+    rev_dep_lease_pct: float = 0.0  # decimal
+
+    # Tax
+    corp_tax_rate: float = 0.25
+    taxation_month: int = 12
+
+    # Debt (for geared tax)
+    gearing: float = 0.80
+    interest_rate: float = 0.04  # SWAP + margin
+    debt_tenor_years: int = 15
+
+    # Discount
+    discount_rate: float = 0.065
+
+
+def run_tariff_model(
+    inputs: TariffModelInputs,
+    monthly_solar_bess_to_dc: np.ndarray,
+    monthly_surplus: np.ndarray,
+    monthly_solar_gen: np.ndarray,
+) -> FinancialResults:
+    """
+    Run Solar+BESS FCFF with tariff-based revenue (Data Centre PPA mode).
+
+    Revenue structure:
+    - PPA period: tariff × solar_bess_to_dc + surplus × merchant_price + REGO
+    - Post-PPA: net_pv_gen × merchant_price + REGO
+    - BESS standalone revenue: zeroed (captured via PPA delivery)
+
+    Tax: geared (after interest deduction from debt).
+
+    Args:
+        inputs: TariffModelInputs
+        monthly_solar_bess_to_dc: 12-element array (year 1 MWh delivered to DC per month)
+        monthly_surplus: 12-element array (year 1 surplus MWh per month)
+        monthly_solar_gen: 12-element array (year 1 total solar MWh per month)
+
+    Returns: FinancialResults with FCFF and IRR
+    """
+    results = FinancialResults()
+
+    # Build timeline
+    total_months = _months_between(inputs.construction_start, inputs.cod_date) + \
+                   inputs.project_life_years * 12
+    dates = []
+    d = inputs.construction_start
+    for _ in range(total_months):
+        dates.append(d)
+        if d.month == 12:
+            d = date(d.year + 1, 1, 1)
+        else:
+            d = date(d.year, d.month + 1, 1)
+    dates = np.array(dates)
+
+    is_construction = np.array([
+        inputs.construction_start <= d < inputs.cod_date for d in dates
+    ])
+    is_operations = np.array([d >= inputs.cod_date for d in dates])
+
+    n = len(dates)
+    results.dates = dates
+
+    ppa_end = date(inputs.cod_date.year + inputs.ppa_tenor_years,
+                   inputs.cod_date.month, 1)
+    bess_end = date(inputs.cod_date.year + inputs.bess_operating_life,
+                    inputs.cod_date.month, 1)
+
+    # =================================================================
+    # CAPEX
+    # =================================================================
+    capex = np.zeros(n)
+    total_capex = inputs.capex_items_sum * inputs.solar_capacity_mwp
+    total_capex *= (1 + inputs.capex_contingency_pct)
+    constr_count = int(is_construction.sum())
+    if constr_count > 0:
+        capex[is_construction] = -total_capex / constr_count
+    results.capex = capex
+    results.total_capex = total_capex
+
+    # =================================================================
+    # REVENUE
+    # =================================================================
+    revenue = np.zeros(n)
+    solar_rev = np.zeros(n)
+    bess_rev = np.zeros(n)  # zeroed in DC PPA mode
+
+    # Annual base generation = capacity × yield
+    yield_map = {"P50": inputs.yield_p50, "P75": inputs.yield_p75, "P90": inputs.yield_p90}
+    annual_yield = yield_map.get(inputs.generation_selection, inputs.yield_p50)
+    base_annual_gen = inputs.solar_capacity_mwp * annual_yield
+
+    ops_month = 0
+    for i in range(n):
+        if not is_operations[i]:
+            continue
+
+        ops_year = ops_month // 12
+        month_idx = dates[i].month - 1
+
+        # Degradation
+        degrad = max(1.0 - inputs.degradation_pct * ops_year, 0.0) if ops_year > 0 else 1.0
+
+        # Tariff escalation
+        tariff_esc = (1 + inputs.tariff_escalation) ** ops_year
+
+        if dates[i] < ppa_end:
+            # --- PPA period ---
+            # Solar+BESS to DC energy (degraded)
+            dc_energy = monthly_solar_bess_to_dc[month_idx] * degrad
+            ppa_rev = inputs.tariff_gbp_mwh * tariff_esc * dc_energy / 1000
+
+            # Surplus solar × merchant
+            surplus = monthly_surplus[month_idx] * degrad
+            merchant_price = _get_merchant_price(inputs, dates[i].year)
+            surplus_rev = surplus * merchant_price / 1000
+
+            solar_rev[i] = ppa_rev + surplus_rev
+        else:
+            # --- Post-PPA (merchant period) ---
+            # All solar generation at merchant price
+            monthly_gen = base_annual_gen * inputs.seasonality[month_idx] * degrad
+            merchant_price = _get_merchant_price(inputs, dates[i].year)
+            solar_rev[i] = monthly_gen * merchant_price / 1000
+
+        # Monthly generation for REGO and embedded benefits
+        monthly_gen_formula = base_annual_gen * inputs.seasonality[month_idx] * degrad
+
+        # REGO revenue (on all solar generation, throughout project life)
+        if inputs.rego_switch and ops_year < inputs.rego_tenor:
+            solar_rev[i] += monthly_gen_formula * inputs.rego_price / 1000
+
+        # Embedded benefits (11kV) — applied to generation, with tenor limit
+        if inputs.emb_switch and ops_year < inputs.emb_tenor and len(inputs.emb_benefits) == 12:
+            emb_rate = inputs.emb_benefits[month_idx]  # GBP/MWh
+            solar_rev[i] += monthly_gen_formula * emb_rate / 1000
+
+        revenue[i] = solar_rev[i]
+        ops_month += 1
+
+    results.revenue = revenue
+    results.solar_revenue = solar_rev
+    results.bess_revenue = bess_rev
+    results.total_revenue_lifetime = revenue.sum()
+
+    # =================================================================
+    # OPEX
+    # =================================================================
+    opex = np.zeros(n)
+    solar_opex = np.zeros(n)
+    bess_opex = np.zeros(n)
+
+    monthly_solar_opex_base = inputs.solar_opex_rate * inputs.solar_capacity_mwp / 12
+    monthly_bess_opex_base = inputs.bess_opex_rate * inputs.bess_capacity_mw / 12
+
+    ops_month = 0
+    for i in range(n):
+        if not is_operations[i]:
+            continue
+
+        ops_year = ops_month // 12
+
+        # Solar fixed OPEX (no escalation — "real" values per Excel)
+        solar_opex[i] = -monthly_solar_opex_base
+
+        # Variable OPEX
+        if inputs.opex_variable_rate > 0:
+            degrad = max(1.0 - inputs.degradation_pct * ops_year, 0.0) if ops_year > 0 else 1.0
+            monthly_gen = base_annual_gen * inputs.seasonality[dates[i].month - 1] * degrad
+            solar_opex[i] -= monthly_gen * inputs.opex_variable_rate / 1000
+
+        # BESS OPEX (within operating life)
+        if inputs.bess_switch and dates[i] < bess_end:
+            bess_opex[i] = -monthly_bess_opex_base
+
+        # Land lease
+        if inputs.land_fixed_lease_annual > 0:
+            solar_opex[i] -= inputs.land_fixed_lease_annual / 12
+
+        # Revenue-dependent lease
+        if inputs.rev_dep_lease_pct > 0 and revenue[i] > 0:
+            solar_opex[i] -= revenue[i] * inputs.rev_dep_lease_pct
+
+        opex[i] = solar_opex[i] + bess_opex[i]
+        ops_month += 1
+
+    results.opex = opex
+    results.solar_opex = solar_opex
+    results.bess_opex = bess_opex
+    results.total_opex_lifetime = abs(opex.sum())
+
+    # =================================================================
+    # EBITDA
+    # =================================================================
+    ebitda = revenue + opex
+    results.ebitda = ebitda
+
+    # =================================================================
+    # DEPRECIATION (straight-line over project life)
+    # =================================================================
+    depreciation = np.zeros(n)
+    ops_months_total = inputs.project_life_years * 12
+    monthly_depr = total_capex / ops_months_total if total_capex > 0 else 0
+    for i in range(n):
+        if is_operations[i]:
+            depreciation[i] = monthly_depr
+    results.depreciation = depreciation
+
+    # =================================================================
+    # DEBT (interest for geared tax calculation)
+    # =================================================================
+    debt_balance = total_capex * inputs.gearing
+    debt_months = inputs.debt_tenor_years * 12
+    monthly_rate = inputs.interest_rate / 12
+    interest_arr = np.zeros(n)
+
+    if debt_balance > 0 and monthly_rate > 0 and debt_months > 0:
+        annuity = debt_balance * monthly_rate * (1 + monthly_rate) ** debt_months / \
+                  ((1 + monthly_rate) ** debt_months - 1)
+
+        ops_month = 0
+        for i in range(n):
+            if not is_operations[i]:
+                continue
+            if ops_month < debt_months and debt_balance > 0:
+                int_pmt = debt_balance * monthly_rate
+                interest_arr[i] = int_pmt
+                debt_balance -= (annuity - int_pmt)
+                debt_balance = max(debt_balance, 0)
+            ops_month += 1
+
+    # =================================================================
+    # TAX (geared — after interest deduction)
+    # =================================================================
+    tax = np.zeros(n)
+    taxable_monthly = ebitda - depreciation - interest_arr
+    loss_pool = 0.0
+    annual_taxable = 0.0
+
+    for i in range(n):
+        if not is_operations[i]:
+            continue
+
+        annual_taxable += taxable_monthly[i]
+
+        if dates[i].month == inputs.taxation_month:
+            if annual_taxable < 0:
+                loss_pool += abs(annual_taxable)
+            else:
+                if loss_pool > 0:
+                    used = min(loss_pool, annual_taxable)
+                    annual_taxable -= used
+                    loss_pool -= used
+                if annual_taxable > 0:
+                    tax[i] = -annual_taxable * inputs.corp_tax_rate
+
+            annual_taxable = 0.0
+
+    results.tax = tax
+
+    # =================================================================
+    # NWC (simplified)
+    # =================================================================
+    nwc = np.zeros(n)
+    results.nwc = nwc
+
+    # =================================================================
+    # FCFF
+    # =================================================================
+    fcff = revenue + opex + nwc + capex + tax
+    results.fcff = fcff
+    results.fcff_cumulative = np.cumsum(fcff)
+
+    # Payback
+    payback_idx = np.where(results.fcff_cumulative > 0)[0]
+    if len(payback_idx) > 0:
+        results.payback_month = int(payback_idx[0])
+
+    # XIRR
+    results.project_irr = calc_xirr(dates, fcff)
+
+    # XNPV
+    results.project_npv = calc_xnpv(dates, fcff, inputs.discount_rate)
+
+    return results
+
+
+def _get_merchant_price(inputs: TariffModelInputs, year: int) -> float:
+    """Get merchant price for a given year from the inputs."""
+    if inputs.merchant_prices and year in inputs.merchant_prices:
+        return inputs.merchant_prices[year]
+    if inputs.merchant_prices:
+        years = sorted(inputs.merchant_prices.keys())
+        if year < years[0]:
+            return inputs.merchant_prices[years[0]]
+        if year > years[-1]:
+            return inputs.merchant_prices[years[-1]]
+        # Interpolate
+        for j in range(len(years) - 1):
+            if years[j] <= year <= years[j + 1]:
+                frac = (year - years[j]) / (years[j + 1] - years[j])
+                return inputs.merchant_prices[years[j]] * (1 - frac) + \
+                       inputs.merchant_prices[years[j + 1]] * frac
+    return inputs.merchant_price_default
+
+
+def tariff_inputs_from_params(
+    sb: dict, overall: dict, tax: dict, debt: dict,
+    seasonality: list, merchant_prices: dict,
+) -> TariffModelInputs:
+    """Create TariffModelInputs from excel_reader parameter dicts."""
+
+    # Sum CAPEX line items (GBP/kWp)
+    capex_items = (
+        sb['capex_acquisition'] + sb['capex_development'] + sb['capex_discharge'] +
+        sb['capex_dd'] + sb['capex_epc'] + sb['capex_grid'] +
+        sb['capex_sdlt'] + sb['capex_land_legal'] + sb['capex_other_finance'] +
+        sb['capex_other_legal'] + sb['capex_land_purchase'] + sb['capex_ampyr_tech'] +
+        sb['capex_success_fee'] + sb['capex_community_capex'] + sb['capex_bess'] +
+        sb['capex_landowner_fees'] + sb['capex_insurance_capex'] +
+        sb['capex_land_lease_constr'] + sb['capex_asset_adoption'] +
+        sb['capex_others'] + sb['capex_misc']
+    )
+
+    # Sum Solar OPEX (GBP/kWp/Yr)
+    solar_opex = (
+        sb['opex_pv_om'] + sb['opex_grid_conn'] + sb['opex_greenkeeping'] +
+        sb['opex_community'] + sb['opex_real_estate_tax'] + sb['opex_non_tech_am'] +
+        sb['opex_subsidy_loss'] + sb['opex_insurance'] +
+        sb['opex_corrective_maint'] + sb['opex_tech_am']
+    )
+
+    # Sum BESS OPEX (GBPk/MW/Yr)
+    bess_opex = (
+        sb['bess_opex_om'] + sb['bess_opex_import'] +
+        sb['bess_opex_rates'] + sb['bess_opex_lease']
+    )
+
+    # Land lease annual cost (GBPk)
+    land_lease = 0.0
+    if sb['fixed_lease_switch']:
+        land_lease = sb['fixed_lease_price'] * sb['fixed_lease_acres'] / 1000
+
+    # Revenue-dependent lease
+    rev_dep = 0.0
+    if sb['rev_dep_lease_switch']:
+        rev_dep = sb['rev_share_yr1_10']  # already decimal
+
+    return TariffModelInputs(
+        construction_start=sb['construction_start'],
+        construction_months=sb['construction_months'],
+        cod_date=sb['cod_date'],
+        project_life_years=sb['project_life_years'],
+        solar_capacity_mwp=sb['solar_capacity_mwp'],
+        yield_p50=sb['yield_p50'],
+        yield_p75=sb['yield_p75'],
+        yield_p90=sb['yield_p90'],
+        generation_selection=sb['generation_selection'],
+        degradation_pct=sb['degradation_pct'],
+        seasonality=seasonality,
+        bess_switch=sb['bess_switch'],
+        bess_capacity_mw=sb['bess_capacity_mw'],
+        bess_duration_hrs=sb['bess_duration_hrs'],
+        bess_operating_life=sb['bess_operating_life'],
+        tariff_gbp_mwh=overall['tariff_gbp_mwh'],
+        ppa_tenor_years=overall['ppa_tenor_years'],
+        tariff_escalation=overall['tariff_escalation'],
+        merchant_prices=merchant_prices,
+        rego_switch=sb['rego_switch'],
+        rego_price=sb['rego_price'],
+        rego_tenor=sb['rego_tenor'],
+        emb_switch=sb.get('emb_switch', 1),
+        emb_benefits=sb.get('emb_benefits', [5.38, 6.27, 8.31, 8.19, 9.40, 10.38, 10.78, 10.05, 7.54, 5.95, 5.37, 5.37]),
+        emb_tenor=sb.get('emb_tenor', 15),
+        capex_items_sum=capex_items,
+        capex_contingency_pct=sb['capex_contingency_pct'],
+        solar_opex_rate=solar_opex,
+        bess_opex_rate=bess_opex,
+        opex_variable_rate=sb['opex_balancing_cfd'],
+        land_fixed_lease_annual=land_lease,
+        rev_dep_lease_pct=rev_dep,
+        corp_tax_rate=tax['corp_tax_rate_low'],
+        taxation_month=tax['taxation_month'],
+        gearing=debt['sb_gearing'],
+        interest_rate=debt['sb_interest_rate'],
+        discount_rate=sb['discount_rate'],
+    )

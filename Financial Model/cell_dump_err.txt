@@ -1,0 +1,9 @@
+C:\Users\AnkitAgarwal\AppData\Local\Programs\Python\Python312\Lib\site-packages\openpyxl\worksheet\_reader.py:329: UserWarning: Conditional Formatting extension is not supported and will be removed
+  warn(msg)
+Traceback (most recent call last):
+  File "c:\repos\Ampyr-PSP\_dump_financial_cells.py", line 130, in <module>
+    main()
+  File "c:\repos\Ampyr-PSP\_dump_financial_cells.py", line 124, in main
+    print(f"  {name:<30} rows: {ws.min_row}-{ws.max_row}, cols: {ws.min_column}-{ws.max_column}")
+                                ^^^^^^^^^^
+AttributeError: 'Chartsheet' object has no attribute 'min_row'

@@ -1,14 +1,5 @@
 # PROJECT CONTEXT & CORE DIRECTIVES
 
-## GUARDRAILS (read first)
-
-These four principles override anything below when they conflict. Full text in the *KARPATHY SKILLS* section at the end of this file.
-
-1. **Think Before Coding** — state assumptions, surface tradeoffs, ask when unclear.
-2. **Simplicity First** — minimum code that solves the problem; nothing speculative.
-3. **Surgical Changes** — touch only what the request requires; clean up only your own orphans.
-4. **Goal-Driven Execution** — define a verifiable success criterion before coding; loop until verified.
-
 ## Project Overview
 **BESS Sizing Tool** - Battery Energy Storage System optimization application for solar+storage systems. Simulates year-long battery operations with binary delivery constraints, cycle limits, and SOC management to determine optimal battery capacity for maximizing delivery hours while respecting technical limitations.
 
@@ -31,13 +22,6 @@ When encountering complex requirements:
 3. **Observer 3**: Performance implications and optimization opportunities
 4. **Observer 4**: Integration points and dependency management
 5. **Synthesis**: Merge observations into unified implementation strategy
-
-> **Precedence note**: When the principles in this section conflict with the
-> *KARPATHY SKILLS — CODING BEHAVIORAL GUIDELINES* section at the bottom of
-> this file, Karpathy wins. Specifically: *DIRECT IMPLEMENTATION ONLY* and
-> *NO PARTIAL IMPLEMENTATIONS* apply only when the spec is unambiguous —
-> otherwise stop and ask. *Hedging language* may be used to surface real
-> tradeoffs.
 
 ## ANTI-PATTERN ELIMINATION
 
@@ -454,75 +438,3 @@ if 'last_simulation' not in st.session_state:
 - Systematic approach to battery simulation and optimization
 
 The precise domain terminology and operational constraints are intentional to enable sophisticated reasoning about energy storage systems and their optimization.
-
----
-
-## KARPATHY SKILLS — CODING BEHAVIORAL GUIDELINES
-
-> Source: <https://raw.githubusercontent.com/forrestchang/andrej-karpathy-skills/main/CLAUDE.md>
-> Merged: 2026-04-27. Behavioural guardrails to reduce common LLM coding mistakes.
-> **Tradeoff**: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
-> **Precedence**: When these guidelines conflict with the *DIRECT IMPLEMENTATION ONLY* / *NO PARTIAL IMPLEMENTATIONS* rules in the System-Level Operating Principles above, the Karpathy guidelines win — clarify ambiguity before generating code, ship the smallest correct change, and verify against an explicit success criterion.
-
-### 1. Think Before Coding
-
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them — don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-### 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-### 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it — don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-### 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-
-```text
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
-**These guidelines are working if**: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
