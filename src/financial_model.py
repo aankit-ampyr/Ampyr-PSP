@@ -1450,3 +1450,98 @@ def tariff_inputs_from_params(
         interest_rate=debt['sb_interest_rate'],
         discount_rate=sb['discount_rate'],
     )
+
+
+def tariff_inputs_from_wizard_state(
+    fin: dict, merchant_prices: dict | None = None,
+) -> TariffModelInputs:
+    """
+    Build TariffModelInputs from wizard_state['financial'].
+
+    Mirrors inputs_from_wizard_state but targets the dispatch-driven tariff
+    model (run_tariff_model) used by Step 7. Gearing defaults to 0 so the
+    output is the ungeared Project IRR (Excel Equity!E181).
+    """
+    from datetime import date as dt_date
+
+    def to_date(val, default):
+        if isinstance(val, dt_date):
+            return val
+        if isinstance(val, str):
+            p = val.split('-')
+            return dt_date(int(p[0]), int(p[1]), int(p[2]))
+        return default
+
+    month_names = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
+                   'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+    seasonality = [fin.get(f'seasonality_{m}', 1/12) for m in month_names]
+
+    capex_items = sum(float(fin.get(k, 0.0)) for k in [
+        'capex_acquisition', 'capex_development', 'capex_discharge', 'capex_dd',
+        'capex_epc', 'capex_grid', 'capex_sdlt', 'capex_land_legal',
+        'capex_other_finance', 'capex_other_legal', 'capex_land_purchase',
+        'capex_ampyr_tech', 'capex_success_fee', 'capex_community',
+        'capex_bess', 'capex_landowner_fees', 'capex_insurance',
+        'capex_land_lease_constr', 'capex_asset_adoption',
+        'capex_others', 'capex_misc',
+    ])
+
+    solar_opex = sum(float(fin.get(k, 0.0)) for k in [
+        'opex_pv_om', 'opex_grid_conn', 'opex_greenkeeping', 'opex_community',
+        'opex_real_estate_tax', 'opex_non_tech_am', 'opex_subsidy_loss',
+        'opex_insurance', 'opex_corrective_maint', 'opex_tech_am',
+    ])
+
+    bess_opex = sum(float(fin.get(k, 0.0)) for k in [
+        'bess_opex_om', 'bess_opex_import', 'bess_opex_rates', 'bess_opex_lease',
+    ])
+
+    land_lease = 0.0
+    if fin.get('fixed_lease_switch'):
+        land_lease = (float(fin.get('fixed_lease_price', 0.0))
+                      * float(fin.get('fixed_lease_acres', 0.0)) / 1000)
+
+    rev_dep = 0.0
+    if fin.get('rev_dep_lease_switch'):
+        rev_dep = float(fin.get('rev_share_yr1_10', 0.0)) / 100
+
+    return TariffModelInputs(
+        construction_start=to_date(fin.get('construction_start'), date(2026, 10, 1)),
+        construction_months=int(fin.get('construction_months', 9)),
+        cod_date=to_date(fin.get('cod_date'), date(2027, 7, 1)),
+        project_life_years=int(fin.get('project_life_years', 35)),
+        solar_capacity_mwp=float(fin.get('solar_capacity_mwp', 82.0)),
+        yield_p50=float(fin.get('yield_p50', 967.0)),
+        yield_p75=float(fin.get('yield_p75', 936.0)),
+        yield_p90=float(fin.get('yield_p90', 895.0)),
+        generation_selection=fin.get('generation_selection', 'P50'),
+        degradation_pct=float(fin.get('degradation_pct', 0.3)) / 100,
+        seasonality=seasonality,
+        bess_switch=int(fin.get('bess_switch', 1)),
+        bess_capacity_mw=float(fin.get('bess_capacity_mw', 62.5)),
+        bess_duration_hrs=float(fin.get('bess_duration_hrs', 4.0)),
+        bess_operating_life=int(fin.get('bess_operating_life', 15)),
+        tariff_gbp_mwh=float(fin.get('ppa_tariff_gbp_mwh', 170.0)),
+        ppa_tenor_years=int(fin.get('ppa_tenor_years', 10)),
+        tariff_escalation=float(fin.get('ppa_escalation_pct', 0.0)) / 100,
+        merchant_prices=merchant_prices or {},
+        merchant_price_default=float(fin.get('merchant_price_default', 67.0)),
+        rego_switch=int(fin.get('rego_switch', 1)),
+        rego_price=float(fin.get('rego_price', 5.0)),
+        rego_tenor=int(fin.get('rego_tenor_years', 15)),
+        emb_switch=int(fin.get('emb_switch', 1)),
+        emb_tenor=int(fin.get('emb_tenor', 15)),
+        capex_items_sum=capex_items,
+        capex_contingency_pct=float(fin.get('capex_contingency_pct', 1.0)) / 100,
+        solar_opex_rate=solar_opex,
+        bess_opex_rate=bess_opex,
+        opex_variable_rate=float(fin.get('opex_balancing_cfd', 0.0)),
+        land_fixed_lease_annual=land_lease,
+        rev_dep_lease_pct=rev_dep,
+        corp_tax_rate=float(fin.get('corp_tax_rate_low', 19.0)) / 100,
+        taxation_month=int(fin.get('taxation_month', 12)),
+        gearing=float(fin.get('debt_gearing', 0.0)),
+        interest_rate=float(fin.get('debt_interest_rate', 0.04)),
+        debt_tenor_years=int(fin.get('debt_tenor_years', 15)),
+        discount_rate=float(fin.get('project_discount_rate', 8.0)) / 100,
+    )

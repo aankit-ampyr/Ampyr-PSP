@@ -1,0 +1,2119 @@
+C:\Users\AnkitAgarwal\AppData\Local\Programs\Python\Python312\Lib\site-packages\openpyxl\worksheet\_reader.py:329: UserWarning: Conditional Formatting extension is not supported and will be removed
+  warn(msg)
+
+====================================================================================================
+SHEET: D&T  rows 100-180, cols A-L
+====================================================================================================
+  C100: Entering depreciation base
+  H100: =SUM(J100:TS100)
+  J100: =IF(AND(J$4<=Const_End,J$5>=Const_End),SUM($J98:J98),0)+J99
+  K100: =IF(AND(K$4<=Const_End,K$5>=Const_End),SUM($J98:K98),0)+K99
+  L100: =IF(AND(L$4<=Const_End,L$5>=Const_End),SUM($J98:L98),0)+L99
+
+  C102: Counter
+  D102: Number
+  E102: =1/E105
+  J102: =MIN($E102,I102+1)
+  K102: =MIN($E102,J102+1)
+  L102: =MIN($E102,K102+1)
+
+  C104: Depreciation base
+  C105: Straight line
+  D105: EUR k
+  E105: <openpyxl.worksheet.formula.ArrayFormula object at 0x00000219306FDEB0>
+  J105: =SUM(OFFSET(I100,0,0,1,-J102))
+  K105: =SUM(OFFSET(J100,0,0,1,-K102))
+  L105: =SUM(OFFSET(K100,0,0,1,-L102))
+  C106: Reducing balance
+  D106: EUR k
+  E106: <openpyxl.worksheet.formula.ArrayFormula object at 0x00000219307EE840>
+  J106: =J92
+  K106: =K92
+  L106: =L92
+  C107: Applied
+  D107: EUR k
+  E107: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930637DD0>
+  J107: =IF($E107=SETUP!$E$86,J105,J106)
+  K107: =IF($E107=SETUP!$E$86,K105,K106)
+  L107: =IF($E107=SETUP!$E$86,L105,L106)
+
+  B109: Tax depreciation
+  B110: 1
+  C110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002193072EB10>
+  C111: Account
+  C112: Balance BOP
+  D112: EUR k
+  J112: =I115
+  K112: =J115
+  L112: =K115
+  C113: Additions
+  D113: EUR k
+  I113: =SUM(J113:TS113)
+  J113: =SUM(J118:J119)
+  K113: =SUM(K118:K119)
+  L113: =SUM(L118:L119)
+  C114: Depreciation & write-off
+  D114: EUR k
+  E114: =IF(E127=SETUP!$E$86,E125,E126)
+  I114: =SUM(J114:TS114)
+  J114: =IF(J$49=1,-SUM(J112:J113),-$E114*J127)*J$7
+  K114: =IF(K$49=1,-SUM(K112:K113),-$E114*K127)*K$7
+  L114: =IF(L$49=1,-SUM(L112:L113),-$E114*L127)*L$7
+  C115: Balance EOP
+  D115: EUR k
+  J115: =SUM(J112:J114)
+  K115: =SUM(K112:K114)
+  L115: =SUM(L112:L114)
+
+  C117: Additions
+  C118: Construction
+  I118: =SUM(J118:TS118)
+  J118: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930923FB0>
+  K118: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930923FE0>
+  L118: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930928050>
+  C119: Operation
+  I119: =SUM(J119:TS119)
+  J119: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002193095E630>
+  K119: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002193095E660>
+  L119: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002193095E690>
+  C120: Entering depreciation base
+  H120: =SUM(J120:TS120)
+  J120: =IF(AND(J$4<=Const_End,J$5>=Const_End),SUM($J118:J118),0)+J119
+  K120: =IF(AND(K$4<=Const_End,K$5>=Const_End),SUM($J118:K118),0)+K119
+  L120: =IF(AND(L$4<=Const_End,L$5>=Const_End),SUM($J118:L118),0)+L119
+
+  C122: Counter
+  D122: Number
+  E122: =1/E125
+  J122: =MIN($E122,I122+1)
+  K122: =MIN($E122,J122+1)
+  L122: =MIN($E122,K122+1)
+
+  C124: Depreciation base
+  C125: Straight line
+  D125: EUR k
+  E125: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930A0B3B0>
+  J125: =SUM(OFFSET(I120,0,0,1,-J122))
+  K125: =SUM(OFFSET(J120,0,0,1,-K122))
+  L125: =SUM(OFFSET(K120,0,0,1,-L122))
+  C126: Reducing balance
+  D126: EUR k
+  E126: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930A28290>
+  J126: =J112
+  K126: =K112
+  L126: =L112
+  C127: Applied
+  D127: EUR k
+  E127: <openpyxl.worksheet.formula.ArrayFormula object at 0x00000219309D07D0>
+  J127: =IF($E127=SETUP!$E$86,J125,J126)
+  K127: =IF($E127=SETUP!$E$86,K125,K126)
+  L127: =IF($E127=SETUP!$E$86,L125,L126)
+
+  B129: 2
+  C129: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002193098D4F0>
+  C130: Account
+  C131: Balance BOP
+  D131: EUR k
+  J131: =I134
+  K131: =J134
+  L131: =K134
+  C132: Additions
+  D132: EUR k
+  I132: =SUM(J132:TS132)
+  J132: =SUM(J137:J138)
+  K132: =SUM(K137:K138)
+  L132: =SUM(L137:L138)
+  C133: Depreciation & write-off
+  D133: EUR k
+  E133: =IF(E146=SETUP!$E$86,E144,E145)
+  I133: =SUM(J133:TS133)
+  J133: =IF(J$49=1,-SUM(J131:J132),-$E133*J146)*J$7
+  K133: =IF(K$49=1,-SUM(K131:K132),-$E133*K146)*K$7
+  L133: =IF(L$49=1,-SUM(L131:L132),-$E133*L146)*L$7
+  C134: Balance EOP
+  D134: EUR k
+  J134: =SUM(J131:J133)
+  K134: =SUM(K131:K133)
+  L134: =SUM(L131:L133)
+
+  C136: Additions
+  C137: Construction
+  I137: =SUM(J137:TS137)
+  J137: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930D06ED0>
+  K137: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930D06F00>
+  L137: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930D06F30>
+  C138: Operation
+  I138: =SUM(J138:TS138)
+  J138: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930D38CB0>
+  K138: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930D38CE0>
+  L138: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930D38D10>
+  C139: Entering depreciation base
+  H139: =SUM(J139:TS139)
+  J139: =IF(AND(J$4<=Const_End,J$5>=Const_End),SUM($J137:J137),0)+J138
+  K139: =IF(AND(K$4<=Const_End,K$5>=Const_End),SUM($J137:K137),0)+K138
+  L139: =IF(AND(L$4<=Const_End,L$5>=Const_End),SUM($J137:L137),0)+L138
+
+  C141: Counter
+  D141: Number
+  E141: =1/E144
+  J141: =MIN($E141,I141+1)
+  K141: =MIN($E141,J141+1)
+  L141: =MIN($E141,K141+1)
+
+  C143: Depreciation base
+  C144: Straight line
+  D144: EUR k
+  E144: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002193019ACF0>
+  J144: =SUM(OFFSET(I139,0,0,1,-J141))
+  K144: =SUM(OFFSET(J139,0,0,1,-K141))
+  L144: =SUM(OFFSET(K139,0,0,1,-L141))
+  C145: Reducing balance
+  D145: EUR k
+  E145: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930E1D8E0>
+  J145: =J131
+  K145: =K131
+  L145: =L131
+  C146: Applied
+  D146: EUR k
+  E146: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930E345F0>
+  J146: =IF($E146=SETUP!$E$86,J144,J145)
+  K146: =IF($E146=SETUP!$E$86,K144,K145)
+  L146: =IF($E146=SETUP!$E$86,L144,L145)
+
+  B148: 3
+  C148: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930D59520>
+  C149: Account
+  C150: Balance BOP
+  D150: EUR k
+  J150: =I153
+  K150: =J153
+  L150: =K153
+  C151: Additions
+  D151: EUR k
+  I151: =SUM(J151:TS151)
+  J151: =SUM(J156:J157)
+  K151: =SUM(K156:K157)
+  L151: =SUM(L156:L157)
+  C152: Depreciation & write-off
+  D152: EUR k
+  E152: =IF(E165=SETUP!$E$86,E163,E164)
+  I152: =SUM(J152:TS152)
+  J152: =IF(J$49=1,-SUM(J150:J151),-$E152*J165)*J$7
+  K152: =IF(K$49=1,-SUM(K150:K151),-$E152*K165)*K$7
+  L152: =IF(L$49=1,-SUM(L150:L151),-$E152*L165)*L$7
+  C153: Balance EOP
+  D153: EUR k
+  J153: =SUM(J150:J152)
+  K153: =SUM(K150:K152)
+  L153: =SUM(L150:L152)
+
+  C155: Additions
+  C156: Construction
+  I156: =SUM(J156:TS156)
+  J156: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930F64A70>
+  K156: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930F64AA0>
+  L156: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930F64AD0>
+  C157: Operation
+  I157: =SUM(J157:TS157)
+  J157: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930F93530>
+  K157: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930F93560>
+  L157: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930F93590>
+  C158: Entering depreciation base
+  H158: =SUM(J158:TS158)
+  J158: =IF(AND(J$4<=Const_End,J$5>=Const_End),SUM($J156:J156),0)+J157
+  K158: =IF(AND(K$4<=Const_End,K$5>=Const_End),SUM($J156:K156),0)+K157
+  L158: =IF(AND(L$4<=Const_End,L$5>=Const_End),SUM($J156:L156),0)+L157
+
+  C160: Counter
+  D160: Number
+  E160: =1/E163
+  J160: =MIN($E160,I160+1)
+  K160: =MIN($E160,J160+1)
+  L160: =MIN($E160,K160+1)
+
+  C162: Depreciation base
+  C163: Straight line
+  D163: EUR k
+  E163: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930F33B90>
+  J163: =SUM(OFFSET(I158,0,0,1,-J160))
+  K163: =SUM(OFFSET(J158,0,0,1,-K160))
+  L163: =SUM(OFFSET(K158,0,0,1,-L160))
+  C164: Reducing balance
+  D164: EUR k
+  E164: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021931076450>
+  J164: =J150
+  K164: =K150
+  L164: =L150
+  C165: Applied
+  D165: EUR k
+  E165: <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021930FBBB00>
+  J165: =IF($E165=SETUP!$E$86,J163,J164)
+  K165: =IF($E165=SETUP!$E$86,K163,K164)
+  L165: =IF($E165=SETUP!$E$86,L163,L164)
+
+  B167: Summary
+  B168: =B51
+  B169: ='Curves and D&T'!$B$66
+  C169: ='Curves and D&T'!$C$66
+  D169: EUR k
+  I169: =SUM(J169:TS169)
+  J169: =-J56
+  K169: =-K56
+  L169: =-L56
+  B170: ='Curves and D&T'!$B$67
+  C170: ='Curves and D&T'!$C$67
+  D170: EUR k
+  I170: =SUM(J170:TS170)
+  J170: =-J75
+  K170: =-K75
+  L170: =-L75
+  B171: ='Curves and D&T'!$B$68
+  C171: ='Curves and D&T'!$C$68
+  D171: EUR k
+  I171: =SUM(J171:TS171)
+  J171: =-J94
+  K171: =-K94
+  L171: =-L94
+  C172: Total
+  D172: EUR k
+  I172: =SUM(J172:TS172)
+  J172: =SUM(J169:J171)
+  K172: =SUM(K169:K171)
+  L172: =SUM(L169:L171)
+
+  B174: =B109
+  B175: ='Curves and D&T'!$B$66
+  C175: ='Curves and D&T'!$C$66
+  D175: EUR k
+  I175: =SUM(J175:TS175)
+  J175: =-J114
+  K175: =-K114
+  L175: =-L114
+  B176: ='Curves and D&T'!$B$67
+  C176: ='Curves and D&T'!$C$67
+  D176: EUR k
+  I176: =SUM(J176:TS176)
+  J176: =-J133
+  K176: =-K133
+  L176: =-L133
+  B177: ='Curves and D&T'!$B$68
+  C177: ='Curves and D&T'!$C$68
+  D177: EUR k
+  I177: =SUM(J177:TS177)
+  J177: =-J152
+  K177: =-K152
+  L177: =-L152
+  C178: Total
+  D178: EUR k
+  I178: =SUM(J178:TS178)
+  J178: =SUM(J175:J177)
+  K178: =SUM(K175:K177)
+  L178: =SUM(L175:L177)
+
+  B180: Net book value
+
+====================================================================================================
+SHEET: FS  rows 140-175, cols A-L
+====================================================================================================
+  C140: Cash sweep for sculpted debt repayments
+  D140: EUR k
+  I140: =SUM(J140:QU140)
+  J140: =Debt!J160
+  K140: =Debt!K160
+  L140: =Debt!L160
+  C141: Total cash sweep
+  D141: EUR k
+  I141: =SUM(J141:QU141)
+  J141: =SUM(J139:J140)
+  K141: =SUM(K139:K140)
+  L141: =SUM(L139:L140)
+
+  B143: Maintenance Reserve Account
+  C144: Change in MRA
+  I144: =SUM(J144:QU144)
+  J144: =-'Solar&BESS Operation'!M$270
+  K144: =-'Solar&BESS Operation'!N$270
+  L144: =-'Solar&BESS Operation'!O$270
+
+  C146: Cashflow available for equity
+  D146: EUR k
+  I146: =SUM(J146:QU146)
+  J146: =J137+J141+J144
+  K146: =K137+K141+K144
+  L146: =L137+L141+L144
+
+  C148: Shareholder loan interest
+  D148: EUR k
+  I148: =SUM(J148:QU148)
+  J148: =-Equity!J84
+  K148: =-Equity!K84
+  L148: =-Equity!L84
+  C149: Shareholder principle
+  D149: EUR k
+  I149: =SUM(J149:QU149)
+  J149: =Equity!J55
+  K149: =Equity!K55
+  L149: =Equity!L55
+  C150: Distributions
+  D150: EUR k
+  I150: =SUM(J150:QU150)
+  J150: =-Equity!J103
+  K150: =-Equity!K103
+  L150: =-Equity!L103
+
+  C152: Net cashflow
+  D152: EUR k
+  I152: =SUM(J152:QU152)
+  J152: =J146+SUM(J148:J150)
+  K152: =K146+SUM(K148:K150)
+  L152: =L146+SUM(L148:L150)
+
+  C154: Cash balance BOP
+  D154: EUR k
+  J154: =I155
+  K154: =J155
+  L154: =K155
+  C155: Cash balance EOP
+  D155: EUR k
+  J155: =J154+J152
+  K155: =K154+K152
+  L155: =L154+L152
+  C156: Negative balance check?
+  D156: EUR k
+  I156: =SUM(J156:QU156)
+  J156: =IF(ROUND(J155,Dec_Points)<0,1,0)
+  K156: =IF(ROUND(K155,Dec_Points)<0,1,0)
+  L156: =IF(ROUND(L155,Dec_Points)<0,1,0)
+
+  A158: P&L (EUR '000)
+
+  C160: =B12
+  D160: GBP k
+  I160: =SUM(J160:TS160)
+  J160: =J17
+  K160: =K17
+  L160: =L17
+  C161: BESS Revenue
+  D161: GBP k
+  I161: =SUM(J161:TS161)
+  J161: =J24
+  K161: =K24
+  L161: =L24
+  C162: =B29
+  D162: GBP k
+  I162: =SUM(J162:TS162)
+  J162: =J44
+  K162: =K44
+  L162: =L44
+  C163: BESS Expenses
+  D163: GBP k
+  I163: =SUM(J163:TS163)
+  J163: =J56
+  K163: =K56
+  L163: =L56
+  C164: EBITDA
+  D164: GBP k
+  I164: =SUM(J164:TS164)
+  J164: =SUM(J160:J163)
+  K164: =SUM(K160:K163)
+  L164: =SUM(L160:L163)
+
+  C166: Depreciation & amortisation
+  D166: EUR k
+  I166: =SUM(J166:QU166)
+  J166: =-'D&T'!J172
+  K166: =-'D&T'!K172
+  L166: =-'D&T'!L172
+  C167: =C117
+  D167: EUR k
+  I167: =SUM(J167:QU167)
+  J167: =J117
+  K167: =K117
+  L167: =L117
+  C168: =C123
+  D168: EUR k
+  I168: =SUM(J168:QU168)
+  J168: =J123
+  K168: =K123
+  L168: =L123
+  C169: Interest expense (fixed debt)
+  D169: EUR k
+  I169: =SUM(J169:QU169)
+  J169: =J118
+  K169: =K118
+  L169: =L118
+  C170: Interest expense (sculpted debt)
+  D170: EUR k
+  I170: =SUM(J170:QU170)
+  J170: =J124
+  K170: =K124
+  L170: =L124
+  C171: Interest expense (SHL)
+  D171: EUR k
+  I171: =SUM(J171:QU171)
+  J171: =-Equity!J60
+  K171: =-Equity!K60
+  L171: =-Equity!L60
+  C172: Letter of credit interest
+  D172: EUR k
+  I172: =SUM(J172:QU172)
+  J172: =-'Solar&BESS Operation'!M185-'Solar&BESS Operation'!M197
+  K172: =-'Solar&BESS Operation'!N185-'Solar&BESS Operation'!N197
+  L172: =-'Solar&BESS Operation'!O185-'Solar&BESS Operation'!O197
+  C173: DSRF/DSRA Fees
+  J173: =Debt!J254
+  K173: =Debt!K254
+  L173: =Debt!L254
+  C174: EBT
+  D174: EUR k
+  I174: =SUM(J174:QU174)
+  J174: =SUM(J166:J173,J164)
+  K174: =SUM(K166:K173,K164)
+  L174: =SUM(L166:L173,L164)
+
+====================================================================================================
+SHEET: Solar&BESS Operation  rows 90-110, cols A-R
+====================================================================================================
+  C90: 11kV Revenue
+  L90: =SUM(M90:TV90)
+  M90: =M52*M63*M88*$I$85/Thousand
+  N90: =N52*N63*N88*$I$85/Thousand
+  O90: =O52*O63*O88*$I$85/Thousand
+  P90: =P52*P63*P88*$I$85/Thousand
+  Q90: =Q52*Q63*Q88*$I$85/Thousand
+  R90: =R52*R63*R88*$I$85/Thousand
+
+  B93: Revenue
+  C94: =C74
+  D94: GBP k
+  L94: =SUM(M94:TV94)
+  M94: =M74
+  N94: =N74
+  O94: =O74
+  P94: =P74
+  Q94: =Q74
+  R94: =R74
+  C95: =C67
+  D95: GBP k
+  L95: =SUM(M95:TV95)
+  M95: =M67
+  N95: =N67
+  O95: =O67
+  P95: =P67
+  Q95: =Q67
+  R95: =R67
+  C96: REGO revenue
+  D96: GBP k
+  L96: =SUM(M96:TV96)
+  M96: =M82
+  N96: =N82
+  O96: =O82
+  P96: =P82
+  Q96: =Q82
+  R96: =R82
+  C97: 11kV revenue
+  D97: GBP k
+  L97: =SUM(M97:TV97)
+  M97: =M90
+  N97: =N90
+  O97: =O90
+  P97: =P90
+  Q97: =Q90
+  R97: =R90
+  C98: Total
+  D98: GBP k
+  L98: =SUM(M98:TV98)
+  M98: =SUM(M94:M97)
+  N98: =SUM(N94:N97)
+  O98: =SUM(O94:O97)
+  P98: =SUM(P94:P97)
+  Q98: =SUM(Q94:Q97)
+  R98: =SUM(R94:R97)
+
+  A100: OPEX
+
+  B102: Fixed costs
+  B103: Real
+  E103: GBP / kWp / Yr
+  F103: Start Date
+  G103: End Date
+  H103: Frequency
+  C104: ='Solar&BESS Inputs'!C215
+  D104: GBP k
+  E104: ='Solar&BESS Inputs'!F215*$G$44
+  F104: ='Solar&BESS Inputs'!F241
+  G104: =EOMONTH($F$104,'Solar&BESS Inputs'!$F254*Months_yr-1)
+  H104: ='Solar&BESS Inputs'!F228
+  I104: =IF(H104=SETUP!$C$46,1,IF(H104=SETUP!$C$47,Months_qtr,IF(H104=SETUP!$C$48,Months_halfyr,IF(H104=SETUP!$C$49...
+  L104: =SUM(M104:TU104)
+  M104: =(MOD(MONTH($F104),$I104)=MOD(MONTH(M$5),$I104))*(M$5>=$F104)*(M$5<=$G104)*$E104*$I104/Months_yr
+  N104: =(MOD(MONTH($F104),$I104)=MOD(MONTH(N$5),$I104))*(N$5>=$F104)*(N$5<=$G104)*$E104*$I104/Months_yr
+  O104: =(MOD(MONTH($F104),$I104)=MOD(MONTH(O$5),$I104))*(O$5>=$F104)*(O$5<=$G104)*$E104*$I104/Months_yr
+  P104: =(MOD(MONTH($F104),$I104)=MOD(MONTH(P$5),$I104))*(P$5>=$F104)*(P$5<=$G104)*$E104*$I104/Months_yr
+  Q104: =(MOD(MONTH($F104),$I104)=MOD(MONTH(Q$5),$I104))*(Q$5>=$F104)*(Q$5<=$G104)*$E104*$I104/Months_yr
+  R104: =(MOD(MONTH($F104),$I104)=MOD(MONTH(R$5),$I104))*(R$5>=$F104)*(R$5<=$G104)*$E104*$I104/Months_yr
+  C105: ='Solar&BESS Inputs'!C216
+  D105: GBP k
+  E105: ='Solar&BESS Inputs'!F216*$G$44
+  F105: ='Solar&BESS Inputs'!F242
+  G105: =EOMONTH($F$104,'Solar&BESS Inputs'!$F255*Months_yr-1)
+  H105: ='Solar&BESS Inputs'!F229
+  I105: =IF(H105=SETUP!$C$46,1,IF(H105=SETUP!$C$47,Months_qtr,IF(H105=SETUP!$C$48,Months_halfyr,IF(H105=SETUP!$C$49...
+  L105: =SUM(M105:TU105)
+  M105: =(MOD(MONTH($F105),$I105)=MOD(MONTH(M$5),$I105))*(M$5>=$F105)*(M$5<=$G105)*$E105*$I105/Months_yr
+  N105: =(MOD(MONTH($F105),$I105)=MOD(MONTH(N$5),$I105))*(N$5>=$F105)*(N$5<=$G105)*$E105*$I105/Months_yr
+  O105: =(MOD(MONTH($F105),$I105)=MOD(MONTH(O$5),$I105))*(O$5>=$F105)*(O$5<=$G105)*$E105*$I105/Months_yr
+  P105: =(MOD(MONTH($F105),$I105)=MOD(MONTH(P$5),$I105))*(P$5>=$F105)*(P$5<=$G105)*$E105*$I105/Months_yr
+  Q105: =(MOD(MONTH($F105),$I105)=MOD(MONTH(Q$5),$I105))*(Q$5>=$F105)*(Q$5<=$G105)*$E105*$I105/Months_yr
+  R105: =(MOD(MONTH($F105),$I105)=MOD(MONTH(R$5),$I105))*(R$5>=$F105)*(R$5<=$G105)*$E105*$I105/Months_yr
+  C106: ='Solar&BESS Inputs'!C217
+  D106: GBP k
+  E106: ='Solar&BESS Inputs'!F217*$G$44
+  F106: ='Solar&BESS Inputs'!F243
+  G106: =EOMONTH($F$104,'Solar&BESS Inputs'!$F256*Months_yr-1)
+  H106: ='Solar&BESS Inputs'!F230
+  I106: =IF(H106=SETUP!$C$46,1,IF(H106=SETUP!$C$47,Months_qtr,IF(H106=SETUP!$C$48,Months_halfyr,IF(H106=SETUP!$C$49...
+  L106: =SUM(M106:TU106)
+  M106: =(MOD(MONTH($F106),$I106)=MOD(MONTH(M$5),$I106))*(M$5>=$F106)*(M$5<=$G106)*$E106*$I106/Months_yr
+  N106: =(MOD(MONTH($F106),$I106)=MOD(MONTH(N$5),$I106))*(N$5>=$F106)*(N$5<=$G106)*$E106*$I106/Months_yr
+  O106: =(MOD(MONTH($F106),$I106)=MOD(MONTH(O$5),$I106))*(O$5>=$F106)*(O$5<=$G106)*$E106*$I106/Months_yr
+  P106: =(MOD(MONTH($F106),$I106)=MOD(MONTH(P$5),$I106))*(P$5>=$F106)*(P$5<=$G106)*$E106*$I106/Months_yr
+  Q106: =(MOD(MONTH($F106),$I106)=MOD(MONTH(Q$5),$I106))*(Q$5>=$F106)*(Q$5<=$G106)*$E106*$I106/Months_yr
+  R106: =(MOD(MONTH($F106),$I106)=MOD(MONTH(R$5),$I106))*(R$5>=$F106)*(R$5<=$G106)*$E106*$I106/Months_yr
+  C107: ='Solar&BESS Inputs'!C218
+  D107: GBP k
+  E107: ='Solar&BESS Inputs'!F218*$G$44
+  F107: ='Solar&BESS Inputs'!F244
+  G107: =EOMONTH($F$104,'Solar&BESS Inputs'!$F257*Months_yr-1)
+  H107: ='Solar&BESS Inputs'!F231
+  I107: =IF(H107=SETUP!$C$46,1,IF(H107=SETUP!$C$47,Months_qtr,IF(H107=SETUP!$C$48,Months_halfyr,IF(H107=SETUP!$C$49...
+  L107: =SUM(M107:TU107)
+  M107: =(MOD(MONTH($F107),$I107)=MOD(MONTH(M$5),$I107))*(M$5>=$F107)*(M$5<=$G107)*$E107*$I107/Months_yr
+  N107: =(MOD(MONTH($F107),$I107)=MOD(MONTH(N$5),$I107))*(N$5>=$F107)*(N$5<=$G107)*$E107*$I107/Months_yr
+  O107: =(MOD(MONTH($F107),$I107)=MOD(MONTH(O$5),$I107))*(O$5>=$F107)*(O$5<=$G107)*$E107*$I107/Months_yr
+  P107: =(MOD(MONTH($F107),$I107)=MOD(MONTH(P$5),$I107))*(P$5>=$F107)*(P$5<=$G107)*$E107*$I107/Months_yr
+  Q107: =(MOD(MONTH($F107),$I107)=MOD(MONTH(Q$5),$I107))*(Q$5>=$F107)*(Q$5<=$G107)*$E107*$I107/Months_yr
+  R107: =(MOD(MONTH($F107),$I107)=MOD(MONTH(R$5),$I107))*(R$5>=$F107)*(R$5<=$G107)*$E107*$I107/Months_yr
+  C108: ='Solar&BESS Inputs'!C219
+  D108: GBP k
+  E108: ='Solar&BESS Inputs'!F219*$G$44
+  F108: ='Solar&BESS Inputs'!F245
+  G108: =EOMONTH($F$104,'Solar&BESS Inputs'!$F258*Months_yr-1)
+  H108: ='Solar&BESS Inputs'!F232
+  I108: =IF(H108=SETUP!$C$46,1,IF(H108=SETUP!$C$47,Months_qtr,IF(H108=SETUP!$C$48,Months_halfyr,IF(H108=SETUP!$C$49...
+  L108: =SUM(M108:TU108)
+  M108: =(MOD(MONTH($F108),$I108)=MOD(MONTH(M$5),$I108))*(M$5>=$F108)*(M$5<=$G108)*$E108*$I108/Months_yr
+  N108: =(MOD(MONTH($F108),$I108)=MOD(MONTH(N$5),$I108))*(N$5>=$F108)*(N$5<=$G108)*$E108*$I108/Months_yr
+  O108: =(MOD(MONTH($F108),$I108)=MOD(MONTH(O$5),$I108))*(O$5>=$F108)*(O$5<=$G108)*$E108*$I108/Months_yr
+  P108: =(MOD(MONTH($F108),$I108)=MOD(MONTH(P$5),$I108))*(P$5>=$F108)*(P$5<=$G108)*$E108*$I108/Months_yr
+  Q108: =(MOD(MONTH($F108),$I108)=MOD(MONTH(Q$5),$I108))*(Q$5>=$F108)*(Q$5<=$G108)*$E108*$I108/Months_yr
+  R108: =(MOD(MONTH($F108),$I108)=MOD(MONTH(R$5),$I108))*(R$5>=$F108)*(R$5<=$G108)*$E108*$I108/Months_yr
+  C109: ='Solar&BESS Inputs'!C220
+  D109: GBP k
+  E109: ='Solar&BESS Inputs'!F220*$G$44
+  F109: ='Solar&BESS Inputs'!F246
+  G109: =EOMONTH($F$104,'Solar&BESS Inputs'!$F259*Months_yr-1)
+  H109: ='Solar&BESS Inputs'!F233
+  I109: =IF(H109=SETUP!$C$46,1,IF(H109=SETUP!$C$47,Months_qtr,IF(H109=SETUP!$C$48,Months_halfyr,IF(H109=SETUP!$C$49...
+  L109: =SUM(M109:TU109)
+  M109: =(MOD(MONTH($F109),$I109)=MOD(MONTH(M$5),$I109))*(M$5>=$F109)*(M$5<=$G109)*$E109*$I109/Months_yr
+  N109: =(MOD(MONTH($F109),$I109)=MOD(MONTH(N$5),$I109))*(N$5>=$F109)*(N$5<=$G109)*$E109*$I109/Months_yr
+  O109: =(MOD(MONTH($F109),$I109)=MOD(MONTH(O$5),$I109))*(O$5>=$F109)*(O$5<=$G109)*$E109*$I109/Months_yr
+  P109: =(MOD(MONTH($F109),$I109)=MOD(MONTH(P$5),$I109))*(P$5>=$F109)*(P$5<=$G109)*$E109*$I109/Months_yr
+  Q109: =(MOD(MONTH($F109),$I109)=MOD(MONTH(Q$5),$I109))*(Q$5>=$F109)*(Q$5<=$G109)*$E109*$I109/Months_yr
+  R109: =(MOD(MONTH($F109),$I109)=MOD(MONTH(R$5),$I109))*(R$5>=$F109)*(R$5<=$G109)*$E109*$I109/Months_yr
+  C110: ='Solar&BESS Inputs'!C221
+  D110: GBP k
+  E110: ='Solar&BESS Inputs'!F221*$G$44
+  F110: ='Solar&BESS Inputs'!F247
+  G110: =EOMONTH($F$104,'Solar&BESS Inputs'!$F260*Months_yr-1)
+  H110: ='Solar&BESS Inputs'!F234
+  I110: =IF(H110=SETUP!$C$46,1,IF(H110=SETUP!$C$47,Months_qtr,IF(H110=SETUP!$C$48,Months_halfyr,IF(H110=SETUP!$C$49...
+  L110: =SUM(M110:TU110)
+  M110: =(MOD(MONTH($F110),$I110)=MOD(MONTH(M$5),$I110))*(M$5>=$F110)*(M$5<=$G110)*$E110*$I110/Months_yr
+  N110: =(MOD(MONTH($F110),$I110)=MOD(MONTH(N$5),$I110))*(N$5>=$F110)*(N$5<=$G110)*$E110*$I110/Months_yr
+  O110: =(MOD(MONTH($F110),$I110)=MOD(MONTH(O$5),$I110))*(O$5>=$F110)*(O$5<=$G110)*$E110*$I110/Months_yr
+  P110: =(MOD(MONTH($F110),$I110)=MOD(MONTH(P$5),$I110))*(P$5>=$F110)*(P$5<=$G110)*$E110*$I110/Months_yr
+  Q110: =(MOD(MONTH($F110),$I110)=MOD(MONTH(Q$5),$I110))*(Q$5>=$F110)*(Q$5<=$G110)*$E110*$I110/Months_yr
+  R110: =(MOD(MONTH($F110),$I110)=MOD(MONTH(R$5),$I110))*(R$5>=$F110)*(R$5<=$G110)*$E110*$I110/Months_yr
+
+====================================================================================================
+SHEET: Solar&BESS Operation  rows 155-230, cols A-R
+====================================================================================================
+  C155: Lease Adjustment
+  D155: GBP k
+  M155: =MAX(M154-M153,0)
+  N155: =MAX(N154-N153,0)
+  O155: =MAX(O154-O153,0)
+  P155: =MAX(P154-P153,0)
+  Q155: =MAX(Q154-Q153,0)
+  R155: =MAX(R154-R153,0)
+
+  C157: Final Lease
+  D157: GBP k
+  L157: =SUM(M157:TV157)
+  M157: =M147+M155
+  N157: =N147+N155
+  O157: =O147+O155
+  P157: =P147+P155
+  Q157: =Q147+Q155
+  R157: =R147+R155
+
+  B160: Total cost
+  C161: ='Solar&BESS Inputs'!C215
+  D161: GBP k
+  L161: =SUM(M161:TV161)
+  M161: =M117
+  N161: =N117
+  O161: =O117
+  P161: =P117
+  Q161: =Q117
+  R161: =R117
+  C162: ='Solar&BESS Inputs'!C216
+  D162: GBP k
+  L162: =SUM(M162:TV162)
+  M162: =M118
+  N162: =N118
+  O162: =O118
+  P162: =P118
+  Q162: =Q118
+  R162: =R118
+  C163: ='Solar&BESS Inputs'!C217
+  D163: GBP k
+  L163: =SUM(M163:TV163)
+  M163: =M119
+  N163: =N119
+  O163: =O119
+  P163: =P119
+  Q163: =Q119
+  R163: =R119
+  C164: ='Solar&BESS Inputs'!C218
+  D164: GBP k
+  L164: =SUM(M164:TV164)
+  M164: =M120
+  N164: =N120
+  O164: =O120
+  P164: =P120
+  Q164: =Q120
+  R164: =R120
+  C165: ='Solar&BESS Inputs'!C219
+  D165: GBP k
+  L165: =SUM(M165:TV165)
+  M165: =M121
+  N165: =N121
+  O165: =O121
+  P165: =P121
+  Q165: =Q121
+  R165: =R121
+  C166: ='Solar&BESS Inputs'!C220
+  D166: GBP k
+  L166: =SUM(M166:TV166)
+  M166: =M122
+  N166: =N122
+  O166: =O122
+  P166: =P122
+  Q166: =Q122
+  R166: =R122
+  C167: ='Solar&BESS Inputs'!C221
+  D167: GBP k
+  L167: =SUM(M167:TV167)
+  M167: =M123
+  N167: =N123
+  O167: =O123
+  P167: =P123
+  Q167: =Q123
+  R167: =R123
+  C168: ='Solar&BESS Inputs'!C222
+  D168: GBP k
+  L168: =SUM(M168:TV168)
+  M168: =M124
+  N168: =N124
+  O168: =O124
+  P168: =P124
+  Q168: =Q124
+  R168: =R124
+  C169: ='Solar&BESS Inputs'!C223
+  D169: GBP k
+  L169: =SUM(M169:TV169)
+  M169: =M157
+  N169: =N157
+  O169: =O157
+  P169: =P157
+  Q169: =Q157
+  R169: =R157
+  C170: ='Solar&BESS Inputs'!C224
+  D170: GBP k
+  L170: =SUM(M170:TV170)
+  M170: =M125
+  N170: =N125
+  O170: =O125
+  P170: =P125
+  Q170: =Q125
+  R170: =R125
+  C171: ='Solar&BESS Inputs'!C225
+  D171: GBP k
+  L171: =SUM(M171:TV171)
+  M171: =M126
+  N171: =N126
+  O171: =O126
+  P171: =P126
+  Q171: =Q126
+  R171: =R126
+  C172: ='Solar&BESS Inputs'!C281
+  D172: ='Solar&BESS Inputs'!D281
+  L172: =SUM(M172:TV172)
+  M172: =M140
+  N172: =N140
+  O172: =O140
+  P172: =P140
+  Q172: =Q140
+  R172: =R140
+  C173: ='Solar&BESS Inputs'!C282
+  D173: ='Solar&BESS Inputs'!D282
+  L173: =SUM(M173:TV173)
+  M173: =M141
+  N173: =N141
+  O173: =O141
+  P173: =P141
+  Q173: =Q141
+  R173: =R141
+  C174: ='Solar&BESS Inputs'!C283
+  D174: ='Solar&BESS Inputs'!D283
+  L174: =SUM(M174:TV174)
+  M174: =M142
+  N174: =N142
+  O174: =O142
+  P174: =P142
+  Q174: =Q142
+  R174: =R142
+  C175: Total
+  D175: GBP k
+  L175: =SUM(M175:TV175)
+  M175: =SUM(M161:M174)
+  N175: =SUM(N161:N174)
+  O175: =SUM(O161:O174)
+  P175: =SUM(P161:P174)
+  Q175: =SUM(Q161:Q174)
+  R175: =SUM(R161:R174)
+
+  B177: Letter of credit
+  B178: PPA L/C
+  G178: Signing date
+  C179: Signing date PPA terms flag
+  D179: [1,0]
+  G179: ='Solar&BESS Inputs'!$F$564
+  M179: =IF(AND($G179<=M$5,$G179>=M$4),1,0)
+  N179: =IF(AND($G179<=N$5,$G179>=N$4),1,0)
+  O179: =IF(AND($G179<=O$5,$G179>=O$4),1,0)
+  P179: =IF(AND($G179<=P$5,$G179>=P$4),1,0)
+  Q179: =IF(AND($G179<=Q$5,$G179>=Q$4),1,0)
+  R179: =IF(AND($G179<=R$5,$G179>=R$4),1,0)
+  C180: Guaranteed amount
+  D180: EUR k
+  M180: =IF(M$6=1,0,LOOKUP(M5,'Curves and D&T'!$K$54:$QX$54,'Curves and D&T'!$K$60:$QX$60))
+  N180: =IF(N$6=1,0,LOOKUP(N5,'Curves and D&T'!$K$54:$QX$54,'Curves and D&T'!$K$60:$QX$60))
+  O180: =IF(O$6=1,0,LOOKUP(O5,'Curves and D&T'!$K$54:$QX$54,'Curves and D&T'!$K$60:$QX$60))
+  P180: =IF(P$6=1,0,LOOKUP(P5,'Curves and D&T'!$K$54:$QX$54,'Curves and D&T'!$K$60:$QX$60))
+  Q180: =IF(Q$6=1,0,LOOKUP(Q5,'Curves and D&T'!$K$54:$QX$54,'Curves and D&T'!$K$60:$QX$60))
+  R180: =IF(R$6=1,0,LOOKUP(R5,'Curves and D&T'!$K$54:$QX$54,'Curves and D&T'!$K$60:$QX$60))
+  G181: ='Solar&BESS Inputs'!$C$559
+  H181: ='Solar&BESS Inputs'!$C$560
+  I181: ='Solar&BESS Inputs'!$C$561
+  C182: Total interest
+  D182: EUR k
+  G182: ='Solar&BESS Inputs'!$F$559
+  H182: ='Solar&BESS Inputs'!$F$560
+  I182: ='Solar&BESS Inputs'!$F$561
+  L182: =SUM(M182:TV182)
+  M182: =M180*$I182*M$13/M$14*SUM($M$179:M179)
+  N182: =N180*$I182*N$13/N$14*SUM($M$179:N179)
+  O182: =O180*$I182*O$13/O$14*SUM($M$179:O179)
+  P182: =P180*$I182*P$13/P$14*SUM($M$179:P179)
+  Q182: =Q180*$I182*Q$13/Q$14*SUM($M$179:Q179)
+  R182: =R180*$I182*R$13/R$14*SUM($M$179:R179)
+
+  C184: Interest during construction
+  D184: EUR k
+  L184: =SUM(M184:TV184)
+  M184: =M182*M6
+  N184: =N182*N6
+  O184: =O182*O6
+  P184: =P182*P6
+  Q184: =Q182*Q6
+  R184: =R182*R6
+  C185: Interest during operations
+  D185: EUR k
+  L185: =SUM(M185:TV185)
+  M185: =M182*M7
+  N185: =N182*N7
+  O185: =O182*O7
+  P185: =P182*P7
+  Q185: =Q182*Q7
+  R185: =R182*R7
+  G186: Max guaranteed amount
+  C187: Arrangement fee
+  D187: EUR k
+  G187: =MAX($M$180:$QX$180)
+  L187: =SUM(M187:TV187)
+  M187: =$G182*$G187*Debt!J$20
+  N187: =$G182*$G187*Debt!K$20
+  O187: =$G182*$G187*Debt!L$20
+  P187: =$G182*$G187*Debt!M$20
+  Q187: =$G182*$G187*Debt!N$20
+  R187: =$G182*$G187*Debt!O$20
+
+  B189: Decomm bond
+  G189: Start date
+  C190: Decomm bond Tenor
+  D190: [1,0]
+  G190: ='Solar&BESS Inputs'!$F$571
+  M190: =IF(AND($G190<=M$4,M6+M7>0),1,0)
+  N190: =IF(AND($G190<=N$4,N6+N7>0),1,0)
+  O190: =IF(AND($G190<=O$4,O6+O7>0),1,0)
+  P190: =IF(AND($G190<=P$4,P6+P7>0),1,0)
+  Q190: =IF(AND($G190<=Q$4,Q6+Q7>0),1,0)
+  R190: =IF(AND($G190<=R$4,R6+R7>0),1,0)
+  C191: Start Date Flag
+  D191: [1,0]
+  M191: =IF(AND($G190<=M$5,$G190>=M$4),1,0)
+  N191: =IF(AND($G190<=N$5,$G190>=N$4),1,0)
+  O191: =IF(AND($G190<=O$5,$G190>=O$4),1,0)
+  P191: =IF(AND($G190<=P$5,$G190>=P$4),1,0)
+  Q191: =IF(AND($G190<=Q$5,$G190>=Q$4),1,0)
+  R191: =IF(AND($G190<=R$5,$G190>=R$4),1,0)
+  C192: Guaranteed amount
+  D192: EUR k
+  G192: Max guaranteed amount
+  M192: =$G$193*M190
+  N192: =$G$193*N190
+  O192: =$G$193*O190
+  P192: =$G$193*P190
+  Q192: =$G$193*Q190
+  R192: =$G$193*R190
+  G193: ='Solar&BESS Inputs'!$F$570
+  C194: Total interest
+  D194: EUR k
+  L194: =SUM(M194:TV194)
+  M194: =M192*$I182*M$13/M$14*SUM($M190:M190)
+  N194: =N192*$I182*N$13/N$14*SUM($M190:N190)
+  O194: =O192*$I182*O$13/O$14*SUM($M190:O190)
+  P194: =P192*$I182*P$13/P$14*SUM($M190:P190)
+  Q194: =Q192*$I182*Q$13/Q$14*SUM($M190:Q190)
+  R194: =R192*$I182*R$13/R$14*SUM($M190:R190)
+
+  C196: Interest during construction
+  D196: EUR k
+  L196: =SUM(M196:TV196)
+  M196: =M194*M6
+  N196: =N194*N6
+  O196: =O194*O6
+  P196: =P194*P6
+  Q196: =Q194*Q6
+  R196: =R194*R6
+  C197: Interest during operations
+  D197: EUR k
+  L197: =SUM(M197:TV197)
+  M197: =M194*M7
+  N197: =N194*N7
+  O197: =O194*O7
+  P197: =P194*P7
+  Q197: =Q194*Q7
+  R197: =R194*R7
+
+  C199: Arrangement fee
+  D199: EUR k
+  L199: =SUM(M199:TV199)
+  M199: =$G182*$G193*Debt!J$20
+  N199: =$G182*$G193*Debt!K$20
+  O199: =$G182*$G193*Debt!L$20
+  P199: =$G182*$G193*Debt!M$20
+  Q199: =$G182*$G193*Debt!N$20
+  R199: =$G182*$G193*Debt!O$20
+
+  A201: WORKING CAPITAL
+
+  B203: Debtors
+  B204: Account
+  C205: Balance BOP
+  D205: EUR k
+  M205: =L208
+  N205: =M208
+  O205: =N208
+  P205: =O208
+  Q205: =P208
+  R205: =Q208
+  C206: Revenue
+  D206: EUR k
+  G206: Debtors
+  L206: =SUM(M206:TV206)
+  M206: =M98
+  N206: =N98
+  O206: =O98
+  P206: =P98
+  Q206: =Q98
+  R206: =R98
+  C207: Less: cash received
+  D207: EUR k
+  G207: ='Solar&BESS Inputs'!F327
+  L207: =SUM(M207:TV207)
+  M207: =-((M$13-$G207)/M$13)*M206-M205
+  N207: =-((N$13-$G207)/N$13)*N206-N205
+  O207: =-((O$13-$G207)/O$13)*O206-O205
+  P207: =-((P$13-$G207)/P$13)*P206-P205
+  Q207: =-((Q$13-$G207)/Q$13)*Q206-Q205
+  R207: =-((R$13-$G207)/R$13)*R206-R205
+  C208: Balance EOP
+  D208: EUR k
+  M208: =SUM(M205:M207)
+  N208: =SUM(N205:N207)
+  O208: =SUM(O205:O207)
+  P208: =SUM(P205:P207)
+  Q208: =SUM(Q205:Q207)
+  R208: =SUM(R205:R207)
+  C209: Net working capital adjustment
+  D209: EUR k
+  L209: =SUM(M209:TV209)
+  M209: =M205-M208
+  N209: =N205-N208
+  O209: =O205-O208
+  P209: =P205-P208
+  Q209: =Q205-Q208
+  R209: =R205-R208
+
+  B211: Creditors
+  B212: Account
+  C213: Balance BOP
+  D213: EUR k
+  M213: =L216
+  N213: =M216
+  O213: =N216
+  P213: =O216
+  Q213: =P216
+  R213: =Q216
+  C214: Opex
+  D214: EUR k
+  G214: Creditors
+  L214: =SUM(M214:TV214)
+  M214: =M175
+  N214: =N175
+  O214: =O175
+  P214: =P175
+  Q214: =Q175
+  R214: =R175
+  C215: Less: cash paid
+  D215: EUR k
+  G215: ='Solar&BESS Inputs'!F328
+  L215: =SUM(M215:TV215)
+  M215: =-((M$13-$G215)/M$13)*M214-M213
+  N215: =-((N$13-$G215)/N$13)*N214-N213
+  O215: =-((O$13-$G215)/O$13)*O214-O213
+  P215: =-((P$13-$G215)/P$13)*P214-P213
+  Q215: =-((Q$13-$G215)/Q$13)*Q214-Q213
+  R215: =-((R$13-$G215)/R$13)*R214-R213
+  C216: Balance EOP
+  D216: EUR k
+  M216: =SUM(M213:M215)
+  N216: =SUM(N213:N215)
+  O216: =SUM(O213:O215)
+  P216: =SUM(P213:P215)
+  Q216: =SUM(Q213:Q215)
+  R216: =SUM(R213:R215)
+  C217: Net working capital adjustment
+  D217: EUR k
+  L217: =SUM(M217:TV217)
+  M217: =M216-M213
+  N217: =N216-N213
+  O217: =O216-O213
+  P217: =P216-P213
+  Q217: =Q216-Q213
+  R217: =R216-R213
+
+  B219: Net working capital adjustment
+  C220: =B203
+  D220: EUR k
+  L220: =SUM(M220:TV220)
+  M220: =M209
+  N220: =N209
+  O220: =O209
+  P220: =P209
+  Q220: =Q209
+  R220: =R209
+  C221: =B211
+  D221: EUR k
+  L221: =SUM(M221:TV221)
+  M221: =M217
+  N221: =N217
+  O221: =O217
+  P221: =P217
+  Q221: =Q217
+  R221: =R217
+  C222: Total
+  D222: EUR k
+  L222: =SUM(M222:TV222)
+  M222: =SUM(M220:M221)
+  N222: =SUM(N220:N221)
+  O222: =SUM(O220:O221)
+  P222: =SUM(P220:P221)
+  Q222: =SUM(Q220:Q221)
+  R222: =SUM(R220:R221)
+
+  A224: CAPEX
+
+  B226: =Phasing!B968
+  B227: By capex category
+  B228: ='Curves and D&T'!$E$97
+  C228: =Phasing!$C$969
+  D228: EUR k
+  L228: =SUM(M228:TV228)
+  M228: =SUMIF(Phasing!$J$968:$AM$968,M$17,Phasing!$J969:$AM969)*M$13/M$14
+  N228: =SUMIF(Phasing!$J$968:$AM$968,N$17,Phasing!$J969:$AM969)*N$13/N$14
+  O228: =SUMIF(Phasing!$J$968:$AM$968,O$17,Phasing!$J969:$AM969)*O$13/O$14
+  P228: =SUMIF(Phasing!$J$968:$AM$968,P$17,Phasing!$J969:$AM969)*P$13/P$14
+  Q228: =SUMIF(Phasing!$J$968:$AM$968,Q$17,Phasing!$J969:$AM969)*Q$13/Q$14
+  R228: =SUMIF(Phasing!$J$968:$AM$968,R$17,Phasing!$J969:$AM969)*R$13/R$14
+  B229: ='Curves and D&T'!$E$98
+  C229: =Phasing!$C$970
+  D229: EUR k
+  L229: =SUM(M229:TV229)
+  M229: =SUMIF(Phasing!$J$968:$AM$968,M$17,Phasing!$J970:$AM970)*M$13/M$14
+  N229: =SUMIF(Phasing!$J$968:$AM$968,N$17,Phasing!$J970:$AM970)*N$13/N$14
+  O229: =SUMIF(Phasing!$J$968:$AM$968,O$17,Phasing!$J970:$AM970)*O$13/O$14
+  P229: =SUMIF(Phasing!$J$968:$AM$968,P$17,Phasing!$J970:$AM970)*P$13/P$14
+  Q229: =SUMIF(Phasing!$J$968:$AM$968,Q$17,Phasing!$J970:$AM970)*Q$13/Q$14
+  R229: =SUMIF(Phasing!$J$968:$AM$968,R$17,Phasing!$J970:$AM970)*R$13/R$14
+  B230: ='Curves and D&T'!$E$99
+  C230: =Phasing!$C$971
+  D230: EUR k
+  L230: =SUM(M230:TV230)
+  M230: =SUMIF(Phasing!$J$968:$AM$968,M$17,Phasing!$J971:$AM971)*M$13/M$14
+  N230: =SUMIF(Phasing!$J$968:$AM$968,N$17,Phasing!$J971:$AM971)*N$13/N$14
+  O230: =SUMIF(Phasing!$J$968:$AM$968,O$17,Phasing!$J971:$AM971)*O$13/O$14
+  P230: =SUMIF(Phasing!$J$968:$AM$968,P$17,Phasing!$J971:$AM971)*P$13/P$14
+  Q230: =SUMIF(Phasing!$J$968:$AM$968,Q$17,Phasing!$J971:$AM971)*Q$13/Q$14
+  R230: =SUMIF(Phasing!$J$968:$AM$968,R$17,Phasing!$J971:$AM971)*R$13/R$14
+
+====================================================================================================
+SHEET: BESS  rows 85-165, cols A-R
+====================================================================================================
+  C85: 11kV active flag
+  D85: [1,0]
+  E85: ='Solar&BESS Inputs'!F160
+  F85: ='Solar&BESS Inputs'!F161
+  I85: =SUM(J85:TS85)
+  J85: =IF(AND($F85>=J$4,$E85<J$5),1,0)
+  K85: =IF(AND($F85>=K$4,$E85<K$5),1,0)
+  L85: =IF(AND($F85>=L$4,$E85<L$5),1,0)
+  M85: =IF(AND($F85>=M$4,$E85<M$5),1,0)
+  N85: =IF(AND($F85>=N$4,$E85<N$5),1,0)
+  O85: =IF(AND($F85>=O$4,$E85<O$5),1,0)
+  P85: =IF(AND($F85>=P$4,$E85<P$5),1,0)
+  Q85: =IF(AND($F85>=Q$4,$E85<Q$5),1,0)
+  R85: =IF(AND($F85>=R$4,$E85<R$5),1,0)
+  C86: 11kV revenue (real)
+  D86: GBP / MWh
+  J86: =($G$90*$G$88*J$85*J$44*52*5)/Months_yr/1000
+  K86: =($G$90*$G$88*K$85*K$44*52*5)/Months_yr/1000
+  L86: =($G$90*$G$88*L$85*L$44*52*5)/Months_yr/1000
+  M86: =($G$90*$G$88*M$85*M$44*52*5)/Months_yr/1000
+  N86: =($G$90*$G$88*N$85*N$44*52*5)/Months_yr/1000
+  O86: =($G$90*$G$88*O$85*O$44*52*5)/Months_yr/1000
+  P86: =($G$90*$G$88*P$85*P$44*52*5)/Months_yr/1000
+  Q86: =($G$90*$G$88*Q$85*Q$44*52*5)/Months_yr/1000
+  R86: =($G$90*$G$88*R$85*R$44*52*5)/Months_yr/1000
+  C87: Indexation
+  D87: #
+  E87: Escalation
+  F87: Position
+  G87: Capture Rate
+  J87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A492840>
+  K87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A492870>
+  L87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A4928A0>
+  M87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A4928D0>
+  N87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A492900>
+  O87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A492930>
+  P87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A492960>
+  Q87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A492990>
+  R87: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A4929C0>
+  C88: 11kV revenue (nominal)
+  D88: GBP / MWh
+  E88: ='Solar&BESS Inputs'!F162
+  F88: =MATCH(E88,Indexation_Case,0)
+  G88: ='Solar&BESS Inputs'!F157
+  J88: =J86*J87
+  K88: =K86*K87
+  L88: =L86*L87
+  M88: =M86*M87
+  N88: =N86*N87
+  O88: =O86*O87
+  P88: =P86*P87
+  Q88: =Q86*Q87
+  R88: =R86*R87
+  G89: Peak Benefit
+  C90: 11kV revenue
+  D90: GBP k
+  G90: ='Solar&BESS Inputs'!F158
+  I90: =SUM(J90:TS90)
+  J90: =J88
+  K90: =K88
+  L90: =L88
+  M90: =M88
+  N90: =N88
+  O90: =O88
+  P90: =P88
+  Q90: =Q88
+  R90: =R88
+
+  B92: Revenue
+  C93: =C59
+  D93: GBP k
+  G93: 0
+  I93: =SUM(J93:TS93)
+  J93: =(J$59+(J$65-J$62))*('Solar&BESS Operation'!M58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  K93: =(K$59+(K$65-K$62))*('Solar&BESS Operation'!N58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  L93: =(L$59+(L$65-L$62))*('Solar&BESS Operation'!O58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  M93: =(M$59+(M$65-M$62))*('Solar&BESS Operation'!P58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  N93: =(N$59+(N$65-N$62))*('Solar&BESS Operation'!Q58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  O93: =(O$59+(O$65-O$62))*('Solar&BESS Operation'!R58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  P93: =(P$59+(P$65-P$62))*('Solar&BESS Operation'!S58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  Q93: =(Q$59+(Q$65-Q$62))*('Solar&BESS Operation'!T58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  R93: =(R$59+(R$65-R$62))*('Solar&BESS Operation'!U58<>1)*IF('Solar&BESS Operation'!$I$66>0,0,1)*$F$94
+  C94: Floor revenue
+  D94: GBP k
+  E94: BESS merchant
+  F94: 0
+  I94: =SUM(J94:TS94)
+  J94: =(J$62)*0
+  K94: =(K$62)*0
+  L94: =(L$62)*0
+  M94: =(M$62)*0
+  N94: =(N$62)*0
+  O94: =(O$62)*0
+  P94: =(P$62)*0
+  Q94: =(Q$62)*0
+  R94: =(R$62)*0
+  C95: =C82
+  D95: GBP k
+  I95: =SUM(J95:TS95)
+  J95: =(J$82)*0
+  K95: =(K$82)*0
+  L95: =(L$82)*0
+  M95: =(M$82)*0
+  N95: =(N$82)*0
+  O95: =(O$82)*0
+  P95: =(P$82)*0
+  Q95: =(Q$82)*0
+  R95: =(R$82)*0
+  C96: =C90
+  D96: GBP k
+  I96: =SUM(J96:TS96)
+  J96: =(J$90)*0
+  K96: =(K$90)*0
+  L96: =(L$90)*0
+  M96: =(M$90)*0
+  N96: =(N$90)*0
+  O96: =(O$90)*0
+  P96: =(P$90)*0
+  Q96: =(Q$90)*0
+  R96: =(R$90)*0
+  C97: Total
+  D97: GBP k
+  I97: =SUM(J97:TS97)
+  J97: =SUM(J93:J96)
+  K97: =SUM(K93:K96)
+  L97: =SUM(L93:L96)
+  M97: =SUM(M93:M96)
+  N97: =SUM(N93:N96)
+  O97: =SUM(O93:O96)
+  P97: =SUM(P93:P96)
+  Q97: =SUM(Q93:Q96)
+  R97: =SUM(R93:R96)
+
+  A99: BESS OPEX
+
+  B101: Fixed costs
+  B102: Real
+  E102: GBP / MW / Yr
+  C103: ='Solar&BESS Inputs'!C308
+  D103: GBP k
+  E103: ='Solar&BESS Inputs'!F308
+  I103: =SUM(J103:TS103)
+  J103: =$E103*J$48*J$39/Months_yr
+  K103: =$E103*K$48*K$39/Months_yr
+  L103: =$E103*L$48*L$39/Months_yr
+  M103: =$E103*M$48*M$39/Months_yr
+  N103: =$E103*N$48*N$39/Months_yr
+  O103: =$E103*O$48*O$39/Months_yr
+  P103: =$E103*P$48*P$39/Months_yr
+  Q103: =$E103*Q$48*Q$39/Months_yr
+  R103: =$E103*R$48*R$39/Months_yr
+  C104: ='Solar&BESS Inputs'!C309
+  D104: GBP k
+  E104: ='Solar&BESS Inputs'!F309
+  I104: =SUM(J104:TS104)
+  J104: =$E104*J$48*J$39/Months_yr
+  K104: =$E104*K$48*K$39/Months_yr
+  L104: =$E104*L$48*L$39/Months_yr
+  M104: =$E104*M$48*M$39/Months_yr
+  N104: =$E104*N$48*N$39/Months_yr
+  O104: =$E104*O$48*O$39/Months_yr
+  P104: =$E104*P$48*P$39/Months_yr
+  Q104: =$E104*Q$48*Q$39/Months_yr
+  R104: =$E104*R$48*R$39/Months_yr
+  C105: ='Solar&BESS Inputs'!C310
+  D105: GBP k
+  E105: ='Solar&BESS Inputs'!F310
+  I105: =SUM(J105:TS105)
+  J105: =$E105*J$48*J$39/Months_yr
+  K105: =$E105*K$48*K$39/Months_yr
+  L105: =$E105*L$48*L$39/Months_yr
+  M105: =$E105*M$48*M$39/Months_yr
+  N105: =$E105*N$48*N$39/Months_yr
+  O105: =$E105*O$48*O$39/Months_yr
+  P105: =$E105*P$48*P$39/Months_yr
+  Q105: =$E105*Q$48*Q$39/Months_yr
+  R105: =$E105*R$48*R$39/Months_yr
+  C106: ='Solar&BESS Inputs'!C311
+  D106: GBP k
+  E106: ='Solar&BESS Inputs'!F311
+  I106: =SUM(J106:TS106)
+  J106: =$E106*J$48*J$39/Months_yr
+  K106: =$E106*K$48*K$39/Months_yr
+  L106: =$E106*L$48*L$39/Months_yr
+  M106: =$E106*M$48*M$39/Months_yr
+  N106: =$E106*N$48*N$39/Months_yr
+  O106: =$E106*O$48*O$39/Months_yr
+  P106: =$E106*P$48*P$39/Months_yr
+  Q106: =$E106*Q$48*Q$39/Months_yr
+  R106: =$E106*R$48*R$39/Months_yr
+
+  B108: Nominal
+  F108: Escalation
+  G108: Position
+  C109: =C103
+  D109: GBP k
+  F109: ='Solar&BESS Inputs'!F317
+  G109: =MATCH(F109,Indexation_Case,0)
+  I109: =SUM(J109:TS109)
+  J109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E090>
+  K109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E0F0>
+  L109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E120>
+  M109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E150>
+  N109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E180>
+  O109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E1B0>
+  P109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E1E0>
+  Q109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E210>
+  R109: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A73E240>
+  C110: =C104
+  D110: GBP k
+  F110: ='Solar&BESS Inputs'!F318
+  G110: =MATCH(F110,Indexation_Case,0)
+  I110: =SUM(J110:TS110)
+  J110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77ADE0>
+  K110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77AD80>
+  L110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77AD50>
+  M110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77AD20>
+  N110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77AF00>
+  O110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77AF30>
+  P110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77AE10>
+  Q110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77AE40>
+  R110: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A77ADB0>
+  C111: =C105
+  D111: GBP k
+  F111: ='Solar&BESS Inputs'!F319
+  G111: =MATCH(F111,Indexation_Case,0)
+  I111: =SUM(J111:TS111)
+  J111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6EA0>
+  K111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6E40>
+  L111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6E10>
+  M111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6DE0>
+  N111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6FC0>
+  O111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6FF0>
+  P111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6ED0>
+  Q111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6F00>
+  R111: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A7B6E70>
+  C112: =C106
+  D112: GBP k
+  F112: ='Solar&BESS Inputs'!F320
+  G112: =MATCH(F112,Indexation_Case,0)
+  I112: =SUM(J112:TS112)
+  J112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808C80>
+  K112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808C20>
+  L112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808BF0>
+  M112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808BC0>
+  N112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808DA0>
+  O112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808DD0>
+  P112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808CB0>
+  Q112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808CE0>
+  R112: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A808C50>
+  C113: BESS LTSA
+  D113: GBP k
+  F113: ='Solar&BESS Inputs'!F321
+  G113: =MATCH(F113,Indexation_Case,0)
+  I113: =SUM(J113:TS113)
+  J113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A840EF0>
+  K113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A840E90>
+  L113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A840E60>
+  M113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A840E30>
+  N113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A841010>
+  O113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A841040>
+  P113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A840F20>
+  Q113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A840F50>
+  R113: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A840EC0>
+  C114: BESS PCS Extended Warranty
+  D114: GBP k
+  F114: ='Solar&BESS Inputs'!F322
+  G114: =MATCH(F114,Indexation_Case,0)
+  I114: =SUM(J114:TS114)
+  J114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BEC0>
+  K114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BE60>
+  L114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BE30>
+  M114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BE00>
+  N114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BFE0>
+  O114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BEF0>
+  P114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BF20>
+  Q114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BE90>
+  R114: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A88BF50>
+  C115: BESS Augmentation
+  D115: GBP k
+  F115: ='Solar&BESS Inputs'!F323
+  G115: =MATCH(F115,Indexation_Case,0)
+  I115: =SUM(J115:TS115)
+  J115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7BC0>
+  K115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7B60>
+  L115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7B30>
+  M115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7B00>
+  N115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7CE0>
+  O115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7D10>
+  P115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7BF0>
+  Q115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7C20>
+  R115: <openpyxl.worksheet.formula.ArrayFormula object at 0x000002192A8D7B90>
+  C116: Total
+  D116: GBP k
+  I116: =SUM(J116:TS116)
+  J116: =SUM(J109:J115)
+  K116: =SUM(K109:K115)
+  L116: =SUM(L109:L115)
+  M116: =SUM(M109:M115)
+  N116: =SUM(N109:N115)
+  O116: =SUM(O109:O115)
+  P116: =SUM(P109:P115)
+  Q116: =SUM(Q109:Q115)
+  R116: =SUM(R109:R115)
+
+  B118: Variable costs
+  B119: Nominal
+  E119: % of Revenue
+  C120: Optimiser Fee for Merchant Only
+  D120: GBP k
+  E120: ='Solar&BESS Inputs'!$F$126
+  I120: =SUM(J120:TS120)
+  J120: =J$59*$E$120*J$52
+  K120: =K$59*$E$120*K$52
+  L120: =L$59*$E$120*L$52
+  M120: =M$59*$E$120*M$52
+  N120: =N$59*$E$120*N$52
+  O120: =O$59*$E$120*O$52
+  P120: =P$59*$E$120*P$52
+  Q120: =Q$59*$E$120*Q$52
+  R120: =R$59*$E$120*R$52
+  C121: Optimiser Fee for Floor 
+  D121: GBP k
+  E121: ='Solar&BESS Inputs'!$F$133
+  I121: =SUM(J121:TS121)
+  J121: =$E$121*SUM(J93:J94)*J$53
+  K121: =$E$121*SUM(K93:K94)*K$53
+  L121: =$E$121*SUM(L93:L94)*L$53
+  M121: =$E$121*SUM(M93:M94)*M$53
+  N121: =$E$121*SUM(N93:N94)*N$53
+  O121: =$E$121*SUM(O93:O94)*O$53
+  P121: =$E$121*SUM(P93:P94)*P$53
+  Q121: =$E$121*SUM(Q93:Q94)*Q$53
+  R121: =$E$121*SUM(R93:R94)*R$53
+  C122: Total
+  D122: GBP k
+  I122: =SUM(J122:TS122)
+  J122: =SUM(J120:J121)
+  K122: =SUM(K120:K121)
+  L122: =SUM(L120:L121)
+  M122: =SUM(M120:M121)
+  N122: =SUM(N120:N121)
+  O122: =SUM(O120:O121)
+  P122: =SUM(P120:P121)
+  Q122: =SUM(Q120:Q121)
+  R122: =SUM(R120:R121)
+
+  B124: Total cost
+  C125: =C103
+  D125: GBP k
+  I125: =SUM(J125:TS125)
+  J125: =J109
+  K125: =K109
+  L125: =L109
+  M125: =M109
+  N125: =N109
+  O125: =O109
+  P125: =P109
+  Q125: =Q109
+  R125: =R109
+  C126: =C104
+  D126: GBP k
+  I126: =SUM(J126:TS126)
+  J126: =J110
+  K126: =K110
+  L126: =L110
+  M126: =M110
+  N126: =N110
+  O126: =O110
+  P126: =P110
+  Q126: =Q110
+  R126: =R110
+  C127: =C105
+  D127: GBP k
+  I127: =SUM(J127:TS127)
+  J127: =J111
+  K127: =K111
+  L127: =L111
+  M127: =M111
+  N127: =N111
+  O127: =O111
+  P127: =P111
+  Q127: =Q111
+  R127: =R111
+  C128: =C106
+  D128: GBP k
+  I128: =SUM(J128:TS128)
+  J128: =J112
+  K128: =K112
+  L128: =L112
+  M128: =M112
+  N128: =N112
+  O128: =O112
+  P128: =P112
+  Q128: =Q112
+  R128: =R112
+  C129: BESS LTSA
+  D129: GBP k
+  I129: =SUM(J129:TS129)
+  J129: =J113
+  K129: =K113
+  L129: =L113
+  M129: =M113
+  N129: =N113
+  O129: =O113
+  P129: =P113
+  Q129: =Q113
+  R129: =R113
+  C130: BESS PCS Extended Warranty
+  D130: GBP k
+  I130: =SUM(J130:TS130)
+  J130: =J114
+  K130: =K114
+  L130: =L114
+  M130: =M114
+  N130: =N114
+  O130: =O114
+  P130: =P114
+  Q130: =Q114
+  R130: =R114
+  C131: BESS Augmentation
+  D131: GBP k
+  I131: =SUM(J131:TS131)
+  J131: =J115
+  K131: =K115
+  L131: =L115
+  M131: =M115
+  N131: =N115
+  O131: =O115
+  P131: =P115
+  Q131: =Q115
+  R131: =R115
+  C132: Optimiser Fee for Merchant Only
+  D132: GBP k
+  I132: =SUM(J132:TS132)
+  J132: =J$120
+  K132: =K$120
+  L132: =L$120
+  M132: =M$120
+  N132: =N$120
+  O132: =O$120
+  P132: =P$120
+  Q132: =Q$120
+  R132: =R$120
+  C133: Optimiser Fee for Floor
+  D133: GBP k
+  I133: =SUM(J133:TS133)
+  J133: =J$121
+  K133: =K$121
+  L133: =L$121
+  M133: =M$121
+  N133: =N$121
+  O133: =O$121
+  P133: =P$121
+  Q133: =Q$121
+  R133: =R$121
+  C134: Total
+  D134: GBP k
+  I134: =SUM(J134:TS134)
+  J134: =SUM(J125:J133)
+  K134: =SUM(K125:K133)
+  L134: =SUM(L125:L133)
+  M134: =SUM(M125:M133)
+  N134: =SUM(N125:N133)
+  O134: =SUM(O125:O133)
+  P134: =SUM(P125:P133)
+  Q134: =SUM(Q125:Q133)
+  R134: =SUM(R125:R133)
+
+  A137: WORKING CAPITAL
+
+  B139: Debtors
+  B140: Account
+  C141: Balance BOP
+  D141: GBP k
+  J141: =I144
+  K141: =J144
+  L141: =K144
+  M141: =L144
+  N141: =M144
+  O141: =N144
+  P141: =O144
+  Q141: =P144
+  R141: =Q144
+  C142: Revenue
+  D142: GBP k
+  E142: ='Solar&BESS Inputs'!$C$313
+  I142: =SUM(J142:TS142)
+  J142: =J97
+  K142: =K97
+  L142: =L97
+  M142: =M97
+  N142: =N97
+  O142: =O97
+  P142: =P97
+  Q142: =Q97
+  R142: =R97
+  C143: Less: cash received
+  D143: GBP k
+  E143: ='Solar&BESS Inputs'!F327
+  I143: =SUM(J143:TS143)
+  J143: =-((J$13-$E143)/J$13)*J142-J141
+  K143: =-((K$13-$E143)/K$13)*K142-K141
+  L143: =-((L$13-$E143)/L$13)*L142-L141
+  M143: =-((M$13-$E143)/M$13)*M142-M141
+  N143: =-((N$13-$E143)/N$13)*N142-N141
+  O143: =-((O$13-$E143)/O$13)*O142-O141
+  P143: =-((P$13-$E143)/P$13)*P142-P141
+  Q143: =-((Q$13-$E143)/Q$13)*Q142-Q141
+  R143: =-((R$13-$E143)/R$13)*R142-R141
+  C144: Balance EOP
+  D144: GBP k
+  J144: =SUM(J141:J143)
+  K144: =SUM(K141:K143)
+  L144: =SUM(L141:L143)
+  M144: =SUM(M141:M143)
+  N144: =SUM(N141:N143)
+  O144: =SUM(O141:O143)
+  P144: =SUM(P141:P143)
+  Q144: =SUM(Q141:Q143)
+  R144: =SUM(R141:R143)
+  C145: Net working capital adjustment
+  D145: GBP k
+  I145: =SUM(J145:TS145)
+  J145: =J141-J144
+  K145: =K141-K144
+  L145: =L141-L144
+  M145: =M141-M144
+  N145: =N141-N144
+  O145: =O141-O144
+  P145: =P141-P144
+  Q145: =Q141-Q144
+  R145: =R141-R144
+
+  B147: Creditors
+  B148: Account
+  C149: Balance BOP
+  D149: GBP k
+  J149: =I152
+  K149: =J152
+  L149: =K152
+  M149: =L152
+  N149: =M152
+  O149: =N152
+  P149: =O152
+  Q149: =P152
+  R149: =Q152
+  C150: Opex
+  D150: GBP k
+  E150: ='Solar&BESS Inputs'!$C$315
+  I150: =SUM(J150:TS150)
+  J150: =J134
+  K150: =K134
+  L150: =L134
+  M150: =M134
+  N150: =N134
+  O150: =O134
+  P150: =P134
+  Q150: =Q134
+  R150: =R134
+  C151: Less: cash paid
+  D151: GBP k
+  E151: ='Solar&BESS Inputs'!F328
+  I151: =SUM(J151:TS151)
+  J151: =-((J$13-$E151)/J$13)*J150-J149
+  K151: =-((K$13-$E151)/K$13)*K150-K149
+  L151: =-((L$13-$E151)/L$13)*L150-L149
+  M151: =-((M$13-$E151)/M$13)*M150-M149
+  N151: =-((N$13-$E151)/N$13)*N150-N149
+  O151: =-((O$13-$E151)/O$13)*O150-O149
+  P151: =-((P$13-$E151)/P$13)*P150-P149
+  Q151: =-((Q$13-$E151)/Q$13)*Q150-Q149
+  R151: =-((R$13-$E151)/R$13)*R150-R149
+  C152: Balance EOP
+  D152: GBP k
+  J152: =SUM(J149:J151)
+  K152: =SUM(K149:K151)
+  L152: =SUM(L149:L151)
+  M152: =SUM(M149:M151)
+  N152: =SUM(N149:N151)
+  O152: =SUM(O149:O151)
+  P152: =SUM(P149:P151)
+  Q152: =SUM(Q149:Q151)
+  R152: =SUM(R149:R151)
+  C153: Net working capital adjustment
+  D153: GBP k
+  I153: =SUM(J153:TS153)
+  J153: =J152-J149
+  K153: =K152-K149
+  L153: =L152-L149
+  M153: =M152-M149
+  N153: =N152-N149
+  O153: =O152-O149
+  P153: =P152-P149
+  Q153: =Q152-Q149
+  R153: =R152-R149
+
+  B155: Net working capital adjustment
+  C156: =B139
+  D156: GBP k
+  I156: =SUM(J156:TS156)
+  J156: =J145
+  K156: =K145
+  L156: =L145
+  M156: =M145
+  N156: =N145
+  O156: =O145
+  P156: =P145
+  Q156: =Q145
+  R156: =R145
+  C157: =B147
+  D157: GBP k
+  I157: =SUM(J157:TS157)
+  J157: =J153
+  K157: =K153
+  L157: =L153
+  M157: =M153
+  N157: =N153
+  O157: =O153
+  P157: =P153
+  Q157: =Q153
+  R157: =R153
+  C158: Total
+  D158: GBP k
+  I158: =SUM(J158:TS158)
+  J158: =SUM(J156:J157)
+  K158: =SUM(K156:K157)
+  L158: =SUM(L156:L157)
+  M158: =SUM(M156:M157)
+  N158: =SUM(N156:N157)
+  O158: =SUM(O156:O157)
+  P158: =SUM(P156:P157)
+  Q158: =SUM(Q156:Q157)
+  R158: =SUM(R156:R157)
+
+  A160: CAPEX
+
+  B162: =Phasing!B968
+  B163: By capex category
+  B164: ='Curves and D&T'!$E$94
+  C164: =Phasing!$C$969
+  D164: GBP k
+  I164: =SUM(J164:TS164)
+  J164: =SUMIF(Phasing!$J$968:$AM$968,J$17,Phasing!$J969:$AM969)*J$13/J$14
+  K164: =SUMIF(Phasing!$J$968:$AM$968,K$17,Phasing!$J969:$AM969)*K$13/K$14
+  L164: =SUMIF(Phasing!$J$968:$AM$968,L$17,Phasing!$J969:$AM969)*L$13/L$14
+  M164: =SUMIF(Phasing!$J$968:$AM$968,M$17,Phasing!$J969:$AM969)*M$13/M$14
+  N164: =SUMIF(Phasing!$J$968:$AM$968,N$17,Phasing!$J969:$AM969)*N$13/N$14
+  O164: =SUMIF(Phasing!$J$968:$AM$968,O$17,Phasing!$J969:$AM969)*O$13/O$14
+  P164: =SUMIF(Phasing!$J$968:$AM$968,P$17,Phasing!$J969:$AM969)*P$13/P$14
+  Q164: =SUMIF(Phasing!$J$968:$AM$968,Q$17,Phasing!$J969:$AM969)*Q$13/Q$14
+  R164: =SUMIF(Phasing!$J$968:$AM$968,R$17,Phasing!$J969:$AM969)*R$13/R$14
+  B165: ='Curves and D&T'!$E$95
+  C165: =Phasing!$C$970
+  D165: GBP k
+  I165: =SUM(J165:TS165)
+  J165: =SUMIF(Phasing!$J$968:$AM$968,J$17,Phasing!$J970:$AM970)*J$13/J$14
+  K165: =SUMIF(Phasing!$J$968:$AM$968,K$17,Phasing!$J970:$AM970)*K$13/K$14
+  L165: =SUMIF(Phasing!$J$968:$AM$968,L$17,Phasing!$J970:$AM970)*L$13/L$14
+  M165: =SUMIF(Phasing!$J$968:$AM$968,M$17,Phasing!$J970:$AM970)*M$13/M$14
+  N165: =SUMIF(Phasing!$J$968:$AM$968,N$17,Phasing!$J970:$AM970)*N$13/N$14
+  O165: =SUMIF(Phasing!$J$968:$AM$968,O$17,Phasing!$J970:$AM970)*O$13/O$14
+  P165: =SUMIF(Phasing!$J$968:$AM$968,P$17,Phasing!$J970:$AM970)*P$13/P$14
+  Q165: =SUMIF(Phasing!$J$968:$AM$968,Q$17,Phasing!$J970:$AM970)*Q$13/Q$14
+  R165: =SUMIF(Phasing!$J$968:$AM$968,R$17,Phasing!$J970:$AM970)*R$13/R$14
+
+====================================================================================================
+SHEET: Construction  rows 40-75, cols A-L
+====================================================================================================
+  C40: Cumulative debt repayments
+  D40: #
+  J40: =SUM($J38:J38)*J38
+  K40: =SUM($J38:K38)*K38
+  L40: =SUM($J38:L38)*L38
+
+  C42: Number of periods of payable interest
+  D42: #
+  J42: =MIN(I42+1,$H$39)
+  K42: =MIN(J42+1,$H$39)
+  L42: =MIN(K42+1,$H$39)
+
+  B44: Sculpted debt
+  E44: Start
+  F44: End
+  C45: Tenor flag
+  D45: [0,1]
+  E45: ='Solar&BESS Inputs'!$F$489
+  F45: ='Solar&BESS Inputs'!$F$490
+  G45: Repayment
+  H45: Frequency
+  J45: =IF(AND($F45>=J$4,$E45<J$5),1,0)*J$6
+  K45: =IF(AND($F45>=K$4,$E45<K$5),1,0)*K$6
+  L45: =IF(AND($F45>=L$4,$E45<L$5),1,0)*L$6
+  C46: Repayment date flag
+  D46: [0,1]
+  G46: ='Solar&BESS Inputs'!$F$499
+  H46: ='Solar&BESS Inputs'!E$499
+  J46: =IF(J45=1,IF(MOD(J47, $H$46) = 0, 1, 0),0)
+  K46: =IF(K45=1,IF(MOD(K47, $H$46) = 0, 1, 0),0)
+  L46: =IF(L45=1,IF(MOD(L47, $H$46) = 0, 1, 0),0)
+  C47: Cumulative debt repayments
+  D47: #
+  J47: =SUM($J45:J45)*J45
+  K47: =SUM($J45:K45)*K45
+  L47: =SUM($J45:L45)*L45
+
+  C49: Number of periods of payable interest
+  D49: #
+  J49: =MIN(I49+1,$H$46)
+  K49: =MIN(J49+1,$H$46)
+  L49: =MIN(K49+1,$H$46)
+
+  B51: Capex
+  B52: Phasing
+  C53: ='Solar&BESS Inputs'!C335
+  D53: %
+  H53: =IF(AND(I53<>100%,I53<>0%),1,0)
+  I53: =SUM(J53:TS53)
+  J53: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J945:$GZ945)
+  K53: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J945:$GZ945)
+  L53: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J945:$GZ945)
+  C54: ='Solar&BESS Inputs'!C336
+  D54: %
+  H54: =IF(AND(I54<>100%,I54<>0%),1,0)
+  I54: =SUM(J54:TS54)
+  J54: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J946:$GZ946)
+  K54: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J946:$GZ946)
+  L54: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J946:$GZ946)
+  C55: ='Solar&BESS Inputs'!C337
+  D55: %
+  H55: =IF(AND(I55<>100%,I55<>0%),1,0)
+  I55: =SUM(J55:TS55)
+  J55: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J947:$GZ947)
+  K55: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J947:$GZ947)
+  L55: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J947:$GZ947)
+  C56: ='Solar&BESS Inputs'!C338
+  D56: %
+  H56: =IF(AND(I56<>100%,I56<>0%),1,0)
+  I56: =SUM(J56:TS56)
+  J56: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J948:$GZ948)
+  K56: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J948:$GZ948)
+  L56: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J948:$GZ948)
+  C57: ='Solar&BESS Inputs'!C339
+  D57: %
+  H57: =IF(AND(I57<>100%,I57<>0%),1,0)
+  I57: =SUM(J57:TS57)
+  J57: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J949:$GZ949)
+  K57: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J949:$GZ949)
+  L57: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J949:$GZ949)
+  C58: ='Solar&BESS Inputs'!C340
+  D58: %
+  H58: =IF(AND(I58<>100%,I58<>0%),1,0)
+  I58: =SUM(J58:TS58)
+  J58: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J950:$GZ950)
+  K58: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J950:$GZ950)
+  L58: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J950:$GZ950)
+  C59: ='Solar&BESS Inputs'!C341
+  D59: %
+  H59: =IF(AND(I59<>100%,I59<>0%),1,0)
+  I59: =SUM(J59:TS59)
+  J59: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J951:$GZ951)
+  K59: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J951:$GZ951)
+  L59: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J951:$GZ951)
+  C60: ='Solar&BESS Inputs'!C342
+  D60: %
+  H60: =IF(AND(I60<>100%,I60<>0%),1,0)
+  I60: =SUM(J60:TS60)
+  J60: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J952:$GZ952)
+  K60: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J952:$GZ952)
+  L60: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J952:$GZ952)
+  C61: ='Solar&BESS Inputs'!C343
+  D61: %
+  H61: =IF(AND(I61<>100%,I61<>0%),1,0)
+  I61: =SUM(J61:TS61)
+  J61: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J953:$GZ953)
+  K61: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J953:$GZ953)
+  L61: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J953:$GZ953)
+  C62: ='Solar&BESS Inputs'!C344
+  D62: %
+  H62: =IF(AND(I62<>100%,I62<>0%),1,0)
+  I62: =SUM(J62:TS62)
+  J62: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J954:$GZ954)
+  K62: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J954:$GZ954)
+  L62: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J954:$GZ954)
+  C63: ='Solar&BESS Inputs'!C345
+  D63: %
+  H63: =IF(AND(I63<>100%,I63<>0%),1,0)
+  I63: =SUM(J63:TS63)
+  J63: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J955:$GZ955)
+  K63: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J955:$GZ955)
+  L63: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J955:$GZ955)
+  C64: ='Solar&BESS Inputs'!C346
+  D64: %
+  H64: =IF(AND(I64<>100%,I64<>0%),1,0)
+  I64: =SUM(J64:TS64)
+  J64: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J956:$GZ956)
+  K64: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J956:$GZ956)
+  L64: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J956:$GZ956)
+  C65: ='Solar&BESS Inputs'!C347
+  D65: %
+  H65: =IF(AND(I65<>100%,I65<>0%),1,0)
+  I65: =SUM(J65:TS65)
+  J65: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J957:$GZ957)
+  K65: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J957:$GZ957)
+  L65: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J957:$GZ957)
+  C66: ='Solar&BESS Inputs'!C348
+  D66: %
+  H66: =IF(AND(I66<>100%,I66<>0%),1,0)
+  I66: =SUM(J66:TS66)
+  J66: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J958:$GZ958)
+  K66: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J958:$GZ958)
+  L66: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J958:$GZ958)
+  C67: ='Solar&BESS Inputs'!C349
+  D67: %
+  H67: =IF(AND(I67<>100%,I67<>0%),1,0)
+  I67: =SUM(J67:TS67)
+  J67: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J959:$GZ959)
+  K67: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J959:$GZ959)
+  L67: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J959:$GZ959)
+  C68: ='Solar&BESS Inputs'!C350
+  D68: %
+  H68: =IF(AND(I68<>100%,I68<>0%),1,0)
+  I68: =SUM(J68:TS68)
+  J68: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J960:$GZ960)
+  K68: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J960:$GZ960)
+  L68: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J960:$GZ960)
+  C69: ='Solar&BESS Inputs'!C351
+  D69: %
+  H69: =IF(AND(I69<>100%,I69<>0%),1,0)
+  I69: =SUM(J69:TS69)
+  J69: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J961:$GZ961)
+  K69: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J961:$GZ961)
+  L69: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J961:$GZ961)
+  C70: ='Solar&BESS Inputs'!C352
+  D70: %
+  H70: =IF(AND(I70<>100%,I70<>0%),1,0)
+  I70: =SUM(J70:TS70)
+  J70: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J962:$GZ962)
+  K70: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J962:$GZ962)
+  L70: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J962:$GZ962)
+  C71: ='Solar&BESS Inputs'!C353
+  D71: %
+  H71: =IF(AND(I71<>100%,I71<>0%),1,0)
+  I71: =SUM(J71:TS71)
+  J71: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J963:$GZ963)
+  K71: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J963:$GZ963)
+  L71: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J963:$GZ963)
+  C72: ='Solar&BESS Inputs'!C354
+  D72: %
+  H72: =IF(AND(I72<>100%,I72<>0%),1,0)
+  I72: =SUM(J72:TS72)
+  J72: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J964:$GZ964)
+  K72: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J964:$GZ964)
+  L72: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J964:$GZ964)
+  C73: ='Solar&BESS Inputs'!C355
+  D73: %
+  H73: =IF(AND(I73<>100%,I73<>0%),1,0)
+  I73: =SUM(J73:TS73)
+  J73: =SUMIF(Phasing!$J$5:$GZ$5,J$5,Phasing!$J965:$GZ965)
+  K73: =SUMIF(Phasing!$J$5:$GZ$5,K$5,Phasing!$J965:$GZ965)
+  L73: =SUMIF(Phasing!$J$5:$GZ$5,L$5,Phasing!$J965:$GZ965)
+  H74: =SUM(H53:H73)
+  B75: Capex including contingency
+  E75: ='Solar&BESS Inputs'!E334
+  F75: Conting.
+
+====================================================================================================
+SHEET: Curves and D&T  rows 60-100, cols A-J
+====================================================================================================
+  C60: Applied
+  D60: EUR / MWh
+  J60: ='Solar&BESS Inputs'!$F$566
+
+  A62: TAX & DEPRECIATION
+
+  B64: Depreciation
+  H64: Straight line
+  B65: Depreciation catergories (definition)
+  E65: Accounting
+  F65: Tax
+  H65: Asset life
+  I65: % p.a.
+  J65: % p.p.
+  B66: 1
+  C66: Long term
+  D66: Various
+  E66: SL
+  F66: RB
+  H66: 30
+  I66: =IF(H66=0,0,1/H66)
+  J66: =I66/Months_yr
+  B67: 2
+  C67: Short term
+  D67: Various
+  E67: SL
+  F67: RB
+  H67: 8
+  I67: =IF(H67=0,0,1/H67)
+  J67: =I67/Months_yr
+  B68: 3
+  C68: Financing
+  D68: Various
+  E68: SL
+  F68: RB
+  H68: 3
+  I68: =IF(H68=0,0,1/H68)
+  J68: =I68/Months_yr
+
+  B70: Depreciation catergories (selection)
+  B71: Construction capex
+  E71: Category
+  F71: Check
+  C72: ='Solar&BESS Inputs'!C335
+  D72: Choice
+  E72: 1
+  F72: =IF(C72<>"",IF(E72<>"",0,1),0)
+  C73: ='Solar&BESS Inputs'!C336
+  D73: Choice
+  E73: 1
+  F73: =IF(C73<>"",IF(E73<>"",0,1),0)
+  C74: ='Solar&BESS Inputs'!C337
+  D74: Choice
+  E74: 1
+  F74: =IF(C74<>"",IF(E74<>"",0,1),0)
+  C75: ='Solar&BESS Inputs'!C338
+  D75: Choice
+  E75: 1
+  F75: =IF(C75<>"",IF(E75<>"",0,1),0)
+  C76: ='Solar&BESS Inputs'!C339
+  D76: Choice
+  E76: 1
+  F76: =IF(C76<>"",IF(E76<>"",0,1),0)
+  C77: ='Solar&BESS Inputs'!C340
+  D77: Choice
+  E77: 1
+  F77: =IF(C77<>"",IF(E77<>"",0,1),0)
+  C78: ='Solar&BESS Inputs'!C341
+  D78: Choice
+  E78: 1
+  F78: =IF(C78<>"",IF(E78<>"",0,1),0)
+  C79: ='Solar&BESS Inputs'!C342
+  D79: Choice
+  E79: 1
+  F79: =IF(C79<>"",IF(E79<>"",0,1),0)
+  C80: ='Solar&BESS Inputs'!C343
+  D80: Choice
+  E80: 1
+  F80: =IF(C80<>"",IF(E80<>"",0,1),0)
+  C81: ='Solar&BESS Inputs'!C344
+  D81: Choice
+  E81: 1
+  F81: =IF(C81<>"",IF(E81<>"",0,1),0)
+  C82: ='Solar&BESS Inputs'!C345
+  D82: Choice
+  E82: 1
+  F82: =IF(C82<>"",IF(E82<>"",0,1),0)
+  C83: ='Solar&BESS Inputs'!C346
+  D83: Choice
+  E83: 1
+  F83: =IF(C83<>"",IF(E83<>"",0,1),0)
+  C84: ='Solar&BESS Inputs'!C347
+  D84: Choice
+  E84: 1
+  F84: =IF(C84<>"",IF(E84<>"",0,1),0)
+  C85: ='Solar&BESS Inputs'!C348
+  D85: Choice
+  E85: 1
+  F85: =IF(C85<>"",IF(E85<>"",0,1),0)
+  C86: ='Solar&BESS Inputs'!C349
+  D86: Choice
+  E86: 1
+  F86: =IF(C86<>"",IF(E86<>"",0,1),0)
+  C87: ='Solar&BESS Inputs'!C350
+  D87: Choice
+  E87: 1
+  F87: =IF(C87<>"",IF(E87<>"",0,1),0)
+  C88: ='Solar&BESS Inputs'!C351
+  D88: Choice
+  E88: 1
+  F88: =IF(C88<>"",IF(E88<>"",0,1),0)
+  C89: ='Solar&BESS Inputs'!C352
+  D89: Choice
+  E89: 1
+  F89: =IF(C89<>"",IF(E89<>"",0,1),0)
+  C90: ='Solar&BESS Inputs'!C353
+  D90: Choice
+  E90: 1
+  F90: =IF(C90<>"",IF(E90<>"",0,1),0)
+  C91: ='Solar&BESS Inputs'!C354
+  D91: Choice
+  E91: 1
+  F91: =IF(C91<>"",IF(E91<>"",0,1),0)
+  C92: ='Solar&BESS Inputs'!C355
+  D92: Choice
+  E92: 1
+  F92: =IF(C92<>"",IF(E92<>"",0,1),0)
+  C93: IDC
+  D93: Choice
+  E93: 3
+  F93: =IF(C93<>"",IF(E93<>"",0,1),0)
+  C94: Financing fees
+  D94: Choice
+  E94: 3
+  F94: =IF(C94<>"",IF(E94<>"",0,1),0)
+  F95: =SUM(F72:F94)
+  B96: =Phasing!B968
+  C97: =Phasing!C969
+  D97: Choice
+  E97: 2
+  F97: =IF(C97<>"",IF(E97<>"",0,1),0)
+  C98: =Phasing!C970
+  D98: Choice
+  E98: 2
+  F98: =IF(C98<>"",IF(E98<>"",0,1),0)
+  C99: =Phasing!C971
+  D99: Choice
+  E99: 2
+  F99: =IF(C99<>"",IF(E99<>"",0,1),0)
+  C100: =Phasing!C972
+  D100: Choice
+  E100: 2
+  F100: =IF(C100<>"",IF(E100<>"",0,1),0)

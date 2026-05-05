@@ -8,6 +8,7 @@ These four principles override anything below when they conflict. Full text in t
 2. **Simplicity First** — minimum code that solves the problem; nothing speculative.
 3. **Surgical Changes** — touch only what the request requires; clean up only your own orphans.
 4. **Goal-Driven Execution** — define a verifiable success criterion before coding; loop until verified.
+5. **Project IRR Excel Fidelity** — for the Project IRR module, do not add any factor, variable, or calculation that is not present in the provided Excel workbook (`Financial Model/Off-Grid Solution v8.xlsm`). No calibration constants, ownership multipliers, or invented adjustments. If the Python output diverges from the Excel, fix it by replicating an Excel mechanism — never by introducing a fudge factor.
 
 ## Project Overview
 **BESS Sizing Tool** - Battery Energy Storage System optimization application for solar+storage systems. Simulates year-long battery operations with binary delivery constraints, cycle limits, and SOC management to determine optimal battery capacity for maximizing delivery hours while respecting technical limitations.

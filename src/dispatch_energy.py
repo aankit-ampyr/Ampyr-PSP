@@ -26,15 +26,20 @@ def load_solar_profile(csv_path: str | Path) -> np.ndarray:
     """
     Load an 8760-hour solar profile from CSV.
 
-    Expected format: datetime,MW_value (no header)
+    Column 2 must be hourly MW values. A header row is auto-skipped, and a UTF-8
+    BOM (the file in Inputs/ has one) is handled.
+
     Returns: numpy array of 8760 hourly MW values.
     """
     values = []
-    with open(csv_path) as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if len(row) >= 2:
+    with open(csv_path, encoding='utf-8-sig') as f:
+        for row in csv.reader(f):
+            if len(row) < 2:
+                continue
+            try:
                 values.append(float(row[1]))
+            except ValueError:
+                continue  # header or non-numeric row
 
     profile = np.array(values)
     if len(profile) != 8760:

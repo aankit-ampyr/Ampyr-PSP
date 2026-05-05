@@ -1135,8 +1135,96 @@ def main():
     then computes **XIRR** (Project IRR) and **XNPV**.
     """)
 
-    if st.button("Run Financial Analysis", type="primary", use_container_width=True):
-        # Build inputs from current wizard state
+    run_col1, run_col2 = st.columns(2)
+    with run_col1:
+        run_dispatch = st.button(
+            "Run with Dispatch (recommended)",
+            type="primary",
+            use_container_width=True,
+        )
+    with run_col2:
+        run_legacy = st.button(
+            "Run Financial Analysis (legacy)",
+            use_container_width=True,
+        )
+
+    if run_dispatch:
+        fin_state = get_financial_state()
+        if not fin_state.get('enabled'):
+            st.warning("Please save financial inputs first (button above).")
+        else:
+            with st.spinner("Running dispatch + financial model..."):
+                try:
+                    from pathlib import Path
+                    from src.config import SOLAR_PROFILE_PATH
+                    from src.dispatch_energy import (
+                        load_solar_profile,
+                        run_hourly_dispatch,
+                        aggregate_to_monthly,
+                    )
+                    from src.financial_model import (
+                        tariff_inputs_from_wizard_state,
+                        run_tariff_model,
+                    )
+
+                    # 1. Load + scale solar profile
+                    profile_path = (Path(__file__).parent.parent
+                                    / SOLAR_PROFILE_PATH)
+                    raw_profile = load_solar_profile(profile_path)
+                    target_mwp = float(fin_state.get('solar_capacity_mwp', 82.0))
+                    ref_mwp = float(fin_state.get(
+                        'profile_reference_mwp', raw_profile.max()))
+                    if ref_mwp <= 0:
+                        ref_mwp = float(raw_profile.max())
+                    solar_mw = raw_profile * (target_mwp / ref_mwp)
+
+                    # 2. Hourly dispatch
+                    # TODO: replace hard-coded 25 MW with Step 1 load builder once wired
+                    target_load_mw = 25.0
+                    bess_mw = float(fin_state.get('bess_capacity_mw', 62.5))
+                    bess_mwh = bess_mw * float(
+                        fin_state.get('bess_duration_hrs', 4.0))
+                    hourly = run_hourly_dispatch(
+                        solar_mw,
+                        load_mw=target_load_mw,
+                        bess_mwh=bess_mwh,
+                        bess_mw=bess_mw,
+                        rte=0.87,
+                        min_soc=0.05,
+                        max_soc=0.95,
+                    )
+                    monthly = aggregate_to_monthly(hourly, solar_mw)
+
+                    # 3. Financial model (dispatch-driven revenue)
+                    tfi = tariff_inputs_from_wizard_state(fin_state)
+                    results = run_tariff_model(
+                        tfi,
+                        monthly_solar_bess_to_dc=monthly['solar_bess_to_dc'],
+                        monthly_surplus=monthly['solar_surplus'],
+                        monthly_solar_gen=monthly['solar_gen'],
+                    )
+
+                    st.session_state['financial_results'] = results
+                    st.session_state['dispatch_monthly'] = monthly
+
+                    total_demand = target_load_mw * 8760
+                    green_pct = (monthly['solar_bess_to_dc'].sum()
+                                 / total_demand * 100)
+                    gas_pct = (monthly['gas_energy'].sum()
+                               / total_demand * 100)
+                    irr_str = (f"{results.project_irr * 100:.2f}%"
+                               if not np.isnan(results.project_irr) else "n/a")
+                    st.success(
+                        f"Dispatch: {green_pct:.1f}% green / {gas_pct:.1f}% "
+                        f"gas (load fixed at {target_load_mw:.0f} MW). "
+                        f"Project IRR: {irr_str}"
+                    )
+                except Exception as e:
+                    st.error(f"Pipeline error: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+
+    if run_legacy:
         fin_state = get_financial_state()
         if not fin_state.get('enabled'):
             st.warning("Please save financial inputs first (button above).")

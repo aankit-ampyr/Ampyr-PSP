@@ -192,6 +192,13 @@ DEFAULT_WIZARD_STATE = {
         'ppa_selection': 1,
         'ppa_flex_pct': 0.0,
         'ppa_indexation': 'CPI',
+        'ppa_tariff_gbp_mwh': 170.0,    # Excel: Overall Inputs!E13
+        'ppa_tenor_years': 10,          # Excel: Overall Inputs!E11
+        'ppa_escalation_pct': 0.0,      # Excel: Overall Inputs!E14 (display %)
+
+        # --- Dispatch / merchant (used by tariff_inputs_from_wizard_state) ---
+        'merchant_price_default': 67.0,  # GBP/MWh fallback for post-PPA solar
+        'profile_reference_mwp': 67.89,  # peak MW of Inputs/Solar Profile.csv
 
         # --- REGOs ---
         'rego_switch': 1,

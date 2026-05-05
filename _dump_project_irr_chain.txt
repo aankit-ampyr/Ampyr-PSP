@@ -1,0 +1,2612 @@
+C:\Users\AnkitAgarwal\AppData\Local\Programs\Python\Python312\Lib\site-packages\openpyxl\worksheet\_reader.py:329: UserWarning: Conditional Formatting extension is not supported and will be removed
+  warn(msg)
+Sheets: ['Overall Inputs', 'Master Profiles', 'Cover', 'Notes', 'E_Out', 'Consol Cash Flows', 'Inputs-Gas', 'Capex & Funding-Gas', 'Cash Flows-Gas', '12 MW CAPEX Estimate-Gas', 'Solar&BESS Inputs', 'Solar&BESS Operation', 'Log', 'Chart1', 'FS (Annual)', 'FS', 'Baringa and Aurora', 'Phasing', 'Curves and D&T', 'Timing', 'Results', 'Returns', 'BESS OPEX', 'Analysis', 'IC', 'CFs 1&2', 'Construction', 'Drawdown', 'BESS', 'Debt', 'D&T', 'Copy', 'Equity', 'Macro', 'Insurance', 'SETUP', 'CHECKS', 'Modo Monthly', 'Wasted Solar']
+
+====================================================================================================
+SHEET: Equity  rows 145-180, cols A-L
+====================================================================================================
+  C145: NPM
+  D145: EUR k
+  E145: =(I144+I143)/'Solar&BESS Inputs'!$F$31
+  E146: =E145*1.17
+  H146: MOIC
+  C147: MOIC
+  H147: =ABS(I144/I143)
+
+  B149: Project Returns
+  C150: Revenues
+  D150: EUR k
+  I150: =SUM(J150:TS150)
+  J150: =FS!J27
+  K150: =FS!K27
+  L150: =FS!L27
+  C151: Opex
+  D151: EUR k
+  I151: =SUM(J151:TS151)
+  J151: =FS!J59
+  K151: =FS!K59
+  L151: =FS!L59
+  C152: Net working capital adjustment
+  D152: EUR k
+  I152: =SUM(J152:TS152)
+  J152: =FS!J61
+  K152: =FS!K61
+  L152: =FS!L61
+  C153: Construction costs (excl financing)
+  D153: EUR k
+  I153: =SUM(J153:TS153)
+  J153: =SUM(FS!J69:J89)
+  K153: =SUM(FS!K69:K89)
+  L153: =SUM(FS!L69:L89)
+  C154: MRA
+  D154: EUR k
+  I154: =SUM(J154:TS154)
+  J154: =FS!J$144
+  K154: =FS!K$144
+  L154: =FS!L$144
+  C155: Tax paid (ungeared)
+  D155: EUR k
+  I155: =SUM(J155:TS155)
+  J155: ='D&T'!J265
+  K155: ='D&T'!K265
+  L155: ='D&T'!L265
+  C156: Total
+  D156: EUR k
+  I156: =SUM(J156:TS156)
+  J156: =SUM(J150:J155)
+  K156: =SUM(K150:K155)
+  L156: =SUM(L150:L155)
+
+  C158: Tax paid (geared)
+  I158: =SUM(J158:TS158)
+  J158: ='D&T'!AB232
+  K158: ='D&T'!AC232
+  L158: ='D&T'!AD232
+  C159: FCFF with Geared Tax
+  I159: =-Small_num
+  J159: =SUM(J150:J153)-J$158
+  K159: =SUM(K150:K153)-K$158
+  L159: =SUM(L150:L153)-L$158
+  C160: FCFF
+  D160: EUR k
+  I160: =-Small_num
+  J160: =J156
+  K160: =K156
+  L160: =L156
+  C161: XNPV
+  D161: EUR k
+  G161: PIRR
+  C162: XIRR
+  D162: % p.a.
+  G162: =XIRR(I160:TS160,$I$5:$TS$5)
+
+  D164: Exit
+  E164: Discount Rate
+  C165: COD - Burton Top
+  D165: 2026-06-01 00:00:00
+  E165: 0.06
+  I165: =MAX(J165:TS165)
+  J165: =IF(J$4=$D$165,XNPV($E$165,J156:$TS$156,J4:$TS$4),0)
+  K165: =IF(K$4=$D$165,XNPV($E$165,K156:$TS$156,K4:$TS$4),0)
+  L165: =IF(L$4=$D$165,XNPV($E$165,L156:$TS$156,L4:$TS$4),0)
+  C166: COD - Costock
+  D166: 2027-01-01 00:00:00
+  E166: 0.06
+  I166: =MAX(J166:TS166)
+  J166: =IF(J$4=$D$166,XNPV($E$166,J$156:$TS156,J$4:$TS4),0)
+  K166: =IF(K$4=$D$166,XNPV($E$166,K$156:$TS156,K$4:$TS4),0)
+  L166: =IF(L$4=$D$166,XNPV($E$166,L$156:$TS156,L$4:$TS4),0)
+  C167: COD + 1
+  D167: =EOMONTH(Op_Start,12-1)+1
+  E167: 0.095
+  I167: =MAX(J167:TS167)
+  J167: =IF(J$4=$D$167,XNPV($E$167,J$119:$TS119,J$4:$TS4),0)
+  K167: =IF(K$4=$D$167,XNPV($E$167,K$119:$TS119,K$4:$TS4),0)
+  L167: =IF(L$4=$D$167,XNPV($E$167,L$119:$TS119,L$4:$TS4),0)
+  C168: COD + 2
+  D168: =EOMONTH(Op_Start,24-1)+1
+  E168: 0.095
+  I168: =MAX(J168:TS168)
+  J168: =IF(J$4=$D$168,XNPV($E$168,J$119:$TS119,J$4:$TS4),0)
+  K168: =IF(K$4=$D$168,XNPV($E$168,K$119:$TS119,K$4:$TS4),0)
+  L168: =IF(L$4=$D$168,XNPV($E$168,L$119:$TS119,L$4:$TS4),0)
+
+  F170: =12482*0.3
+  F171: =F170*0.53%
+
+  D174: FCFF IRR
+  D175: =XIRR($I$159:$TS$159,I5:TS5)
+
+====================================================================================================
+SHEET: FS  rows 1-100, cols A-L
+====================================================================================================
+  A1: FINANCIAL STATEMENTS
+
+  E3: PIRR
+  F3: =Equity!E181
+  C4: Start of period
+  E4: EIRR
+  F4: =Equity!E129
+  I4: =Timing!I4
+  J4: =Timing!J4
+  K4: =Timing!K4
+  L4: =Timing!L4
+  C5: End of period
+  E5: NPM
+  F5: =Equity!E136
+  I5: =Timing!I5
+  J5: =Timing!J5
+  K5: =Timing!K5
+  L5: =Timing!L5
+  C6: Construction
+  E6: Balloon
+  F6: =Debt!$F$358
+  J6: ='Solar&BESS Operation'!M6
+  K6: ='Solar&BESS Operation'!N6
+  L6: ='Solar&BESS Operation'!O6
+  C7: Operations
+  E7: =Checks_Alerts
+  F7: =Checks_Warnings
+  J7: ='Solar&BESS Operation'!M7
+  K7: ='Solar&BESS Operation'!N7
+  L7: ='Solar&BESS Operation'!O7
+  C8: Year
+  J8: =YEAR(J5)
+  K8: =YEAR(K5)
+  L8: =YEAR(L5)
+  C9: Quarters
+  J9: =IF(MONTH(J5)<4,1,IF(MONTH(J5)<7,2,IF(MONTH(J5)<10,3,4)))
+  K9: =IF(MONTH(K5)<4,1,IF(MONTH(K5)<7,2,IF(MONTH(K5)<10,3,4)))
+  L9: =IF(MONTH(L5)<4,1,IF(MONTH(L5)<7,2,IF(MONTH(L5)<10,3,4)))
+  A10: CASHFALL WATERFALL (EUR '000)
+
+  B12: Solar Revenue
+  C13: ='Solar&BESS Operation'!C94
+  D13: GBP k
+  E13: (solar + BESS under PPA)
+  I13: =SUM(J13:TS13)
+  J13: ='Solar&BESS Operation'!M94
+  K13: ='Solar&BESS Operation'!N94
+  L13: ='Solar&BESS Operation'!O94
+  C14: ='Solar&BESS Operation'!C95
+  D14: GBP k
+  I14: =SUM(J14:TS14)
+  J14: ='Solar&BESS Operation'!M95
+  K14: ='Solar&BESS Operation'!N95
+  L14: ='Solar&BESS Operation'!O95
+  C15: ='Solar&BESS Operation'!C96
+  D15: GBP k
+  I15: =SUM(J15:TS15)
+  J15: ='Solar&BESS Operation'!M96
+  K15: ='Solar&BESS Operation'!N96
+  L15: ='Solar&BESS Operation'!O96
+  C16: ='Solar&BESS Operation'!C97
+  D16: GBP k
+  I16: =SUM(J16:TS16)
+  J16: ='Solar&BESS Operation'!M97
+  K16: ='Solar&BESS Operation'!N97
+  L16: ='Solar&BESS Operation'!O97
+  C17: Total Solar revenue
+  I17: =SUM(J17:TS17)
+  J17: =SUM(J13:J16)
+  K17: =SUM(K13:K16)
+  L17: =SUM(L13:L16)
+
+  B19: BESS Merchant Revenue
+  C20: =BESS!C93
+  D20: GBP k
+  G20: =BESS!G93
+  I20: =SUM(J20:QU20)
+  J20: =BESS!J93
+  K20: =BESS!K93
+  L20: =BESS!L93
+  C21: =BESS!C94
+  D21: GBP k
+  I21: =SUM(J21:QU21)
+  J21: =BESS!J94
+  K21: =BESS!K94
+  L21: =BESS!L94
+  C22: =BESS!C95
+  D22: GBP k
+  I22: =SUM(J22:QU22)
+  J22: =BESS!J95
+  K22: =BESS!K95
+  L22: =BESS!L95
+  C23: =BESS!C96
+  D23: GBP k
+  I23: =SUM(J23:QU23)
+  J23: =BESS!J96
+  K23: =BESS!K96
+  L23: =BESS!L96
+  C24: Total BESS revenue
+  D24: GBP k
+  I24: =SUM(J24:QU24)
+  J24: =SUM(J20:J23)
+  K24: =SUM(K20:K23)
+  L24: =SUM(L20:L23)
+
+  C27: Total Revenue - (Solar + BESS)
+  D27: GBP k
+  I27: =SUM(J27:TS27)
+  J27: =J17+J24
+  K27: =K17+K24
+  L27: =L17+L24
+
+  B29: Solar Expenses
+  C30: ='Solar&BESS Operation'!C161
+  D30: GBP k
+  G30: =I30/Project_Capacity
+  I30: =SUM(J30:QU30)
+  J30: =-'Solar&BESS Operation'!M161
+  K30: =-'Solar&BESS Operation'!N161
+  L30: =-'Solar&BESS Operation'!O161
+  C31: ='Solar&BESS Operation'!C162
+  D31: GBP k
+  G31: =I31/Project_Capacity
+  I31: =SUM(J31:QU31)
+  J31: =-'Solar&BESS Operation'!M162
+  K31: =-'Solar&BESS Operation'!N162
+  L31: =-'Solar&BESS Operation'!O162
+  C32: ='Solar&BESS Operation'!C163
+  D32: GBP k
+  G32: =I32/Project_Capacity
+  I32: =SUM(J32:QU32)
+  J32: =-'Solar&BESS Operation'!M163
+  K32: =-'Solar&BESS Operation'!N163
+  L32: =-'Solar&BESS Operation'!O163
+  C33: ='Solar&BESS Operation'!C164
+  D33: GBP k
+  G33: =I33/Project_Capacity
+  I33: =SUM(J33:QU33)
+  J33: =-'Solar&BESS Operation'!M164
+  K33: =-'Solar&BESS Operation'!N164
+  L33: =-'Solar&BESS Operation'!O164
+  C34: ='Solar&BESS Operation'!C165
+  D34: GBP k
+  G34: =I34/Project_Capacity
+  I34: =SUM(J34:QU34)
+  J34: =-'Solar&BESS Operation'!M165
+  K34: =-'Solar&BESS Operation'!N165
+  L34: =-'Solar&BESS Operation'!O165
+  C35: ='Solar&BESS Operation'!C166
+  D35: GBP k
+  G35: =I35/Project_Capacity
+  I35: =SUM(J35:QU35)
+  J35: =-'Solar&BESS Operation'!M166
+  K35: =-'Solar&BESS Operation'!N166
+  L35: =-'Solar&BESS Operation'!O166
+  C36: ='Solar&BESS Operation'!C167
+  D36: GBP k
+  G36: =I36/Project_Capacity
+  I36: =SUM(J36:QU36)
+  J36: =-'Solar&BESS Operation'!M167
+  K36: =-'Solar&BESS Operation'!N167
+  L36: =-'Solar&BESS Operation'!O167
+  C37: ='Solar&BESS Operation'!C168
+  D37: GBP k
+  G37: =I37/Project_Capacity
+  I37: =SUM(J37:QU37)
+  J37: =-'Solar&BESS Operation'!M168
+  K37: =-'Solar&BESS Operation'!N168
+  L37: =-'Solar&BESS Operation'!O168
+  C38: ='Solar&BESS Operation'!C169
+  D38: GBP k
+  G38: =I38/Project_Capacity
+  I38: =SUM(J38:QU38)
+  J38: =-'Solar&BESS Operation'!M169
+  K38: =-'Solar&BESS Operation'!N169
+  L38: =-'Solar&BESS Operation'!O169
+  C39: ='Solar&BESS Operation'!C170
+  D39: GBP k
+  G39: =I39/Project_Capacity
+  I39: =SUM(J39:QU39)
+  J39: =-'Solar&BESS Operation'!M170
+  K39: =-'Solar&BESS Operation'!N170
+  L39: =-'Solar&BESS Operation'!O170
+  C40: ='Solar&BESS Operation'!C171
+  D40: GBP k
+  G40: =I40/Project_Capacity
+  I40: =SUM(J40:QU40)
+  J40: =-'Solar&BESS Operation'!M171
+  K40: =-'Solar&BESS Operation'!N171
+  L40: =-'Solar&BESS Operation'!O171
+  C41: ='Solar&BESS Operation'!C172
+  D41: GBP k
+  G41: =I41/Project_Capacity
+  I41: =SUM(J41:QU41)
+  J41: =-'Solar&BESS Operation'!M172
+  K41: =-'Solar&BESS Operation'!N172
+  L41: =-'Solar&BESS Operation'!O172
+  C42: ='Solar&BESS Operation'!C173
+  D42: GBP k
+  G42: =I42/Project_Capacity
+  I42: =SUM(J42:QU42)
+  J42: =-'Solar&BESS Operation'!M173
+  K42: =-'Solar&BESS Operation'!N173
+  L42: =-'Solar&BESS Operation'!O173
+  C43: ='Solar&BESS Operation'!C174
+  D43: GBP k
+  G43: =I43/Project_Capacity
+  I43: =SUM(J43:QU43)
+  J43: =-'Solar&BESS Operation'!M174
+  K43: =-'Solar&BESS Operation'!N174
+  L43: =-'Solar&BESS Operation'!O174
+  C44: Total Solar Expenses
+  G44: =I44/Project_Capacity
+  I44: =SUM(J44:QU44)
+  J44: =SUM(J30:J43)
+  K44: =SUM(K30:K43)
+  L44: =SUM(L30:L43)
+
+  B46: BESS Expenses
+  C47: =BESS!C125
+  G47: =I47/'Solar&BESS Inputs'!$F$116
+  I47: =SUM(J47:TS47)
+  J47: =-BESS!J125
+  K47: =-BESS!K125
+  L47: =-BESS!L125
+  C48: =BESS!C126
+  G48: =I48/'Solar&BESS Inputs'!$F$116
+  I48: =SUM(J48:TS48)
+  J48: =-BESS!J126
+  K48: =-BESS!K126
+  L48: =-BESS!L126
+  C49: =BESS!C127
+  G49: =I49/'Solar&BESS Inputs'!$F$116
+  I49: =SUM(J49:TS49)
+  J49: =-BESS!J127
+  K49: =-BESS!K127
+  L49: =-BESS!L127
+  C50: =BESS!C128
+  G50: =I50/'Solar&BESS Inputs'!$F$116
+  I50: =SUM(J50:TS50)
+  J50: =-BESS!J128
+  K50: =-BESS!K128
+  L50: =-BESS!L128
+  C51: =BESS!C129
+  G51: =I51/'Solar&BESS Inputs'!$F$116
+  I51: =SUM(J51:TS51)
+  J51: =-BESS!J129
+  K51: =-BESS!K129
+  L51: =-BESS!L129
+  C52: =BESS!C130
+  G52: =I52/'Solar&BESS Inputs'!$F$116
+  I52: =SUM(J52:TS52)
+  J52: =-BESS!J130
+  K52: =-BESS!K130
+  L52: =-BESS!L130
+  C53: =BESS!C131
+  G53: =I53/'Solar&BESS Inputs'!$F$116
+  I53: =SUM(J53:TS53)
+  J53: =-BESS!J131
+  K53: =-BESS!K131
+  L53: =-BESS!L131
+  C54: =BESS!C132
+  G54: =I54/'Solar&BESS Inputs'!$F$116
+  I54: =SUM(J54:TS54)
+  J54: =-BESS!J132
+  K54: =-BESS!K132
+  L54: =-BESS!L132
+  C55: =BESS!C133
+  G55: =I55/'Solar&BESS Inputs'!$F$116
+  I55: =SUM(J55:TS55)
+  J55: =-BESS!J133
+  K55: =-BESS!K133
+  L55: =-BESS!L133
+  C56: Total BESS Expenses
+  G56: =I56/'Solar&BESS Inputs'!$F$116
+  I56: =SUM(J56:TS56)
+  J56: =SUM(J47:J55)
+  K56: =SUM(K47:K55)
+  L56: =SUM(L47:L55)
+
+  C59: Total Expenses
+  D59: GBP k
+  I59: =SUM(J59:QU59)
+  J59: =J56+J44
+  K59: =K56+K44
+  L59: =L56+L44
+
+  C61: Net working capital adjustments
+  D61: EUR k
+  I61: =SUM(J61:QU61)
+  J61: ='Solar&BESS Operation'!M222+BESS!J158
+  K61: ='Solar&BESS Operation'!N222+BESS!K158
+  L61: ='Solar&BESS Operation'!O222+BESS!L158
+
+  C63: Operating cashflow
+  D63: EUR k
+  I63: =SUM(J63:QU63)
+  J63: =J27+J59+J61
+  K63: =K27+K59+K61
+  L63: =L27+L59+L61
+
+  B65: Letter of credit
+  C66: Letter of credit interest
+  D66: EUR k
+  I66: =SUM(J66:QU66)
+  J66: =-'Solar&BESS Operation'!M185-'Solar&BESS Operation'!M197
+  K66: =-'Solar&BESS Operation'!N185-'Solar&BESS Operation'!N197
+  L66: =-'Solar&BESS Operation'!O185-'Solar&BESS Operation'!O197
+
+  B68: Construction
+  C69: =Construction!C76
+  D69: EUR k
+  I69: =SUM(J69:QU69)
+  J69: =-Construction!J76
+  K69: =-Construction!K76
+  L69: =-Construction!L76
+  C70: =Construction!C77
+  D70: EUR k
+  I70: =SUM(J70:QU70)
+  J70: =-Construction!J77
+  K70: =-Construction!K77
+  L70: =-Construction!L77
+  C71: =Construction!C78
+  D71: EUR k
+  I71: =SUM(J71:QU71)
+  J71: =-Construction!J78
+  K71: =-Construction!K78
+  L71: =-Construction!L78
+  C72: =Construction!C79
+  D72: EUR k
+  I72: =SUM(J72:QU72)
+  J72: =-Construction!J79
+  K72: =-Construction!K79
+  L72: =-Construction!L79
+  C73: =Construction!C80
+  D73: EUR k
+  I73: =SUM(J73:QU73)
+  J73: =-Construction!J80
+  K73: =-Construction!K80
+  L73: =-Construction!L80
+  C74: =Construction!C81
+  D74: EUR k
+  I74: =SUM(J74:QU74)
+  J74: =-Construction!J81
+  K74: =-Construction!K81
+  L74: =-Construction!L81
+  C75: =Construction!C82
+  D75: EUR k
+  I75: =SUM(J75:QU75)
+  J75: =-Construction!J82
+  K75: =-Construction!K82
+  L75: =-Construction!L82
+  C76: =Construction!C83
+  D76: EUR k
+  I76: =SUM(J76:QU76)
+  J76: =-Construction!J83
+  K76: =-Construction!K83
+  L76: =-Construction!L83
+  C77: =Construction!C84
+  D77: EUR k
+  I77: =SUM(J77:QU77)
+  J77: =-Construction!J84
+  K77: =-Construction!K84
+  L77: =-Construction!L84
+  C78: =Construction!C85
+  D78: EUR k
+  I78: =SUM(J78:QU78)
+  J78: =-Construction!J85
+  K78: =-Construction!K85
+  L78: =-Construction!L85
+  C79: =Construction!C86
+  D79: EUR k
+  I79: =SUM(J79:QU79)
+  J79: =-Construction!J86
+  K79: =-Construction!K86
+  L79: =-Construction!L86
+  C80: =Construction!C87
+  D80: EUR k
+  I80: =SUM(J80:QU80)
+  J80: =-Construction!J87
+  K80: =-Construction!K87
+  L80: =-Construction!L87
+  C81: =Construction!C88
+  D81: EUR k
+  I81: =SUM(J81:QU81)
+  J81: =-Construction!J88
+  K81: =-Construction!K88
+  L81: =-Construction!L88
+  C82: =Construction!C89
+  D82: EUR k
+  I82: =SUM(J82:QU82)
+  J82: =-Construction!J89
+  K82: =-Construction!K89
+  L82: =-Construction!L89
+  C83: =Construction!C90
+  D83: EUR k
+  I83: =SUM(J83:QU83)
+  J83: =-Construction!J90
+  K83: =-Construction!K90
+  L83: =-Construction!L90
+  C84: =Construction!C91
+  D84: EUR k
+  I84: =SUM(J84:QU84)
+  J84: =-Construction!J91
+  K84: =-Construction!K91
+  L84: =-Construction!L91
+  C85: =Construction!C92
+  D85: EUR k
+  I85: =SUM(J85:QU85)
+  J85: =-Construction!J92
+  K85: =-Construction!K92
+  L85: =-Construction!L92
+  C86: =Construction!C93
+  D86: EUR k
+  I86: =SUM(J86:QU86)
+  J86: =-Construction!J93
+  K86: =-Construction!K93
+  L86: =-Construction!L93
+  C87: =Construction!C94
+  D87: EUR k
+  I87: =SUM(J87:QU87)
+  J87: =-Construction!J94
+  K87: =-Construction!K94
+  L87: =-Construction!L94
+  C88: =Construction!C95
+  D88: EUR k
+  I88: =SUM(J88:QU88)
+  J88: =-Construction!J95
+  K88: =-Construction!K95
+  L88: =-Construction!L95
+  C89: =Construction!C96
+  D89: EUR k
+  I89: =SUM(J89:QU89)
+  J89: =-Construction!J96
+  K89: =-Construction!K96
+  L89: =-Construction!L96
+  C90: DSRA
+  D90: EUR k
+  I90: =SUM(J90:QU90)
+  J90: =-Construction!J110
+  K90: =-Construction!K110
+  L90: =-Construction!L110
+  C91: Interest during construction
+  D91: EUR k
+  I91: =SUM(J91:QU91)
+  J91: =-Construction!J111
+  K91: =-Construction!K111
+  L91: =-Construction!L111
+  C92: Financing fees
+  D92: EUR k
+  I92: =SUM(J92:QU92)
+  J92: =-Construction!J112
+  K92: =-Construction!K112
+  L92: =-Construction!L112
+  C93: Total
+  D93: EUR k
+  I93: =SUM(J93:QU93)
+  J93: =SUM(J69:J92)
+  K93: =SUM(K69:K92)
+  L93: =SUM(L69:L92)
+  C94: DEVEX
+  J94: =SUM(J76:J85,J69:J72)
+  K94: =SUM(K76:K85,K69:K72)
+  L94: =SUM(L76:L85,L69:L72)
+  B95: Funding
+  C96: Equity
+  D96: EUR k
+  I96: =SUM(J96:QU96)
+  J96: =Construction!J142
+  K96: =Construction!K142
+  L96: =Construction!L142
+  C97: Shareholder loan
+  D97: EUR k
+  I97: =SUM(J97:QU97)
+  J97: =Construction!J149
+  K97: =Construction!K149
+  L97: =Construction!L149
+  C98: Fixed debt
+  D98: EUR k
+  I98: =SUM(J98:QU98)
+  J98: =Construction!J164
+  K98: =Construction!K164
+  L98: =Construction!L164
+  C99: Sculpted debt
+  D99: EUR k
+  I99: =SUM(J99:QU99)
+  J99: =Construction!J206
+  K99: =Construction!K206
+  L99: =Construction!L206
+  C100: Total
+  D100: EUR k
+  I100: =SUM(J100:QU100)
+  J100: =SUM(J96:J99)
+  K100: =SUM(K96:K99)
+  L100: =SUM(L96:L99)
+
+====================================================================================================
+SHEET: D&T  rows 180-270, cols A-L
+====================================================================================================
+  B180: Net book value
+  B181: ='Curves and D&T'!$B$66
+  C181: ='Curves and D&T'!$C$66
+  D181: EUR k
+  J181: =J57
+  K181: =K57
+  L181: =L57
+  B182: ='Curves and D&T'!$B$67
+  C182: ='Curves and D&T'!$C$67
+  D182: EUR k
+  J182: =J76
+  K182: =K76
+  L182: =L76
+  B183: ='Curves and D&T'!$B$68
+  C183: ='Curves and D&T'!$C$68
+  D183: EUR k
+  J183: =J95
+  K183: =K95
+  L183: =L95
+  C184: Total
+  D184: EUR k
+  J184: =SUM(J181:J183)
+  K184: =SUM(K181:K183)
+  L184: =SUM(L181:L183)
+
+  A186: TAX
+
+  B188: Flags
+  E188: Month number
+  C189: Taxation month flag
+  E189: ='Curves and D&T'!$E$108
+  J189: =IF(MONTH(J$5)=$E189,1,0)*J$7+J49
+  K189: =IF(MONTH(K$5)=$E189,1,0)*K$7+K49
+  L189: =IF(MONTH(L$5)=$E189,1,0)*L$7+L49
+
+  B191: Corporate tax (geared)
+  B192: Tax computation
+  C193: EBITDA
+  D193: EUR k
+  H193: =SUM(J193:TS193)
+  J193: =FS!J164
+  K193: =FS!K164
+  L193: =FS!L164
+  C194: Less: tax depreciation
+  D194: EUR k
+  H194: =SUM(J194:TS194)
+  J194: =-J178
+  K194: =-K178
+  L194: =-L178
+  C195: Less: interest (fixed debt)
+  D195: EUR k
+  H195: =SUM(J195:TS195)
+  J195: =FS!J169
+  K195: =FS!K169
+  L195: =FS!L169
+  C196: Less: interest (sculpted debt)
+  D196: EUR k
+  H196: =SUM(J196:TS196)
+  J196: =FS!J170
+  K196: =FS!K170
+  L196: =FS!L170
+  C197: Less: interest (SHL)
+  D197: EUR k
+  H197: =SUM(J197:TS197)
+  J197: =FS!J171
+  K197: =FS!K171
+  L197: =FS!L171
+  C198: Less: interest (letter of credit PPA)
+  D198: EUR k
+  H198: =SUM(J198:TS198)
+  J198: =-'Solar&BESS Operation'!M185
+  K198: =-'Solar&BESS Operation'!N185
+  L198: =-'Solar&BESS Operation'!O185
+  C199: Taxable income
+  D199: EUR k
+  H199: =SUM(J199:TS199)
+  J199: =SUM(J193:J198)
+  K199: =SUM(K193:K198)
+  L199: =SUM(L193:L198)
+  C200: Taxable income (annual)
+  D200: EUR k
+  H200: =SUM(J200:TS200)
+  J200: =PRODUCT(J$189,SUM($I199:J199)-SUM($I200:I200))
+  K200: =PRODUCT(K$189,SUM($I199:K199)-SUM($I200:J200))
+  L200: =PRODUCT(L$189,SUM($I199:L199)-SUM($I200:K200))
+
+  B203: Deductible Interest
+  C204: EBITDA  (annual)
+  H204: =SUM(J204:TS204)
+  J204: =PRODUCT(J$189,SUM($I193:J193)-SUM($I204:I204))
+  K204: =PRODUCT(K$189,SUM($I193:K193)-SUM($I204:J204))
+  L204: =PRODUCT(L$189,SUM($I193:L193)-SUM($I204:K204))
+
+  C206: Annual Interest (Fixed Debt)
+  H206: =SUM(J206:TS206)
+  J206: =PRODUCT(J$189,SUM($I195:J195)-SUM($I206:I206))
+  K206: =PRODUCT(K$189,SUM($I195:K195)-SUM($I206:J206))
+  L206: =PRODUCT(L$189,SUM($I195:L195)-SUM($I206:K206))
+  C207: Annual Interest (Sculpted Debt)
+  H207: =SUM(J207:TS207)
+  J207: =PRODUCT(J$189,SUM($I196:J196)-SUM($I207:I207))
+  K207: =PRODUCT(K$189,SUM($I196:K196)-SUM($I207:J207))
+  L207: =PRODUCT(L$189,SUM($I196:L196)-SUM($I207:K207))
+  C208: Annual Interest (SHL)
+  H208: =SUM(J208:TS208)
+  J208: =PRODUCT(J$189,SUM($I197:J197)-SUM($I208:I208))
+  K208: =PRODUCT(K$189,SUM($I197:K197)-SUM($I208:J208))
+  L208: =PRODUCT(L$189,SUM($I197:L197)-SUM($I208:K208))
+  C209: Total Annual Interest
+  D209: £k Threshold
+  E209: EBITDA  % Cap 
+  H209: =SUM(J209:TS209)
+  J209: =SUM(J206:J208)
+  K209: =SUM(K206:K208)
+  L209: =SUM(L206:L208)
+  D210: 2000
+  E210: 0.3
+  C211: EBITDA Cap
+  J211: =-J$204*$E$210*J$189
+  K211: =-K$204*$E$210*K$189
+  L211: =-L$204*$E$210*L$189
+  C212: Maximum Interest Deductible
+  J212: =MAX(-MAX($D$210,J$204*$E$210),J$209)
+  K212: =MAX(-MAX($D$210,K$204*$E$210),K$209)
+  L212: =MAX(-MAX($D$210,L$204*$E$210),L$209)
+
+  B214: Annual Corporate Tax (Geared)
+  C215: EBITDA (annual)
+  J215: =J204
+  K215: =K204
+  L215: =L204
+  C216: Less: Tax Depreciaton (annual)
+  H216: =SUM(J216:TS216)
+  J216: =PRODUCT(J$189,SUM($I194:J194)-SUM($I216:I216))
+  K216: =PRODUCT(K$189,SUM($I194:K194)-SUM($I216:J216))
+  L216: =PRODUCT(L$189,SUM($I194:L194)-SUM($I216:K216))
+  C217: Less: Deductible Interest (annual)
+  H217: =SUM(J217:TS217)
+  J217: =J212
+  K217: =K212
+  L217: =L212
+  C218: Taxable Income (annual)
+  H218: =SUM(J218:TS218)
+  J218: =SUM(J215:J217)
+  K218: =SUM(K215:K217)
+  L218: =SUM(L215:L217)
+
+  B221: Tax loss account
+  C222: Balance BOP
+  D222: EUR k
+  J222: =I225
+  K222: =J225
+  L222: =K225
+  C223: Tax loss generated
+  D223: EUR k
+  I223: =SUM(J223:TS223)
+  J223: =IF(J218>0,0,-J218)
+  K223: =IF(K218>0,0,-K218)
+  L223: =IF(L218>0,0,-L218)
+  C224: Tax loss utilised
+  D224: EUR k
+  I224: =SUM(J224:TS224)
+  J224: =-IF(J218>0,MIN(J218,J222),0)
+  K224: =-IF(K218>0,MIN(K218,K222),0)
+  L224: =-IF(L218>0,MIN(L218,L222),0)
+  C225: Balance EOP
+  D225: EUR k
+  J225: =SUM(J222:J224)
+  K225: =SUM(K222:K224)
+  L225: =SUM(L222:L224)
+
+  C227: =C224
+  D227: EUR k
+  I227: =SUM(J227:TS227)
+  J227: =J224
+  K227: =K224
+  L227: =L224
+  C228: Net taxable income (+ve only)
+  D228: EUR k
+  I228: =SUM(J228:TS228)
+  J228: =MAX(0,J227+J218)
+  K228: =MAX(0,K227+K218)
+  L228: =MAX(0,L227+L218)
+  E229: Rate
+  C230: ='Curves and D&T'!$C$105
+  D230: ='Curves and D&T'!$D$105
+  E230: ='Curves and D&T'!$E$105
+  F230: ='Curves and D&T'!$C$107
+  I230: =SUM(J230:TS230)
+  J230: =MIN(J$228,$F$231)*$E230*J$189
+  K230: =MIN(K$228,$F$231)*$E230*K$189
+  L230: =MIN(L$228,$F$231)*$E230*L$189
+  C231: ='Curves and D&T'!$C$106
+  D231: ='Curves and D&T'!$D$106
+  E231: ='Curves and D&T'!$E$106
+  F231: ='Curves and D&T'!$E$107
+  I231: =SUM(J231:TS231)
+  J231: =MAX(J$228-$F$231,0)*$E231*J$189
+  K231: =MAX(K$228-$F$231,0)*$E231*K$189
+  L231: =MAX(L$228-$F$231,0)*$E231*L$189
+  C232: Tax payable
+  D232: EUR k
+  I232: =SUM(J232:TS232)
+  J232: =SUM(J230:J231)
+  K232: =SUM(K230:K231)
+  L232: =SUM(L230:L231)
+
+  B234: Tax creditor
+  C235: Balance BOP
+  D235: EUR k
+  J235: =I238
+  K235: =J238
+  L235: =K238
+  C236: Tax payable (P&L)
+  D236: EUR k
+  I236: =SUM(J236:TS236)
+  J236: =J232
+  K236: =K232
+  L236: =L232
+  C237: Tax paid (CFW)
+  D237: EUR k
+  I237: =SUM(J237:TS237)
+  J237: =-J235
+  K237: =-K235
+  L237: =-L235
+  C238: Balance EOP (BS)
+  D238: EUR k
+  J238: =SUM(J235:J237)
+  K238: =SUM(K235:K237)
+  L238: =SUM(L235:L237)
+
+  B242: Corporate tax (ungeared)
+  B243: Tax computation
+  C244: EBITDA
+  D244: EUR k
+  I244: =SUM(J244:TS244)
+  J244: =J193
+  K244: =K193
+  L244: =L193
+  C245: Less: tax depreciation
+  D245: EUR k
+  I245: =SUM(J245:TS245)
+  J245: =-SUM(J175:J176)
+  K245: =-SUM(K175:K176)
+  L245: =-SUM(L175:L176)
+  C246: Taxable income
+  D246: EUR k
+  H246: =SUM(J246:TS246)
+  J246: =SUM(J244:J245)
+  K246: =SUM(K244:K245)
+  L246: =SUM(L244:L245)
+  C247: Taxable income (annual)
+  D247: EUR k
+  H247: =SUM(J247:TS247)
+  J247: =PRODUCT(J$189,SUM($I246:J246)-SUM($I247:I247))
+  K247: =PRODUCT(K$189,SUM($I246:K246)-SUM($I247:J247))
+  L247: =PRODUCT(L$189,SUM($I246:L246)-SUM($I247:K247))
+
+  B249: Tax loss account
+  C250: Balance BOP
+  D250: EUR k
+  J250: =I253
+  K250: =J253
+  L250: =K253
+  C251: Tax loss generated
+  D251: EUR k
+  I251: =SUM(J251:TS251)
+  J251: =IF(J247>0,0,-J247)
+  K251: =IF(K247>0,0,-K247)
+  L251: =IF(L247>0,0,-L247)
+  C252: Tax loss utilised
+  D252: EUR k
+  I252: =SUM(J252:TS252)
+  J252: =-IF(J247>0,MIN(J247,J250),0)
+  K252: =-IF(K247>0,MIN(K247,K250),0)
+  L252: =-IF(L247>0,MIN(L247,L250),0)
+  C253: Balance EOP
+  D253: EUR k
+  J253: =SUM(J250:J252)
+  K253: =SUM(K250:K252)
+  L253: =SUM(L250:L252)
+
+  C255: =C252
+  D255: EUR k
+  I255: =SUM(J255:TS255)
+  J255: =J252
+  K255: =K252
+  L255: =L252
+  C256: Net taxable income (+ve only)
+  D256: EUR k
+  I256: =SUM(J256:TS256)
+  J256: =MAX(0,J255+J247)
+  K256: =MAX(0,K255+K247)
+  L256: =MAX(0,L255+L247)
+  E257: Rate
+  C258: ='Curves and D&T'!$C$105
+  D258: ='Curves and D&T'!$D$105
+  E258: ='Curves and D&T'!$E$105
+  F258: ='Curves and D&T'!$C$107
+  I258: =SUM(J258:TS258)
+  J258: =MIN(J$256,$F$259)*$E258*J$189
+  K258: =MIN(K$256,$F$259)*$E258*K$189
+  L258: =MIN(L$256,$F$259)*$E258*L$189
+  C259: ='Curves and D&T'!$C$106
+  D259: ='Curves and D&T'!$D$106
+  E259: ='Curves and D&T'!$E$106
+  F259: ='Curves and D&T'!$E$107
+  I259: =SUM(J259:TS259)
+  J259: =MAX(J$256-$F$259,0)*$E259*J$189
+  K259: =MAX(K$256-$F$259,0)*$E259*K$189
+  L259: =MAX(L$256-$F$259,0)*$E259*L$189
+  C260: Tax payable
+  D260: EUR k
+  I260: =SUM(J260:TS260)
+  J260: =SUM(J258:J259)
+  K260: =SUM(K258:K259)
+  L260: =SUM(L258:L259)
+
+  B262: Tax creditor
+  C263: Balance BOP
+  D263: EUR k
+  J263: =I266
+  K263: =J266
+  L263: =K266
+  C264: Tax payable (P&L)
+  D264: EUR k
+  I264: =SUM(J264:TS264)
+  J264: =J260
+  K264: =K260
+  L264: =L260
+  C265: Tax paid (CFW)
+  D265: EUR k
+  I265: =SUM(J265:TS265)
+  J265: =-J264
+  K265: =-K264
+  L265: =-L264
+  C266: Balance EOP (BS)
+  D266: EUR k
+  J266: =SUM(J263:J265)
+  K266: =SUM(K263:K265)
+  L266: =SUM(L263:L265)
+
+====================================================================================================
+SHEET: Construction  rows 75-130, cols A-L
+====================================================================================================
+  B75: Capex including contingency
+  E75: ='Solar&BESS Inputs'!E334
+  F75: Conting.
+  B76: ='Curves and D&T'!E72
+  C76: ='Solar&BESS Inputs'!C335
+  D76: GBP k
+  E76: ='Solar&BESS Inputs'!E335
+  F76: ='Solar&BESS Inputs'!$F$363
+  I76: =SUM(J76:TS76)
+  J76: =$E76*(1+$F$76)*J53
+  K76: =$E76*(1+$F$76)*K53
+  L76: =$E76*(1+$F$76)*L53
+  B77: ='Curves and D&T'!E73
+  C77: ='Solar&BESS Inputs'!C336
+  D77: GBP k
+  E77: ='Solar&BESS Inputs'!E336
+  I77: =SUM(J77:TS77)
+  J77: =$E77*(1+$F$76)*J54
+  K77: =$E77*(1+$F$76)*K54
+  L77: =$E77*(1+$F$76)*L54
+  B78: ='Curves and D&T'!E74
+  C78: ='Solar&BESS Inputs'!C337
+  D78: GBP k
+  E78: ='Solar&BESS Inputs'!E337
+  I78: =SUM(J78:TS78)
+  J78: =$E78*(1+$F$76)*J55
+  K78: =$E78*(1+$F$76)*K55
+  L78: =$E78*(1+$F$76)*L55
+  B79: ='Curves and D&T'!E75
+  C79: ='Solar&BESS Inputs'!C338
+  D79: GBP k
+  E79: ='Solar&BESS Inputs'!E338
+  I79: =SUM(J79:TS79)
+  J79: =$E79*(1+$F$76)*J56
+  K79: =$E79*(1+$F$76)*K56
+  L79: =$E79*(1+$F$76)*L56
+  B80: ='Curves and D&T'!E76
+  C80: ='Solar&BESS Inputs'!C339
+  D80: GBP k
+  E80: ='Solar&BESS Inputs'!E339
+  I80: =SUM(J80:TS80)
+  J80: =$E80*(1+$F$76)*J57
+  K80: =$E80*(1+$F$76)*K57
+  L80: =$E80*(1+$F$76)*L57
+  B81: ='Curves and D&T'!E77
+  C81: ='Solar&BESS Inputs'!C340
+  D81: GBP k
+  E81: ='Solar&BESS Inputs'!E340
+  I81: =SUM(J81:TS81)
+  J81: =$E81*(1+$F$76)*J58
+  K81: =$E81*(1+$F$76)*K58
+  L81: =$E81*(1+$F$76)*L58
+  B82: ='Curves and D&T'!E78
+  C82: ='Solar&BESS Inputs'!C341
+  D82: GBP k
+  E82: ='Solar&BESS Inputs'!E341
+  I82: =SUM(J82:TS82)
+  J82: =$E82*(1+$F$76)*J59
+  K82: =$E82*(1+$F$76)*K59
+  L82: =$E82*(1+$F$76)*L59
+  B83: ='Curves and D&T'!E79
+  C83: ='Solar&BESS Inputs'!C342
+  D83: GBP k
+  E83: ='Solar&BESS Inputs'!E342
+  I83: =SUM(J83:TS83)
+  J83: =$E83*(1+$F$76)*J60
+  K83: =$E83*(1+$F$76)*K60
+  L83: =$E83*(1+$F$76)*L60
+  B84: ='Curves and D&T'!E80
+  C84: ='Solar&BESS Inputs'!C343
+  D84: GBP k
+  E84: ='Solar&BESS Inputs'!E343
+  I84: =SUM(J84:TS84)
+  J84: =$E84*(1+$F$76)*J61
+  K84: =$E84*(1+$F$76)*K61
+  L84: =$E84*(1+$F$76)*L61
+  B85: ='Curves and D&T'!E81
+  C85: ='Solar&BESS Inputs'!C344
+  D85: GBP k
+  E85: ='Solar&BESS Inputs'!E344
+  I85: =SUM(J85:TS85)
+  J85: =$E85*(1+$F$76)*J62
+  K85: =$E85*(1+$F$76)*K62
+  L85: =$E85*(1+$F$76)*L62
+  B86: ='Curves and D&T'!E82
+  C86: ='Solar&BESS Inputs'!C345
+  D86: GBP k
+  E86: ='Solar&BESS Inputs'!E345
+  I86: =SUM(J86:TS86)
+  J86: =$E86*(1+$F$76)*J63
+  K86: =$E86*(1+$F$76)*K63
+  L86: =$E86*(1+$F$76)*L63
+  B87: ='Curves and D&T'!E83
+  C87: ='Solar&BESS Inputs'!C346
+  D87: GBP k
+  E87: ='Solar&BESS Inputs'!E346
+  I87: =SUM(J87:TS87)
+  J87: =$E87*(1+$F$76)*J64
+  K87: =$E87*(1+$F$76)*K64
+  L87: =$E87*(1+$F$76)*L64
+  B88: ='Curves and D&T'!E84
+  C88: ='Solar&BESS Inputs'!C347
+  D88: GBP k
+  E88: ='Solar&BESS Inputs'!E347
+  I88: =SUM(J88:TS88)
+  J88: =$E88*(1+$F$76)*J65
+  K88: =$E88*(1+$F$76)*K65
+  L88: =$E88*(1+$F$76)*L65
+  B89: ='Curves and D&T'!E85
+  C89: ='Solar&BESS Inputs'!C348
+  D89: GBP k
+  E89: ='Solar&BESS Inputs'!E348
+  I89: =SUM(J89:TS89)
+  J89: =$E89*(1+$F$76)*J66
+  K89: =$E89*(1+$F$76)*K66
+  L89: =$E89*(1+$F$76)*L66
+  B90: ='Curves and D&T'!E86
+  C90: ='Solar&BESS Inputs'!C349
+  D90: GBP k
+  E90: ='Solar&BESS Inputs'!E349
+  I90: =SUM(J90:TS90)
+  J90: =$E90*(1+$F$76)*J67
+  K90: =$E90*(1+$F$76)*K67
+  L90: =$E90*(1+$F$76)*L67
+  B91: ='Curves and D&T'!E87
+  C91: ='Solar&BESS Inputs'!C350
+  D91: GBP k
+  E91: ='Solar&BESS Inputs'!E350
+  I91: =SUM(J91:TS91)
+  J91: =$E91*(1+$F$76)*J68
+  K91: =$E91*(1+$F$76)*K68
+  L91: =$E91*(1+$F$76)*L68
+  B92: ='Curves and D&T'!E88
+  C92: ='Solar&BESS Inputs'!C351
+  D92: GBP k
+  E92: ='Solar&BESS Inputs'!E351
+  I92: =SUM(J92:TS92)
+  J92: =$E92*(1+$F$76)*J69
+  K92: =$E92*(1+$F$76)*K69
+  L92: =$E92*(1+$F$76)*L69
+  B93: ='Curves and D&T'!E89
+  C93: ='Solar&BESS Inputs'!C352
+  D93: GBP k
+  E93: ='Solar&BESS Inputs'!E352
+  I93: =SUM(J93:TS93)
+  J93: =$E93*(1+$F$76)*J70
+  K93: =$E93*(1+$F$76)*K70
+  L93: =$E93*(1+$F$76)*L70
+  B94: ='Curves and D&T'!E90
+  C94: ='Solar&BESS Inputs'!C353
+  D94: GBP k
+  E94: ='Solar&BESS Inputs'!E353
+  I94: =SUM(J94:TS94)
+  J94: =$E94*(1+$F$76)*J71
+  K94: =$E94*(1+$F$76)*K71
+  L94: =$E94*(1+$F$76)*L71
+  B95: ='Curves and D&T'!E91
+  C95: ='Solar&BESS Inputs'!C354
+  D95: GBP k
+  E95: ='Solar&BESS Inputs'!E354
+  I95: =SUM(J95:TS95)
+  J95: =$E95*(1+$F$76)*J72
+  K95: =$E95*(1+$F$76)*K72
+  L95: =$E95*(1+$F$76)*L72
+  B96: ='Curves and D&T'!E92
+  C96: ='Solar&BESS Inputs'!C355
+  D96: GBP k
+  E96: ='Solar&BESS Inputs'!E355
+  I96: =SUM(J96:TS96)
+  J96: =$E96*(1+$F$76)*J73
+  K96: =$E96*(1+$F$76)*K73
+  L96: =$E96*(1+$F$76)*L73
+  C97: Total
+  D97: GBP k
+  E97: =SUM(E76:E96)
+  I97: =SUM(J97:TS97)
+  J97: =SUM(J76:J96)
+  K97: =SUM(K76:K96)
+  L97: =SUM(L76:L96)
+
+  B99: Sale of land
+  F100: End
+  C101: Operations end
+  D101: [0,1]
+  F101: =Op_End
+  I101: =SUM(J101:TS101)
+  J101: =AND($F101>=J$4,$F101<=J$5)*1
+  K101: =AND($F101>=K$4,$F101<=K$5)*1
+  L101: =AND($F101>=L$4,$F101<=L$5)*1
+
+  E103: Sale price
+  F103: Area
+  G103: Sale of land switch
+  H103: Sale price totl
+  C104: Sale of land at project life end
+  D104: GBP k
+  E104: ='Solar&BESS Inputs'!$F$192
+  F104: ='Solar&BESS Inputs'!$F$189
+  G104: ='Solar&BESS Inputs'!$F$188*'Solar&BESS Inputs'!$F$191
+  H104: =E104*F104*G104
+  I104: =SUM(J104:TS104)
+  J104: =$H104*J101/Thousand
+  K104: =$H104*K101/Thousand
+  L104: =$H104*L101/Thousand
+
+  B106: Sources and Uses of Funds
+  B107: Uses
+  C108: Capex including contingency
+  D108: GBP k
+  F108: £ k
+  I108: =SUM(J108:TS108)
+  J108: =J97
+  K108: =K97
+  L108: =L97
+  C109: Min Cash Balance Funding
+  D109: GBP k
+  E109: ='Solar&BESS Inputs'!$F$406
+  F109: ='Solar&BESS Inputs'!$F$405
+  I109: =SUM(J109:TS109)
+  J109: =IF(J$5=Const_End,$F$109*$E$109,0)
+  K109: =IF(K$5=Const_End,$F$109*$E$109,0)
+  L109: =IF(L$5=Const_End,$F$109*$E$109,0)
+  C110: DSRA funding from sources
+  D110: GBP k
+  E110: ='Solar&BESS Inputs'!$F$577
+  I110: =SUM(J110:TS110)
+  J110: =IF(J5=Const_End,$E110,0)
+  K110: =IF(K5=Const_End,$E110,0)
+  L110: =IF(L5=Const_End,$E110,0)
+  B111: ='Curves and D&T'!E93
+  C111: Interest duing construction
+  D111: GBP k
+  I111: =SUM(J111:TS111)
+  J111: =J236+J194+'Solar&BESS Operation'!M184+'Solar&BESS Operation'!M196
+  K111: =K236+K194+'Solar&BESS Operation'!N184+'Solar&BESS Operation'!N196
+  L111: =L236+L194+'Solar&BESS Operation'!O184+'Solar&BESS Operation'!O196
+  B112: ='Curves and D&T'!E94
+  C112: Financing fees
+  D112: GBP k
+  I112: =SUM(J112:TS112)
+  J112: =J244+J202+'Solar&BESS Operation'!M187+'Solar&BESS Operation'!M199
+  K112: =K244+K202+'Solar&BESS Operation'!N187+'Solar&BESS Operation'!N199
+  L112: =L244+L202+'Solar&BESS Operation'!O187+'Solar&BESS Operation'!O199
+  C113: Total Amount to be financed - copy
+  D113: GBP k
+  I113: =SUM(J113:TS113)
+  J113: =SUM(J108:J112)
+  K113: =SUM(K108:K112)
+  L113: =SUM(L108:L112)
+  C114: Total Amount to be financed - paste
+  D114: GBP k
+  I114: =SUM(J114:TS114)
+  J114: =Macro!J15
+  K114: =Macro!K15
+  L114: =Macro!L15
+
+  B116: Sources
+  G116: Macro
+  C117: Amount to be financed by Equity
+  D117: EUR k
+  F117: =MAX(1-F120,0)
+  G117: =Macro!G19
+  I117: =I120-I118-I119
+  C118: Amount to be financed by Fixed Debt
+  D118: EUR k
+  F118: =I118/$I$120
+  G118: =Macro!G20
+  I118: =MIN(I108,Debt!$I$122)
+  C119: Amount to be financed by Sculpted Debt
+  D119: EUR k
+  F119: =I119/$I$120
+  G119: =Macro!G21
+  I119: =MAX(MIN(Debt!$I$265,Construction!$I$114*Construction!$E$122-Construction!$I$118),0)
+  C120: Total 
+  D120: EUR k
+  F120: =SUM(F118:F119)
+  G120: =SUM(G117:G119)
+  I120: =I114
+
+  C122: Max Gearing
+  E122: ='Solar&BESS Inputs'!$F$415
+
+  E124: EUR k
+  F124: FC Date
+  C125: Amount to be financed by Equity
+  D125: EUR k
+  E125: =I114*G117
+  F125: ='Solar&BESS Inputs'!$F$494
+  I125: =SUM(J125:QU125)
+  K125: =IF(K$5<=$F$125,K114,                                                                                      ...
+  L125: =IF(L$5<=$F$125,L114,                                                                                      ...
+  C126: Pinpoint equity
+  D126: EUR k
+  E126: =1-E127
+  I126: =SUM(J126:QU126)
+  J126: =J125*$E126
+  K126: =K125*$E126
+  L126: =L125*$E126
+  C127: Shareholder Loan
+  D127: EUR k
+  E127: ='Solar&BESS Inputs'!$F$556
+  I127: =SUM(J127:QU127)
+  J127: =J125*$E127
+  K127: =K125*$E127
+  L127: =L125*$E127
+  C128: Amount to be financed by Fixed Debt
+  D128: EUR k
+  I128: =SUM(J128:QU128)
+  J128: =IF(SUM($G$118:$G$119)=0,0,(J$114-J$125)*($G$118/SUM($G$118:$G$119)))
+  K128: =IF(SUM($G$118:$G$119)=0,0,(K$114-K$125)*($G$118/SUM($G$118:$G$119)))
+  L128: =IF(SUM($G$118:$G$119)=0,0,(L$114-L$125)*($G$118/SUM($G$118:$G$119)))
+  C129: Amount to be financed by Sculpted Debt
+  D129: EUR k
+  I129: =SUM(J129:QU129)
+  J129: =IF(SUM($G$118:$G$119)=0,0,(J$114-J$125)*($G$119/SUM($G$118:$G$119)))
+  K129: =IF(SUM($G$118:$G$119)=0,0,(K$114-K$125)*($G$119/SUM($G$118:$G$119)))
+  L129: =IF(SUM($G$118:$G$119)=0,0,(L$114-L$125)*($G$119/SUM($G$118:$G$119)))
+  C130: Total 
+  D130: EUR k
+  I130: =SUM(J130:QU130)
+  J130: =SUM(J126:J129)
+  K130: =SUM(K126:K129)
+  L130: =SUM(L126:L129)
+
+====================================================================================================
+SHEET: Consol Cash Flows  rows 1-25, cols A-O
+====================================================================================================
+  E1: 2025-09-01 00:00:00
+  F1: =E2+1
+  G1: =F2+1
+  H1: =G2+1
+  I1: ='Capex & Funding-Gas'!E1
+  J1: =I2+1
+  K1: =J2+1
+  L1: =K2+1
+  M1: =L2+1
+  N1: =M2+1
+  O1: =N2+1
+  E2: =EDATE(E1,1)-1
+  F2: =EDATE(F1,1)-1
+  G2: =EDATE(G1,1)-1
+  H2: =EDATE(H1,1)-1
+  I2: =EDATE(I1,1)-1
+  J2: =EDATE(J1,1)-1
+  K2: =EDATE(K1,1)-1
+  L2: =EDATE(L1,1)-1
+  M2: =EDATE(M1,1)-1
+  N2: =EDATE(N1,1)-1
+  O2: =EDATE(O1,1)-1
+
+  A4: FCFF
+  A5: Solar+BESS
+  B5: =XIRR(N5:RH5,N2:RH2)
+  C5: =SUM(E5:RH5)
+  E5: =IFERROR(_xlfn.XLOOKUP(E2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  F5: =IFERROR(_xlfn.XLOOKUP(F2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  G5: =IFERROR(_xlfn.XLOOKUP(G2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  H5: =IFERROR(_xlfn.XLOOKUP(H2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  I5: =IFERROR(_xlfn.XLOOKUP(I2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  J5: =IFERROR(_xlfn.XLOOKUP(J2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  K5: =IFERROR(_xlfn.XLOOKUP(K2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  L5: =IFERROR(_xlfn.XLOOKUP(L2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  M5: =IFERROR(_xlfn.XLOOKUP(M2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  N5: =IFERROR(_xlfn.XLOOKUP(N2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  O5: =IFERROR(_xlfn.XLOOKUP(O2,Equity!$J$5:$TS$5,Equity!$J$159:$TS$159),0)
+  A6: Gas
+  C6: =SUM(E6:RH6)
+  E6: =IFERROR(_xlfn.XLOOKUP(E2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  F6: =IFERROR(_xlfn.XLOOKUP(F2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  G6: =IFERROR(_xlfn.XLOOKUP(G2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  H6: =IFERROR(_xlfn.XLOOKUP(H2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  I6: =IFERROR(_xlfn.XLOOKUP(I2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  J6: =IFERROR(_xlfn.XLOOKUP(J2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  K6: =IFERROR(_xlfn.XLOOKUP(K2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  L6: =IFERROR(_xlfn.XLOOKUP(L2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  M6: =IFERROR(_xlfn.XLOOKUP(M2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  N6: =IFERROR(_xlfn.XLOOKUP(N2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  O6: =IFERROR(_xlfn.XLOOKUP(O2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$82:$OO$82),0)
+  A7: Total
+  C7: =SUM(C5:C6)
+  E7: =SUM(E5:E6)
+  F7: =SUM(F5:F6)
+  G7: =SUM(G5:G6)
+  H7: =SUM(H5:H6)
+  I7: =SUM(I5:I6)
+  J7: =SUM(J5:J6)
+  K7: =SUM(K5:K6)
+  L7: =SUM(L5:L6)
+  M7: =SUM(M5:M6)
+  N7: =SUM(N5:N6)
+  O7: =SUM(O5:O6)
+
+  A9: Project IRR
+  B9: =XIRR(I7:RH7,I2:RH2)
+
+  A12: FCFE
+  A13: Solar+BESS
+  C13: =SUM(E13:RH13)
+  E13: =IFERROR(_xlfn.XLOOKUP(E2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  F13: =IFERROR(_xlfn.XLOOKUP(F2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  G13: =IFERROR(_xlfn.XLOOKUP(G2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  H13: =IFERROR(_xlfn.XLOOKUP(H2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  I13: =IFERROR(_xlfn.XLOOKUP(I2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  J13: =IFERROR(_xlfn.XLOOKUP(J2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  K13: =IFERROR(_xlfn.XLOOKUP(K2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  L13: =IFERROR(_xlfn.XLOOKUP(L2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  M13: =IFERROR(_xlfn.XLOOKUP(M2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  N13: =IFERROR(_xlfn.XLOOKUP(N2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  O13: =IFERROR(_xlfn.XLOOKUP(O2,Equity!$J$5:$TS$5,Equity!$J$119:$TS$119),0)
+  A14: Gas
+  C14: =SUM(E14:RH14)
+  E14: =IFERROR(_xlfn.XLOOKUP(E2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  F14: =IFERROR(_xlfn.XLOOKUP(F2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  G14: =IFERROR(_xlfn.XLOOKUP(G2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  H14: =IFERROR(_xlfn.XLOOKUP(H2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  I14: =IFERROR(_xlfn.XLOOKUP(I2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  J14: =IFERROR(_xlfn.XLOOKUP(J2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  K14: =IFERROR(_xlfn.XLOOKUP(K2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  L14: =IFERROR(_xlfn.XLOOKUP(L2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  M14: =IFERROR(_xlfn.XLOOKUP(M2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  N14: =IFERROR(_xlfn.XLOOKUP(N2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  O14: =IFERROR(_xlfn.XLOOKUP(O2,'Cash Flows-Gas'!$J$2:$OO$2,'Cash Flows-Gas'!$J$86:$OO$86),0)
+  A15: Total
+  C15: =SUM(C13:C14)
+  E15: =SUM(E13:E14)
+  F15: =SUM(F13:F14)
+  G15: =SUM(G13:G14)
+  H15: =SUM(H13:H14)
+  I15: =SUM(I13:I14)
+  J15: =SUM(J13:J14)
+  K15: =SUM(K13:K14)
+  L15: =SUM(L13:L14)
+  M15: =SUM(M13:M14)
+  N15: =SUM(N13:N14)
+  O15: =SUM(O13:O14)
+
+  A17: Equity IRR
+  B17: =XIRR(I15:RH15,I2:RH2)
+
+  B20: Overall
+  C20: Solar+BESS
+  D20: Gas
+  A21: Project IRR
+  B21: =B9
+  C21: =Equity!D175
+  D21: ='Cash Flows-Gas'!D84
+  A22: Equity IRR
+  B22: =B17
+  C22: =Equity!F118
+  D22: ='Cash Flows-Gas'!D88
+
+====================================================================================================
+SHEET: Cash Flows-Gas  rows 1-90, cols A-L
+====================================================================================================
+  J1: ='Inputs-Gas'!I3
+  K1: =J2+1
+  L1: =K2+1
+  J2: =EDATE(J1,1)-1
+  K2: =EDATE(K1,1)-1
+  L2: =EDATE(L1,1)-1
+  B3: Days
+  J3: =J2-J1+1
+  K3: =K2-K1+1
+  L3: =L2-L1+1
+  B4: Year
+  J4: =YEAR(J2)
+  K4: =YEAR(K2)
+  L4: =YEAR(L2)
+  B5: Cons active
+  J5: =IF(AND(J1>='Inputs-Gas'!$I$3,J2<='Inputs-Gas'!$I$5),1,0)
+  K5: =IF(AND(K1>='Inputs-Gas'!$I$3,K2<='Inputs-Gas'!$I$5),1,0)
+  L5: =IF(AND(L1>='Inputs-Gas'!$I$3,L2<='Inputs-Gas'!$I$5),1,0)
+  B6: Ops start
+  D6: ='Inputs-Gas'!$I$6
+  J6: =AND(J$1<=$D$6,J$2>=$D$6)*1
+  K6: =AND(K$1<=$D$6,K$2>=$D$6)*1
+  L6: =AND(L$1<=$D$6,L$2>=$D$6)*1
+  B7: Ops active
+  J7: =SUM($I$6:J6)-SUM($I$8:I8)
+  K7: =SUM($I$6:K6)-SUM($I$8:J8)
+  L7: =SUM($I$6:L6)-SUM($I$8:K8)
+  B8: Ops end
+  D8: ='Inputs-Gas'!I8
+  J8: =($D8=J$2)*1
+  K8: =($D8=K$2)*1
+  L8: =($D8=L$2)*1
+  B9: Ops cum
+  J9: =ROUNDUP(SUM($I$7:J7)/12,0)
+  K9: =ROUNDUP(SUM($I$7:K7)/12,0)
+  L9: =ROUNDUP(SUM($I$7:L7)/12,0)
+
+  A12: Revenue
+  B13: PPA Flag
+  J13: =IF(AND(J1>='Inputs-Gas'!$I$15,'Cash Flows-Gas'!J2<='Inputs-Gas'!$I$17),1,0)
+  K13: =IF(AND(K1>='Inputs-Gas'!$I$15,'Cash Flows-Gas'!K2<='Inputs-Gas'!$I$17),1,0)
+  L13: =IF(AND(L1>='Inputs-Gas'!$I$15,'Cash Flows-Gas'!L2<='Inputs-Gas'!$I$17),1,0)
+  B14: No. of Operational hours 
+  J14: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351995BB0>
+  K14: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351995BE0>
+  L14: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351995C10>
+  B15: Cumulative operational hours
+  J15: =SUM($J$14:J14)
+  K15: =SUM($J$14:K14)
+  L15: =SUM($J$14:L14)
+  B16: Energy generated
+  G16: MWh
+  I16: =SUM(J16:OO16)
+  J16: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351A34E00>
+  K16: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351A34E30>
+  L16: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351A34E60>
+  B17: Total energy generated
+  G17: MWh
+  I17: =SUM(J17:OO17)
+  J17: =J16
+  K17: =K16
+  L17: =L16
+
+  B19: PPA-Tariff
+  D19: ='Inputs-Gas'!$I$19
+  G19: GBP/MWh
+  J19: =$D$19*(1+'Inputs-Gas'!$I$20)^MAX((J9-1),0)+IF('Inputs-Gas'!$I$18="Yes",'Cash Flows-Gas'!J33)
+  K19: =$D$19*(1+'Inputs-Gas'!$I$20)^MAX((K9-1),0)+IF('Inputs-Gas'!$I$18="Yes",'Cash Flows-Gas'!K33)
+  L19: =$D$19*(1+'Inputs-Gas'!$I$20)^MAX((L9-1),0)+IF('Inputs-Gas'!$I$18="Yes",'Cash Flows-Gas'!L33)
+  B20: Merchant tariff
+  J20: ='Inputs-Gas'!$I$21
+  K20: ='Inputs-Gas'!$I$21
+  L20: ='Inputs-Gas'!$I$21
+  B21: Revenue
+  G21: GBP'000
+  I21: =SUM(J21:OO21)
+  J21: =IF(J13=1,J19,J20)*J17/10^3
+  K21: =IF(K13=1,K19,K20)*K17/10^3
+  L21: =IF(L13=1,L19,L20)*L17/10^3
+
+  A23: Costs
+
+  B25: Inflation
+  D25: ='Inputs-Gas'!I54
+  G25: %
+  B26: Inflation factor
+  G26: #
+  J26: =1*(1+$D$25)^MAX((J9-1),0)
+  K26: =1*(1+$D$25)^MAX((K9-1),0)
+  L26: =1*(1+$D$25)^MAX((L9-1),0)
+
+  B28: Fuel cost
+  B29: Fuel consumption/MWh of output
+  D29: =1/'Inputs-Gas'!$I$24
+  E29: MWh
+  G29: MWh
+  J29: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351AE4140>
+  K29: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351AE4110>
+  L29: <openpyxl.worksheet.formula.ArrayFormula object at 0x000001D351AE40E0>
+  B30: Fuel consumption
+  G30: 000 MWh
+  I30: =SUM(J30:OO30)
+  J30: =J29*J16/10^3
+  K30: =K29*K16/10^3
+  L30: =L29*L16/10^3
+  B31: Start fuel consumed
+  G31: 000 MWh
+  I31: =SUM(J31:OO31)
+  J31: ='Inputs-Gas'!$I$28*J29*'Inputs-Gas'!$I$12*('Inputs-Gas'!$I$30/60)*'Inputs-Gas'!$I$29*J3*J7/10^3
+  K31: ='Inputs-Gas'!$I$28*K29*'Inputs-Gas'!$I$12*('Inputs-Gas'!$I$30/60)*'Inputs-Gas'!$I$29*K3*K7/10^3
+  L31: ='Inputs-Gas'!$I$28*L29*'Inputs-Gas'!$I$12*('Inputs-Gas'!$I$30/60)*'Inputs-Gas'!$I$29*L3*L7/10^3
+  B32: Total Fuel consumed
+  G32: 000 MWh
+  J32: =SUM(J30:J31)
+  K32: =SUM(K30:K31)
+  L32: =SUM(L30:L31)
+  B33: Fuel price
+  D33: ='Inputs-Gas'!I25
+  E33: GBP/MWh
+  G33: GBP/MWh
+  J33: =$D$33*(1+'Inputs-Gas'!$I$26)^MAX((J9-3),0)
+  K33: =$D$33*(1+'Inputs-Gas'!$I$26)^MAX((K9-3),0)
+  L33: =$D$33*(1+'Inputs-Gas'!$I$26)^MAX((L9-3),0)
+  B34: Tota variable Fuel cost 
+  G34: GBP'000
+  I34: =SUM(J34:OO34)
+  J34: =J33*J32*1000*-1/1000
+  K34: =K33*K32*1000*-1/1000
+  L34: =L33*L32*1000*-1/1000
+  B35: Fixed cost for fuel
+  D35: ='Inputs-Gas'!I27
+  E35: GBP/day
+  G35: GBP'000
+  I35: =SUM(J35:OO35)
+  J35: =-$D$35*J3/1000*J7
+  K35: =-$D$35*K3/1000*K7
+  L35: =-$D$35*L3/1000*L7
+  B36: Total Fuel Cost
+  G36: GBP'000
+  I36: =SUM(J36:OO36)
+  J36: =SUM(J34:J35)
+  K36: =SUM(K34:K35)
+  L36: =SUM(L34:L35)
+
+  B38: Total UKETS credits costs
+  G38: GBP'000
+  I38: =SUM(J38:OO38)
+  J38: =-'Inputs-Gas'!$I$51*'Inputs-Gas'!$I$52*J32*1000/1000
+  K38: =-'Inputs-Gas'!$I$51*'Inputs-Gas'!$I$52*K32*1000/1000
+  L38: =-'Inputs-Gas'!$I$51*'Inputs-Gas'!$I$52*L32*1000/1000
+
+  B40: Physical related income and costs
+  B41: Environmental levies
+  D41: =-'Inputs-Gas'!I32
+  E41: GBP'000/MW/Yr
+  G41: GBP'000
+  I41: =SUM(J41:OO41)
+  J41: ='Inputs-Gas'!$I$11*$D41*J$26*J$3/365*J$7
+  K41: ='Inputs-Gas'!$I$11*$D41*K$26*K$3/365*K$7
+  L41: ='Inputs-Gas'!$I$11*$D41*L$26*L$3/365*L$7
+  B42: Variable Operating Expenses
+  B43: Major Maintenance Flag
+  J43: =_xlfn.XLOOKUP(J15,'Inputs-Gas'!$P$28:$P$36,'Inputs-Gas'!$R$28:$R$36,1,-1,-1)
+  K43: =_xlfn.XLOOKUP(K15,'Inputs-Gas'!$P$28:$P$36,'Inputs-Gas'!$R$28:$R$36,1,-1,-1)
+  L43: =_xlfn.XLOOKUP(L15,'Inputs-Gas'!$P$28:$P$36,'Inputs-Gas'!$R$28:$R$36,1,-1,-1)
+  B44: Major Equipment Maintenance
+  G44: GBP'000
+  I44: =SUM(J44:OO44)
+  J44: =-IF(J43=I43,0,_xlfn.XLOOKUP(J43,'Inputs-Gas'!$R$29:$R$36,'Inputs-Gas'!$S$29:$S$36))*'Inputs-Gas'!$I$11
+  K44: =-IF(K43=J43,0,_xlfn.XLOOKUP(K43,'Inputs-Gas'!$R$29:$R$36,'Inputs-Gas'!$S$29:$S$36))*'Inputs-Gas'!$I$11
+  L44: =-IF(L43=K43,0,_xlfn.XLOOKUP(L43,'Inputs-Gas'!$R$29:$R$36,'Inputs-Gas'!$S$29:$S$36))*'Inputs-Gas'!$I$11
+  B45: Contract Services (O&M)
+  D45: =-'Inputs-Gas'!I35
+  E45: GBP'000/MW/Yr
+  G45: GBP'000
+  I45: =SUM(J45:OO45)
+  J45: ='Inputs-Gas'!$I$11*$D45*J$26*J$3/365*J$7
+  K45: ='Inputs-Gas'!$I$11*$D45*K$26*K$3/365*K$7
+  L45: ='Inputs-Gas'!$I$11*$D45*L$26*L$3/365*L$7
+  B46: Other Site & Plant Maintenance (Balance of plant)
+  D46: =-'Inputs-Gas'!I36
+  E46: GBP'000/MW/Yr
+  G46: GBP'000
+  I46: =SUM(J46:OO46)
+  J46: ='Inputs-Gas'!$I$11*$D46*J$26*J$3/365*J$7
+  K46: ='Inputs-Gas'!$I$11*$D46*K$26*K$3/365*K$7
+  L46: ='Inputs-Gas'!$I$11*$D46*L$26*L$3/365*L$7
+  B47: Other Variable Operating Expenses
+  D47: =-'Inputs-Gas'!I37
+  E47: GBP'000/MW/Yr
+  G47: GBP'000
+  I47: =SUM(J47:OO47)
+  J47: ='Inputs-Gas'!$I$11*$D47*J$26*J$3/365*J$7
+  K47: ='Inputs-Gas'!$I$11*$D47*K$26*K$3/365*K$7
+  L47: ='Inputs-Gas'!$I$11*$D47*L$26*L$3/365*L$7
+  B48: Reactive Maintennace
+  D48: =-'Inputs-Gas'!I38
+  E48: GBP'000/MWh
+  G48: GBP'000
+  I48: =SUM(J48:OO48)
+  J48: =J16*$D$48
+  K48: =K16*$D$48
+  L48: =L16*$D$48
+  B49: Fixed Operating Expenses
+  B50: Site lease expense
+  D50: =-'Inputs-Gas'!I40
+  E50: GBP'000/MW/Yr
+  G50: GBP'000
+  I50: =SUM(J50:OO50)
+  J50: ='Inputs-Gas'!$I$11*$D50*J$26*J$3/365*J$7
+  K50: ='Inputs-Gas'!$I$11*$D50*K$26*K$3/365*K$7
+  L50: ='Inputs-Gas'!$I$11*$D50*L$26*L$3/365*L$7
+  B51: Other Fixed Operating Expenses (Gas standaing charge)
+  D51: =-'Inputs-Gas'!I41
+  E51: GBP'000/MW/Yr
+  G51: GBP'000
+  I51: =SUM(J51:OO51)
+  J51: ='Inputs-Gas'!$I$11*$D51*J$26*J$3/365*J$7
+  K51: ='Inputs-Gas'!$I$11*$D51*K$26*K$3/365*K$7
+  L51: ='Inputs-Gas'!$I$11*$D51*L$26*L$3/365*L$7
+  B52: Professional Fees - Assets
+  D52: =-'Inputs-Gas'!I42
+  E52: GBP'000/MW/Yr
+  G52: GBP'000
+  I52: =SUM(J52:OO52)
+  J52: ='Inputs-Gas'!$I$11*$D52*J$26*J$3/365*J$7
+  K52: ='Inputs-Gas'!$I$11*$D52*K$26*K$3/365*K$7
+  L52: ='Inputs-Gas'!$I$11*$D52*L$26*L$3/365*L$7
+  B53: Property Tax
+  D53: =-'Inputs-Gas'!I43
+  E53: GBP'000/MW/Yr
+  G53: GBP'000
+  I53: =SUM(J53:OO53)
+  J53: ='Inputs-Gas'!$I$11*$D53*J$26*J$3/365*J$7
+  K53: ='Inputs-Gas'!$I$11*$D53*K$26*K$3/365*K$7
+  L53: ='Inputs-Gas'!$I$11*$D53*L$26*L$3/365*L$7
+  B54: Telecom
+  D54: =-'Inputs-Gas'!I44
+  E54: GBP'000/MW/Yr
+  G54: GBP'000
+  I54: =SUM(J54:OO54)
+  J54: ='Inputs-Gas'!$I$11*$D54*J$26*J$3/365*J$7
+  K54: ='Inputs-Gas'!$I$11*$D54*K$26*K$3/365*K$7
+  L54: ='Inputs-Gas'!$I$11*$D54*L$26*L$3/365*L$7
+  B55: General & Administrative Expenses
+  B56: Audit Fees
+  D56: =-'Inputs-Gas'!I46
+  E56: GBP'000/MW/Yr
+  G56: GBP'000
+  I56: =SUM(J56:OO56)
+  J56: ='Inputs-Gas'!$I$11*$D56*J$26*J$3/365*J$7
+  K56: ='Inputs-Gas'!$I$11*$D56*K$26*K$3/365*K$7
+  L56: ='Inputs-Gas'!$I$11*$D56*L$26*L$3/365*L$7
+  B57: Contingency (Consulting & Contractors, G&A proffesional fees)
+  D57: =-'Inputs-Gas'!I47
+  E57: GBP'000/MW/Yr
+  G57: GBP'000
+  I57: =SUM(J57:OO57)
+  J57: ='Inputs-Gas'!$I$11*$D57*J$26*J$3/365*J$7
+  K57: ='Inputs-Gas'!$I$11*$D57*K$26*K$3/365*K$7
+  L57: ='Inputs-Gas'!$I$11*$D57*L$26*L$3/365*L$7
+  B58: Insurance
+  D58: =-'Inputs-Gas'!I48
+  E58: GBP'000/MW/Yr
+  G58: GBP'000
+  I58: =SUM(J58:OO58)
+  J58: ='Inputs-Gas'!$I$11*$D58*J$26*J$3/365*J$7
+  K58: ='Inputs-Gas'!$I$11*$D58*K$26*K$3/365*K$7
+  L58: ='Inputs-Gas'!$I$11*$D58*L$26*L$3/365*L$7
+  B59: Legal Fees
+  D59: =-'Inputs-Gas'!I49
+  E59: GBP'000/MW/Yr
+  G59: GBP'000
+  I59: =SUM(J59:OO59)
+  J59: ='Inputs-Gas'!$I$11*$D59*J$26*J$3/365*J$7
+  K59: ='Inputs-Gas'!$I$11*$D59*K$26*K$3/365*K$7
+  L59: ='Inputs-Gas'!$I$11*$D59*L$26*L$3/365*L$7
+
+  B61: Total Expenses
+  I61: =SUM(J61:OO61)
+  J61: =SUM(J44:J59,J36,J41,J38)
+  K61: =SUM(K44:K59,K36,K41,K38)
+  L61: =SUM(L44:L59,L36,L41,L38)
+
+  A64: Cash Flows
+
+  B66: =B21
+  G66: GBP'000
+  H66: =SUM(J66:OO66)
+  J66: =J21
+  K66: =K21
+  L66: =L21
+  B67: Expenses
+  G67: GBP'000
+  H67: =SUM(J67:OO67)
+  J67: =J61
+  K67: =K61
+  L67: =L61
+  B68: EBITDA
+  G68: GBP'000
+  H68: =SUM(J68:OO68)
+  J68: =SUM(J66:J67)
+  K68: =SUM(K66:K67)
+  L68: =SUM(L66:L67)
+  J69: =IFERROR(J68/J66,"")
+  K69: =IFERROR(K68/K66,"")
+  L69: =IFERROR(L68/L66,"")
+
+  B71: Depreciation
+  G71: GBP'000
+  H71: =SUM(J71:OO71)
+  J71: ='Inputs-Gas'!$I$66*'Capex & Funding-Gas'!$C$12/12*J7
+  K71: ='Inputs-Gas'!$I$66*'Capex & Funding-Gas'!$C$12/12*K7
+  L71: ='Inputs-Gas'!$I$66*'Capex & Funding-Gas'!$C$12/12*L7
+  B72: EBIT
+  G72: GBP'000
+  H72: =SUM(J72:OO72)
+  J72: =J68-J71
+  K72: =K68-K71
+  L72: =L68-L71
+  B73: Interest
+  G73: GBP'000
+  H73: =SUM(J73:OO73)
+  J73: ='Capex & Funding-Gas'!E32*J7
+  K73: ='Capex & Funding-Gas'!F32*K7
+  L73: ='Capex & Funding-Gas'!G32*L7
+  B74: PBT
+  G74: GBP'000
+  H74: =SUM(J74:OO74)
+  J74: =J72-J73
+  K74: =K72-K73
+  L74: =L72-L73
+  B75: Tax
+  G75: GBP'000
+  H75: =SUM(J75:OO75)
+  J75: ='Capex & Funding-Gas'!E79
+  K75: ='Capex & Funding-Gas'!F79
+  L75: ='Capex & Funding-Gas'!G79
+  B76: PAT
+  G76: GBP'000
+  H76: =SUM(J76:OO76)
+  J76: =J74-J75
+  K76: =K74-K75
+  L76: =L74-L75
+
+  B78: Capex
+  H78: =SUM(J78:OO78)
+  J78: ='Capex & Funding-Gas'!E12
+  K78: ='Capex & Funding-Gas'!F12
+  L78: ='Capex & Funding-Gas'!G12
+
+  B80: Net Borrowing
+  H80: =SUM(J80:OO80)
+  J80: ='Capex & Funding-Gas'!E31-'Capex & Funding-Gas'!D31
+  K80: ='Capex & Funding-Gas'!F31-'Capex & Funding-Gas'!E31
+  L80: ='Capex & Funding-Gas'!G31-'Capex & Funding-Gas'!F31
+
+  B82: FCFF 
+  H82: =SUM(J82:OO82)
+  J82: =J68-J75-J78
+  K82: =K68-K75-K78
+  L82: =L68-L75-L78
+  H83: 9112.783653159458
+  J83: -3239.38083
+  K83: -2.3676401504946116
+  L83: -2.6343865518725478
+  B84: Project IRR
+  D84: =XIRR(J82:OO82,J2:OO2)
+
+  B86: FCFE 
+  J86: =J76+J71-J78+J80
+  K86: =K76+K71-K78+K80
+  L86: =L76+L71-L78+L80
+
+  B88: Equity IRR
+  D88: =XIRR(J86:OO86,J2:OO2)
+
+====================================================================================================
+SHEET: Capex & Funding-Gas  rows 1-100, cols A-L
+====================================================================================================
+  E1: ='Cash Flows-Gas'!J1
+  F1: ='Cash Flows-Gas'!K1
+  G1: ='Cash Flows-Gas'!L1
+  H1: ='Cash Flows-Gas'!M1
+  I1: ='Cash Flows-Gas'!N1
+  J1: ='Cash Flows-Gas'!O1
+  K1: ='Cash Flows-Gas'!P1
+  L1: ='Cash Flows-Gas'!Q1
+  E2: ='Cash Flows-Gas'!J2
+  F2: ='Cash Flows-Gas'!K2
+  G2: ='Cash Flows-Gas'!L2
+  H2: ='Cash Flows-Gas'!M2
+  I2: ='Cash Flows-Gas'!N2
+  J2: ='Cash Flows-Gas'!O2
+  K2: ='Cash Flows-Gas'!P2
+  L2: ='Cash Flows-Gas'!Q2
+  B3: Days
+  E3: =E2-E1+1
+  F3: =F2-F1+1
+  G3: =G2-G1+1
+  H3: =H2-H1+1
+  I3: =I2-I1+1
+  J3: =J2-J1+1
+  K3: =K2-K1+1
+  L3: =L2-L1+1
+  B4: Cons Active
+  E4: ='Cash Flows-Gas'!J5
+  F4: ='Cash Flows-Gas'!K5
+  G4: ='Cash Flows-Gas'!L5
+  H4: ='Cash Flows-Gas'!M5
+  I4: ='Cash Flows-Gas'!N5
+  J4: ='Cash Flows-Gas'!O5
+  K4: ='Cash Flows-Gas'!P5
+  L4: ='Cash Flows-Gas'!Q5
+  B5: Ops Active
+  E5: ='Cash Flows-Gas'!J7
+  F5: ='Cash Flows-Gas'!K7
+  G5: ='Cash Flows-Gas'!L7
+  H5: ='Cash Flows-Gas'!M7
+  I5: ='Cash Flows-Gas'!N7
+  J5: ='Cash Flows-Gas'!O7
+  K5: ='Cash Flows-Gas'!P7
+  L5: ='Cash Flows-Gas'!Q7
+  B6: Ops End
+  E6: ='Cash Flows-Gas'!J8
+  F6: ='Cash Flows-Gas'!K8
+  G6: ='Cash Flows-Gas'!L8
+  H6: ='Cash Flows-Gas'!M8
+  I6: ='Cash Flows-Gas'!N8
+  J6: ='Cash Flows-Gas'!O8
+  K6: ='Cash Flows-Gas'!P8
+  L6: ='Cash Flows-Gas'!Q8
+  B7: Ops cum
+  E7: ='Cash Flows-Gas'!J9
+  F7: ='Cash Flows-Gas'!K9
+  G7: ='Cash Flows-Gas'!L9
+  H7: ='Cash Flows-Gas'!M9
+  I7: ='Cash Flows-Gas'!N9
+  J7: ='Cash Flows-Gas'!O9
+  K7: ='Cash Flows-Gas'!P9
+  L7: ='Cash Flows-Gas'!Q9
+
+  A9: Capex Phasing
+  C9: =SUM(E9:OJ9)
+  E9: 0.35
+  F9: 0
+  G9: 0
+  H9: 0
+  I9: 0
+  J9: =40%/3
+  K9: =40%/3
+  L9: =40%/3
+  A10: Capex w/o IDC
+  C10: =SUM(E10:AN10)
+  E10: ='Inputs-Gas'!$I$58*E9
+  F10: ='Inputs-Gas'!$I$58*F9
+  G10: ='Inputs-Gas'!$I$58*G9
+  H10: ='Inputs-Gas'!$I$58*H9
+  I10: ='Inputs-Gas'!$I$58*I9
+  J10: ='Inputs-Gas'!$I$58*J9
+  K10: ='Inputs-Gas'!$I$58*K9
+  L10: ='Inputs-Gas'!$I$58*L9
+  A11: IDC
+  C11: =SUM(E11:AN11)
+  E11: =E34
+  F11: =F34
+  G11: =G34
+  H11: =H34
+  I11: =I34
+  J11: =J34
+  K11: =K34
+  L11: =L34
+  A12: Total Capex
+  C12: =SUM(E12:AN12)
+  E12: =E10+E11
+  F12: =F10+F11
+  G12: =G10+G11
+  H12: =H10+H11
+  I12: =I10+I11
+  J12: =J10+J11
+  K12: =K10+K11
+  L12: =L10+L11
+
+  A14: Equity Financing
+  C14: =C12-C18
+  E14: =MAX(MIN($C$14-D15,E12),0)
+  F14: =MAX(MIN($C$14-E15,F12),0)
+  G14: =MAX(MIN($C$14-F15,G12),0)
+  H14: =MAX(MIN($C$14-G15,H12),0)
+  I14: =MAX(MIN($C$14-H15,I12),0)
+  J14: =MAX(MIN($C$14-I15,J12),0)
+  K14: =MAX(MIN($C$14-J15,K12),0)
+  L14: =MAX(MIN($C$14-K15,L12),0)
+  A15: Cumulative Equity
+  E15: =SUM($E$14:E14)
+  F15: =SUM($E$14:F14)
+  G15: =SUM($E$14:G14)
+  H15: =SUM($E$14:H14)
+  I15: =SUM($E$14:I14)
+  J15: =SUM($E$14:J14)
+  K15: =SUM($E$14:K14)
+  L15: =SUM($E$14:L14)
+
+  A17: Actual Debt-copy
+  C17: =MIN('Inputs-Gas'!$I$61*'Capex & Funding-Gas'!$C$12,C24)
+  A18: Debt-paste
+  C18: 19418.547669642943
+  A19: Gearing
+  C19: =debt_paste/C12
+
+  A21: CFADs
+  C21: =SUM(E21:OJ21)
+  E21: =MAX('Cash Flows-Gas'!J68-'Cash Flows-Gas'!J75,0)*IF(E7<='Inputs-Gas'!$I$64,1,0)
+  F21: =MAX('Cash Flows-Gas'!K68-'Cash Flows-Gas'!K75,0)*IF(F7<='Inputs-Gas'!$I$64,1,0)
+  G21: =MAX('Cash Flows-Gas'!L68-'Cash Flows-Gas'!L75,0)*IF(G7<='Inputs-Gas'!$I$64,1,0)
+  H21: =MAX('Cash Flows-Gas'!M68-'Cash Flows-Gas'!M75,0)*IF(H7<='Inputs-Gas'!$I$64,1,0)
+  I21: =MAX('Cash Flows-Gas'!N68-'Cash Flows-Gas'!N75,0)*IF(I7<='Inputs-Gas'!$I$64,1,0)
+  J21: =MAX('Cash Flows-Gas'!O68-'Cash Flows-Gas'!O75,0)*IF(J7<='Inputs-Gas'!$I$64,1,0)
+  K21: =MAX('Cash Flows-Gas'!P68-'Cash Flows-Gas'!P75,0)*IF(K7<='Inputs-Gas'!$I$64,1,0)
+  L21: =MAX('Cash Flows-Gas'!Q68-'Cash Flows-Gas'!Q75,0)*IF(L7<='Inputs-Gas'!$I$64,1,0)
+  A22: Debt Servicing
+  C22: =SUM(E22:OJ22)
+  E22: =E21/'Inputs-Gas'!$I$62
+  F22: =F21/'Inputs-Gas'!$I$62
+  G22: =G21/'Inputs-Gas'!$I$62
+  H22: =H21/'Inputs-Gas'!$I$62
+  I22: =I21/'Inputs-Gas'!$I$62
+  J22: =J21/'Inputs-Gas'!$I$62
+  K22: =K21/'Inputs-Gas'!$I$62
+  L22: =L21/'Inputs-Gas'!$I$62
+  A23: Interest
+  C23: =SUM(E23:OJ23)
+  E23: =E32*E5
+  F23: =F32*F5
+  G23: =G32*G5
+  H23: =H32*H5
+  I23: =I32*I5
+  J23: =J32*J5
+  K23: =K32*K5
+  L23: =L32*L5
+  A24: Principle Repayments - copy
+  C24: =SUM(E24:OJ24)
+  E24: =MAX((E22-E23)*E5,0)
+  F24: =MAX((F22-F23)*F5,0)
+  G24: =MAX((G22-G23)*G5,0)
+  H24: =MAX((H22-H23)*H5,0)
+  I24: =MAX((I22-I23)*I5,0)
+  J24: =MAX((J22-J23)*J5,0)
+  K24: =MAX((K22-K23)*K5,0)
+  L24: =MAX((L22-L23)*L5,0)
+  A25: Principle Repayments - paste
+  C25: =SUM(E25:OJ25)
+  E25: 0
+  F25: 0
+  G25: 0
+  H25: 0
+  I25: 0
+  J25: 0
+  K25: 0
+  L25: 0
+
+  A27: Debt Funding
+  A28: Balance BOP
+  E28: 0
+  F28: =E31
+  G28: =F31
+  H28: =G31
+  I28: =H31
+  J28: =I31
+  K28: =J31
+  L28: =K31
+  A29: Drawdowns
+  C29: =SUM(E29:OJ29)
+  E29: =E12-E14
+  F29: =F12-F14
+  G29: =G12-G14
+  H29: =H12-H14
+  I29: =I12-I14
+  J29: =J12-J14
+  K29: =K12-K14
+  L29: =L12-L14
+  A30: Repayments
+  C30: =SUM(E30:OJ30)
+  E30: =MIN(E25,E28)
+  F30: =MIN(F25,F28)
+  G30: =MIN(G25,G28)
+  H30: =MIN(H25,H28)
+  I30: =MIN(I25,I28)
+  J30: =MIN(J25,J28)
+  K30: =MIN(K25,K28)
+  L30: =MIN(L25,L28)
+  A31: Balance EOP
+  E31: =E28+E29-E30
+  F31: =F28+F29-F30
+  G31: =G28+G29-G30
+  H31: =H28+H29-H30
+  I31: =I28+I29-I30
+  J31: =J28+J29-J30
+  K31: =K28+K29-K30
+  L31: =L28+L29-L30
+  A32: Interest
+  C32: =SUM(E32:OJ32)
+  E32: ='Inputs-Gas'!$I$63*E28*E3/365
+  F32: ='Inputs-Gas'!$I$63*F28*F3/365
+  G32: ='Inputs-Gas'!$I$63*G28*G3/365
+  H32: ='Inputs-Gas'!$I$63*H28*H3/365
+  I32: ='Inputs-Gas'!$I$63*I28*I3/365
+  J32: ='Inputs-Gas'!$I$63*J28*J3/365
+  K32: ='Inputs-Gas'!$I$63*K28*K3/365
+  L32: ='Inputs-Gas'!$I$63*L28*L3/365
+  A33: IDC - copy
+  C33: =SUM(E33:AN33)
+  E33: =E32*E4
+  F33: =F32*F4
+  G33: =G32*G4
+  H33: =H32*H4
+  I33: =I32*I4
+  J33: =J32*J4
+  K33: =K32*K4
+  L33: =L32*L4
+  A34: IDC - paste
+  C34: =SUM(E34:AN34)
+  E34: 0
+  F34: 21.835971749461752
+  G34: 24.30072304833306
+  H34: 23.651647797520955
+  I34: 24.575628000058586
+  J34: 23.919210006373326
+  K34: 41.54734770765752
+  L34: 58.47923834817206
+
+  A36: Depreciation (Tax) Computation
+
+  A38: Balance BOP
+  E38: =D41
+  F38: =E41
+  G38: =F41
+  H38: =G41
+  I38: =H41
+  J38: =I41
+  K38: =J41
+  L38: =K41
+  A39: Additions
+  C39: =SUM(E39:OJ39)
+  E39: =E12
+  F39: =F12
+  G39: =G12
+  H39: =H12
+  I39: =I12
+  J39: =J12
+  K39: =K12
+  L39: =L12
+  A40: Depreciation & write-off
+  B40: ='Inputs-Gas'!I67
+  C40: =SUM(E40:OJ40)
+  E40: =IF(E6=1,E38,$B$40/12*E38*E5)
+  F40: =IF(F6=1,F38,$B$40/12*F38*F5)
+  G40: =IF(G6=1,G38,$B$40/12*G38*G5)
+  H40: =IF(H6=1,H38,$B$40/12*H38*H5)
+  I40: =IF(I6=1,I38,$B$40/12*I38*I5)
+  J40: =IF(J6=1,J38,$B$40/12*J38*J5)
+  K40: =IF(K6=1,K38,$B$40/12*K38*K5)
+  L40: =IF(L6=1,L38,$B$40/12*L38*L5)
+  A41: Balance EOP
+  E41: =E38+E39-E40
+  F41: =F38+F39-F40
+  G41: =G38+G39-G40
+  H41: =H38+H39-H40
+  I41: =I38+I39-I40
+  J41: =J38+J39-J40
+  K41: =K38+K39-K40
+  L41: =L38+L39-L40
+
+  A43: Corporate tax (geared)
+  A44: Tax computation
+  A45: EBITDA
+  B45: GBP k
+  C45: =SUM(E45:OJ45)
+  E45: ='Cash Flows-Gas'!J68
+  F45: ='Cash Flows-Gas'!K68
+  G45: ='Cash Flows-Gas'!L68
+  H45: ='Cash Flows-Gas'!M68
+  I45: ='Cash Flows-Gas'!N68
+  J45: ='Cash Flows-Gas'!O68
+  K45: ='Cash Flows-Gas'!P68
+  L45: ='Cash Flows-Gas'!Q68
+  A46: Less: tax depreciation
+  B46: GBP k
+  C46: =SUM(E46:OJ46)
+  E46: =-E40
+  F46: =-F40
+  G46: =-G40
+  H46: =-H40
+  I46: =-I40
+  J46: =-J40
+  K46: =-K40
+  L46: =-L40
+  A47: Less: interest on debt
+  B47: GBP k
+  C47: =SUM(E47:OJ47)
+  E47: =-'Capex & Funding-Gas'!E32*'Capex & Funding-Gas'!E5
+  F47: =-'Capex & Funding-Gas'!F32*'Capex & Funding-Gas'!F5
+  G47: =-'Capex & Funding-Gas'!G32*'Capex & Funding-Gas'!G5
+  H47: =-'Capex & Funding-Gas'!H32*'Capex & Funding-Gas'!H5
+  I47: =-'Capex & Funding-Gas'!I32*'Capex & Funding-Gas'!I5
+  J47: =-'Capex & Funding-Gas'!J32*'Capex & Funding-Gas'!J5
+  K47: =-'Capex & Funding-Gas'!K32*'Capex & Funding-Gas'!K5
+  L47: =-'Capex & Funding-Gas'!L32*'Capex & Funding-Gas'!L5
+  A48: Taxable income
+  B48: GBP k
+  C48: =SUM(E48:OJ48)
+  E48: =SUM(E45:E47)
+  F48: =SUM(F45:F47)
+  G48: =SUM(G45:G47)
+  H48: =SUM(H45:H47)
+  I48: =SUM(I45:I47)
+  J48: =SUM(J45:J47)
+  K48: =SUM(K45:K47)
+  L48: =SUM(L45:L47)
+  A49: Taxable income (annual)
+  B49: GBP k
+  C49: =SUM(E49:OJ49)
+  E49: =IF(MONTH(E2)=12,1,0)*(SUM($E$48:E48)-SUM($D$49:D49))
+  F49: =IF(MONTH(F2)=12,1,0)*(SUM($E$48:F48)-SUM($D$49:E49))
+  G49: =IF(MONTH(G2)=12,1,0)*(SUM($E$48:G48)-SUM($D$49:F49))
+  H49: =IF(MONTH(H2)=12,1,0)*(SUM($E$48:H48)-SUM($D$49:G49))
+  I49: =IF(MONTH(I2)=12,1,0)*(SUM($E$48:I48)-SUM($D$49:H49))
+  J49: =IF(MONTH(J2)=12,1,0)*(SUM($E$48:J48)-SUM($D$49:I49))
+  K49: =IF(MONTH(K2)=12,1,0)*(SUM($E$48:K48)-SUM($D$49:J49))
+  L49: =IF(MONTH(L2)=12,1,0)*(SUM($E$48:L48)-SUM($D$49:K49))
+
+  A52: Deductible Interest
+  A53: EBITDA  (annual)
+  C53: =SUM(E53:OJ53)
+  E53: =IF(MONTH(E2)=12,1,0)*(SUM($E$45:E45)-SUM($D$53:D53))
+  F53: =IF(MONTH(F2)=12,1,0)*(SUM($E$45:F45)-SUM($D$53:E53))
+  G53: =IF(MONTH(G2)=12,1,0)*(SUM($E$45:G45)-SUM($D$53:F53))
+  H53: =IF(MONTH(H2)=12,1,0)*(SUM($E$45:H45)-SUM($D$53:G53))
+  I53: =IF(MONTH(I2)=12,1,0)*(SUM($E$45:I45)-SUM($D$53:H53))
+  J53: =IF(MONTH(J2)=12,1,0)*(SUM($E$45:J45)-SUM($D$53:I53))
+  K53: =IF(MONTH(K2)=12,1,0)*(SUM($E$45:K45)-SUM($D$53:J53))
+  L53: =IF(MONTH(L2)=12,1,0)*(SUM($E$45:L45)-SUM($D$53:K53))
+
+  A55: Annual Interest on Debt
+  C55: =SUM(E55:OJ55)
+  E55: =IF(MONTH(E2)=12,1,0)*(SUM($E$47:E47)-SUM($D$55:D55))
+  F55: =IF(MONTH(F2)=12,1,0)*(SUM($E$47:F47)-SUM($D$55:E55))
+  G55: =IF(MONTH(G2)=12,1,0)*(SUM($E$47:G47)-SUM($D$55:F55))
+  H55: =IF(MONTH(H2)=12,1,0)*(SUM($E$47:H47)-SUM($D$55:G55))
+  I55: =IF(MONTH(I2)=12,1,0)*(SUM($E$47:I47)-SUM($D$55:H55))
+  J55: =IF(MONTH(J2)=12,1,0)*(SUM($E$47:J47)-SUM($D$55:I55))
+  K55: =IF(MONTH(K2)=12,1,0)*(SUM($E$47:K47)-SUM($D$55:J55))
+  L55: =IF(MONTH(L2)=12,1,0)*(SUM($E$47:L47)-SUM($D$55:K55))
+  B56: £k Threshold
+  C56: EBITDA  % Cap 
+  B57: 2000
+  C57: 0.3
+  A58: EBITDA Cap
+  E58: =-$C$57*E53*IF(MONTH(E2)=12,1,0)
+  F58: =-$C$57*F53*IF(MONTH(F2)=12,1,0)
+  G58: =-$C$57*G53*IF(MONTH(G2)=12,1,0)
+  H58: =-$C$57*H53*IF(MONTH(H2)=12,1,0)
+  I58: =-$C$57*I53*IF(MONTH(I2)=12,1,0)
+  J58: =-$C$57*J53*IF(MONTH(J2)=12,1,0)
+  K58: =-$C$57*K53*IF(MONTH(K2)=12,1,0)
+  L58: =-$C$57*L53*IF(MONTH(L2)=12,1,0)
+  A59: Maximum Interest Deductible
+  E59: =MAX(-MAX($B$57,$C$57*E53),E55)
+  F59: =MAX(-MAX($B$57,$C$57*F53),F55)
+  G59: =MAX(-MAX($B$57,$C$57*G53),G55)
+  H59: =MAX(-MAX($B$57,$C$57*H53),H55)
+  I59: =MAX(-MAX($B$57,$C$57*I53),I55)
+  J59: =MAX(-MAX($B$57,$C$57*J53),J55)
+  K59: =MAX(-MAX($B$57,$C$57*K53),K55)
+  L59: =MAX(-MAX($B$57,$C$57*L53),L55)
+
+  A61: Annual Corporate Tax (Geared)
+  A62: EBITDA (annual)
+  C62: =SUM(E62:OJ62)
+  E62: =E53
+  F62: =F53
+  G62: =G53
+  H62: =H53
+  I62: =I53
+  J62: =J53
+  K62: =K53
+  L62: =L53
+  A63: Less: Tax Depreciaton (annual)
+  C63: =SUM(E63:OJ63)
+  E63: =IF(MONTH(E2)=12,1,0)*(SUM($E$46:E46)-SUM($D$63:D63))
+  F63: =IF(MONTH(F2)=12,1,0)*(SUM($E$46:F46)-SUM($D$63:E63))
+  G63: =IF(MONTH(G2)=12,1,0)*(SUM($E$46:G46)-SUM($D$63:F63))
+  H63: =IF(MONTH(H2)=12,1,0)*(SUM($E$46:H46)-SUM($D$63:G63))
+  I63: =IF(MONTH(I2)=12,1,0)*(SUM($E$46:I46)-SUM($D$63:H63))
+  J63: =IF(MONTH(J2)=12,1,0)*(SUM($E$46:J46)-SUM($D$63:I63))
+  K63: =IF(MONTH(K2)=12,1,0)*(SUM($E$46:K46)-SUM($D$63:J63))
+  L63: =IF(MONTH(L2)=12,1,0)*(SUM($E$46:L46)-SUM($D$63:K63))
+  A64: Less: Deductible Interest (annual)
+  C64: =SUM(E64:OJ64)
+  E64: =E59
+  F64: =F59
+  G64: =G59
+  H64: =H59
+  I64: =I59
+  J64: =J59
+  K64: =K59
+  L64: =L59
+  A65: Taxable Income (annual)
+  C65: =SUM(E65:OJ65)
+  E65: =SUM(E62:E64)
+  F65: =SUM(F62:F64)
+  G65: =SUM(G62:G64)
+  H65: =SUM(H62:H64)
+  I65: =SUM(I62:I64)
+  J65: =SUM(J62:J64)
+  K65: =SUM(K62:K64)
+  L65: =SUM(L62:L64)
+
+  A68: Tax loss account
+  A69: Balance BOP
+  B69: GBP k
+  E69: =D72
+  F69: =E72
+  G69: =F72
+  H69: =G72
+  I69: =H72
+  J69: =I72
+  K69: =J72
+  L69: =K72
+  A70: Tax loss generated
+  B70: GBP k
+  C70: =SUM(E70:OJ70)
+  E70: =IF(E65>0,0,-E65)
+  F70: =IF(F65>0,0,-F65)
+  G70: =IF(G65>0,0,-G65)
+  H70: =IF(H65>0,0,-H65)
+  I70: =IF(I65>0,0,-I65)
+  J70: =IF(J65>0,0,-J65)
+  K70: =IF(K65>0,0,-K65)
+  L70: =IF(L65>0,0,-L65)
+  A71: Tax loss utilised
+  B71: GBP k
+  C71: =SUM(E71:OJ71)
+  E71: =-IF(E65>0,MIN(E65,E69),0)
+  F71: =-IF(F65>0,MIN(F65,F69),0)
+  G71: =-IF(G65>0,MIN(G65,G69),0)
+  H71: =-IF(H65>0,MIN(H65,H69),0)
+  I71: =-IF(I65>0,MIN(I65,I69),0)
+  J71: =-IF(J65>0,MIN(J65,J69),0)
+  K71: =-IF(K65>0,MIN(K65,K69),0)
+  L71: =-IF(L65>0,MIN(L65,L69),0)
+  A72: Balance EOP
+  B72: GBP k
+  E72: =SUM(E69:E71)
+  F72: =SUM(F69:F71)
+  G72: =SUM(G69:G71)
+  H72: =SUM(H69:H71)
+  I72: =SUM(I69:I71)
+  J72: =SUM(J69:J71)
+  K72: =SUM(K69:K71)
+  L72: =SUM(L69:L71)
+
+  A74: =A71
+  B74: GBP k
+  C74: =SUM(E74:OJ74)
+  E74: =E71
+  F74: =F71
+  G74: =G71
+  H74: =H71
+  I74: =I71
+  J74: =J71
+  K74: =K71
+  L74: =L71
+  A75: Net taxable income (+ve only)
+  B75: GBP k
+  C75: =SUM(E75:OJ75)
+  E75: =MAX(0,E74+E65)
+  F75: =MAX(0,F74+F65)
+  G75: =MAX(0,G74+G65)
+  H75: =MAX(0,H74+H65)
+  I75: =MAX(0,I74+I65)
+  J75: =MAX(0,J74+J65)
+  K75: =MAX(0,K74+K65)
+  L75: =MAX(0,L74+L65)
+
+  A77: Corporate tax rate up to threshold
+  B77: %
+  E77: =MIN(E75,$C$83)*$B$82*IF(MONTH(E2)=12,1,0)
+  F77: =MIN(F75,$C$83)*$B$82*IF(MONTH(F2)=12,1,0)
+  G77: =MIN(G75,$C$83)*$B$82*IF(MONTH(G2)=12,1,0)
+  H77: =MIN(H75,$C$83)*$B$82*IF(MONTH(H2)=12,1,0)
+  I77: =MIN(I75,$C$83)*$B$82*IF(MONTH(I2)=12,1,0)
+  J77: =MIN(J75,$C$83)*$B$82*IF(MONTH(J2)=12,1,0)
+  K77: =MIN(K75,$C$83)*$B$82*IF(MONTH(K2)=12,1,0)
+  L77: =MIN(L75,$C$83)*$B$82*IF(MONTH(L2)=12,1,0)
+  A78: Corporate rate exceeding threshold
+  B78: %
+  E78: =MAX(E75-$C$83,0)*$B$83*IF(MONTH(E2)=12,1,0)
+  F78: =MAX(F75-$C$83,0)*$B$83*IF(MONTH(F2)=12,1,0)
+  G78: =MAX(G75-$C$83,0)*$B$83*IF(MONTH(G2)=12,1,0)
+  H78: =MAX(H75-$C$83,0)*$B$83*IF(MONTH(H2)=12,1,0)
+  I78: =MAX(I75-$C$83,0)*$B$83*IF(MONTH(I2)=12,1,0)
+  J78: =MAX(J75-$C$83,0)*$B$83*IF(MONTH(J2)=12,1,0)
+  K78: =MAX(K75-$C$83,0)*$B$83*IF(MONTH(K2)=12,1,0)
+  L78: =MAX(L75-$C$83,0)*$B$83*IF(MONTH(L2)=12,1,0)
+  A79: Tax payable
+  B79: GBP k
+  C79: =SUM(E79:OJ79)
+  E79: =SUM(E77:E78)
+  F79: =SUM(F77:F78)
+  G79: =SUM(G77:G78)
+  H79: =SUM(H77:H78)
+  I79: =SUM(I77:I78)
+  J79: =SUM(J77:J78)
+  K79: =SUM(K77:K78)
+  L79: =SUM(L77:L78)
+
+  B81: Rate
+  A82: Corporate tax rate up to threshold
+  B82: ='Inputs-Gas'!I69
+  C82: Corporate rate threshold
+  A83: Corporate rate exceeding threshold
+  B83: ='Inputs-Gas'!I69
+  C83: 0
+
+  A86: Debt Sizing
+
+  E88: x
+  G88: Copy
+
+  G90: Debt Drawdown - copy
+  J90: £k
+  L90: =debt_copy
+  G91: IDC - copy
+  J91: £k
+  L91: =IDCcopy_sum
+  G92: Repayments - copy
+  J92: £k
+  L92: =repay_sum
+
+  E94: x
+  G94: Paste
+
+  G96: Debt Drawdown - paste
+  J96: £k
+  L96: =debt_paste
+  G97: IDC - paste
+  J97: £k
+  L97: =IDCpaste_sum
+  G98: Repayments - paste
+  J98: £k
+  L98: =paste_sum
+
+====================================================================================================
+SHEET: SETUP  rows 1-60, cols A-J
+====================================================================================================
+  A1: SETUP
+
+  B3: Constants
+  C4: Done
+  E4: Done
+  C5: In progress
+  E5: In progress
+
+  B7: Constants
+  C8: Numbers
+  C9: Days_yr
+  E9: 365
+  C10: Months_yr
+  E10: 12
+  C11: Months_halfyr
+  E11: 6
+  C12: Qtrs_yr
+  E12: 4
+  C13: Months_qtr
+  E13: 3
+
+  C15: Million
+  E15: 1000000
+  C16: Thousand
+  E16: 1000
+  C17: Small_num
+  E17: 1e-06
+
+  B19: Curves
+  C20: Baringa
+  E20: Baringa
+  C21: Aurora
+  E21: Aurora
+  C22: Blend
+  E22: Blend
+  C23: Base
+  E23: Base
+  C24: Low
+  E24: Low
+  C25: High
+  E25: High
+  C26: Monthly Average
+  E26: Monthly Average
+
+  B28: BESS Curves
+  C29: Aurora BESS
+  E29: Aurora Bess Only
+  C30: Aurora Co-located
+  E30: Aurora Co-located
+  C31: Modo Custom Run
+  E31: Modo
+  C32: Hybrid 1h2cy
+  E32: 1h2cy
+  C33: Hybrid 2h1.5cy
+  E33: 2h1.5cy
+  C34: Hybrid 2h2cy
+  E34: 2h2cy
+  C35: Hybrid 4h1cy
+  E35: 4h1cy
+
+  B37: Technology
+  C38: Fixed Tilt
+  E38: FT
+  C39: Single Axis Tracker
+  E39: SAT
+
+  B41: Units
+  C42: Millions
+  E42: M
+  C43: Thousands
+  E43: k
+
+  B45: Period
+  C46: Monthly
+  E46: Month
+  F46: month
+  C47: Quarterly
+  E47: Quarter
+  F47: quarter
+  C48: Semi-annually
+  E48: Semi-annual
+  F48: Semi-annual
+  C49: Annually
+  E49: Year
+  F49: year
+  C50: January
+  E50: January
+  F50: 1
+  C51: February
+  E51: February
+  F51: 2
+  C52: March
+  E52: March
+  F52: 3
+  C53: April
+  E53: April
+  F53: 4
+  C54: May
+  E54: May
+  F54: 5
+  C55: June
+  E55: June
+  F55: 6
+  C56: July
+  E56: July
+  F56: 7
+  C57: August
+  E57: August
+  F57: 8
+  C58: September
+  E58: September
+  F58: 9
+  C59: October
+  E59: October
+  F59: 10
+  C60: November
+  E60: November
+  F60: 11
+
+====================================================================================================
+SHEET: Overall Inputs  rows 1-80, cols A-J
+====================================================================================================
+  A2: PV Capacity
+  D2: MWp
+  E2: =Project_Capacity
+  A3: BESS Capacity
+  D3: MW
+  E3: ='Solar&BESS Inputs'!F116
+  J3: Project IRR
+  A4: Duration
+  D4: Hours
+  E4: ='Solar&BESS Inputs'!F117
+  J4: Equity IRR
+  A5: Gas Plant Capacity
+  D5: MW
+  E5: ='Inputs-Gas'!I11
+  F5: (incl. 2MW spare for back-up)
+
+  A7: Base Load for Data Centre
+  D7: MW
+  E7: 25
+
+  A9: PPA Assumptions
+  A10: Start Date
+  E10: =MAX(Op_Start,'Inputs-Gas'!I6)
+  A11: Tenor
+  D11: years
+  E11: 10
+  A12: End Date
+  E12: =EDATE(E10,E11*12)-1
+  A13: Tariff
+  D13: GBP/MWh
+  E13: 170
+  A14: Annual Escalation in Tariff
+  D14: %
+  E14: 0
+
+  A16: Merchant Assumptions - Gas (post PPA)
+  A17: Merchant Tariff
+  D17: GBP/MWh
+  E17: 200
+  A18: Operational Hours in a day
+  D18: Hours
+  E18: 9
+
+  A20: Merchant Assumptions - Solar
+  A21: Any Fixed Tariff -Solar
+  D21: GBP/MWh
+  E21: 0
+  F21: If 0, (A) Solar merchant will take Blended curves (B) BESS life will be assumed as 10 years & hence no BESS...
+
+  A23: MWh
+  D23: Year
+  E23: 1
+  F23: =E23+1
+  G23: =F23+1
+  H23: =G23+1
+  I23: =H23+1
+  J23: =I23+1
+  A24: Total Energy to DC
+  C24: =SUM(E24:X24)
+  E24: =SUM(E25:E26)
+  F24: =SUM(F25:F26)
+  G24: =SUM(G25:G26)
+  H24: =SUM(H25:H26)
+  I24: =SUM(I25:I26)
+  J24: =SUM(J25:J26)
+  A25: From Solar+BESS
+  C25: =SUM(E25:X25)
+  E25: =SUMIFS('Solar&BESS Operation'!$M$53:$TU$53,'Solar&BESS Operation'!$M$17:$TU$17,E$23)
+  F25: =SUMIFS('Solar&BESS Operation'!$M$53:$TU$53,'Solar&BESS Operation'!$M$17:$TU$17,F$23)
+  G25: =SUMIFS('Solar&BESS Operation'!$M$53:$TU$53,'Solar&BESS Operation'!$M$17:$TU$17,G$23)
+  H25: =SUMIFS('Solar&BESS Operation'!$M$53:$TU$53,'Solar&BESS Operation'!$M$17:$TU$17,H$23)
+  I25: =SUMIFS('Solar&BESS Operation'!$M$53:$TU$53,'Solar&BESS Operation'!$M$17:$TU$17,I$23)
+  J25: =SUMIFS('Solar&BESS Operation'!$M$53:$TU$53,'Solar&BESS Operation'!$M$17:$TU$17,J$23)
+  A26: From Gas
+  C26: =SUM(E26:X26)
+  E26: =SUMIFS('Cash Flows-Gas'!$J$17:$OO$17,'Cash Flows-Gas'!$J$9:$OO$9,'Overall Inputs'!E$23)
+  F26: =SUMIFS('Cash Flows-Gas'!$J$17:$OO$17,'Cash Flows-Gas'!$J$9:$OO$9,'Overall Inputs'!F$23)
+  G26: =SUMIFS('Cash Flows-Gas'!$J$17:$OO$17,'Cash Flows-Gas'!$J$9:$OO$9,'Overall Inputs'!G$23)
+  H26: =SUMIFS('Cash Flows-Gas'!$J$17:$OO$17,'Cash Flows-Gas'!$J$9:$OO$9,'Overall Inputs'!H$23)
+  I26: =SUMIFS('Cash Flows-Gas'!$J$17:$OO$17,'Cash Flows-Gas'!$J$9:$OO$9,'Overall Inputs'!I$23)
+  J26: =SUMIFS('Cash Flows-Gas'!$J$17:$OO$17,'Cash Flows-Gas'!$J$9:$OO$9,'Overall Inputs'!J$23)
+  E27: =E25/E24
+  F27: =F25/F24
+  G27: =G25/G24
+  H27: =H25/H24
+  I27: =I25/I24
+  J27: =J25/J24
+
+====================================================================================================
+SHEET: Curves and D&T  rows 100-120, cols A-H
+====================================================================================================
+  C100: =Phasing!C972
+  D100: Choice
+  E100: 2
+  F100: =IF(C100<>"",IF(E100<>"",0,1),0)
+  C101: =Phasing!C973
+  D101: Choice
+  E101: 2
+  F101: =IF(C101<>"",IF(E101<>"",0,1),0)
+  F102: =SUM(F97:F101)
+  B103: Tax
+  B104: Corporate tax
+  C105: Corporate tax rate up to threshold
+  D105: %
+  E105: 0.25
+  C106: Corporate rate exceeding threshold
+  D106: %
+  E106: 0.25
+  C107: Corporate rate threshold
+  D107: EUR k
+  E107: 0
+  C108: Taxation month
+  D108: Selection
+  E108: 12
