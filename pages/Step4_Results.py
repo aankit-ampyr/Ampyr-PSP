@@ -432,7 +432,7 @@ with col1:
     bess_mwh = st.number_input(
         "BESS Capacity (MWh)",
         min_value=5,
-        max_value=500,
+        max_value=1000,
         value=default_bess,
         step=5,
         help="Select in 5 MWh increments (container units)",
