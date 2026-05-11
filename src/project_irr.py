@@ -291,8 +291,27 @@ class PirrInputs:
 
 @dataclass
 class PirrResults:
-    """Output of the unified PIRR calculation."""
+    """Output of the unified PIRR calculation.
+
+    Excel reports 3 distinct PIRRs (per Anchal's 2026-05-11 clarification):
+    - Solar+BESS PIRR (`Equity!D175 = 8.85%` in current snapshot)
+    - Combined Solar+BESS+Gas PIRR (`Consol Cash Flows!B9 = 9.23%`)
+    - Gas PIRR (`Cash Flows-Gas!D84 = 10.77%`)
+
+    `project_irr` is the Combined number (matches `Consol Cash Flows!B9`).
+    `project_irr_solar_bess` is the Solar+BESS-only number (matches
+    `Equity!D175`). `project_irr_gas` is the gas-only number.
+    """
+    # Combined Solar+BESS+Gas PIRR (matches Consol Cash Flows!B9)
     project_irr: float = float("nan")
+    # Solar+BESS-only PIRR (matches Equity!D175). Computed by running the
+    # engine with gas zeroed; useful for direct comparison against the SME's
+    # May 7 matrix if that turned out to target S+B-only.
+    project_irr_solar_bess: float = float("nan")
+    # Gas-only PIRR (matches Cash Flows-Gas!D84). Computed by running the
+    # engine with solar+BESS zeroed.
+    project_irr_gas: float = float("nan")
+
     project_npv: float = 0.0
     total_capex: float = 0.0
     total_revenue_lifetime: float = 0.0
@@ -805,12 +824,24 @@ def xirr(dates: np.ndarray, cashflows: np.ndarray,
     def npv(rate):
         if rate <= -1:
             return float("inf")
-        return float(np.sum(cf / (1 + rate) ** day_fracs))
+        # Avoid float overflow at extreme negative rates by capping
+        result = float(np.sum(cf / (1 + rate) ** day_fracs))
+        return result if np.isfinite(result) else float("inf") * (1 if cf.sum() > 0 else -1)
 
-    lo, hi = -0.99, 5.0
+    # Bracket narrowed to [-0.5, 2.0] — well wide enough for any realistic
+    # project IRR but avoids overflow at extreme negative rates. If sign
+    # doesn't change in this range, widen step-wise rather than going huge.
+    lo, hi = -0.5, 2.0
     f_lo, f_hi = npv(lo), npv(hi)
+    # Widen on either side if no sign change yet
     if f_lo * f_hi > 0:
-        return float("nan")
+        for wider_lo, wider_hi in [(-0.9, 2.0), (-0.5, 5.0), (-0.9, 10.0)]:
+            f_lo, f_hi = npv(wider_lo), npv(wider_hi)
+            if f_lo * f_hi <= 0:
+                lo, hi = wider_lo, wider_hi
+                break
+        else:
+            return float("nan")
     for _ in range(200):
         mid = 0.5 * (lo + hi)
         f_mid = npv(mid)
@@ -838,6 +869,72 @@ def xnpv(dates: np.ndarray, cashflows: np.ndarray, rate: float) -> float:
 # =============================================================================
 
 def run_pirr(inp: PirrInputs) -> PirrResults:
+    """Run the full PIRR calculation and report all three IRR variants.
+
+    Internally:
+    1. Combined run (gas + S+B) → primary result, stored as project_irr.
+    2. S+B-only run (gas zeroed) → project_irr_solar_bess.
+    3. Gas-only run (S+B zeroed) → project_irr_gas.
+
+    Per Anchal's 2026-05-11 reply, Excel reports these as 3 separate
+    numbers and the SME matrix target may map to any of them — see A18.
+    """
+    res = _run_pirr_core(inp)
+    # Solar+BESS-only — gas off
+    inp_sb = _disable_gas(inp)
+    res.project_irr_solar_bess = _run_pirr_core(inp_sb).project_irr
+    # Gas-only — S+B off
+    inp_gas = _disable_solar_bess(inp)
+    res.project_irr_gas = _run_pirr_core(inp_gas).project_irr
+    return res
+
+
+def _disable_gas(inp: PirrInputs) -> PirrInputs:
+    import dataclasses as _dc
+    return _dc.replace(
+        inp,
+        gas_operations_years=0,
+        gas_capex_total_gbpk=0.0,
+        monthly_gas_mwh=np.zeros(12),
+    )
+
+
+def _disable_solar_bess(inp: PirrInputs) -> PirrInputs:
+    """Zero the Solar+BESS economics to isolate gas-only PIRR.
+
+    Capex, revenue (PPA, merchant, REGO, embedded, CM, BESS floor), and
+    OPEX (solar fixed, solar var, BESS fixed, BESS step, land) all keyed
+    off solar_dc_mwp / bess_mw / monthly aggregates — zero those, plus the
+    capex per-kWp items, to leave only the gas economics in FCFF.
+    """
+    import dataclasses as _dc
+    return _dc.replace(
+        inp,
+        solar_dc_mwp=0.0,
+        bess_mw=0.0,
+        bess_mwh=0.0,
+        monthly_solar_bess_to_dc=np.zeros(12),
+        monthly_solar_surplus=np.zeros(12),
+        fixed_lease_switch=0,
+        rev_dep_lease_switch=0,
+        bess_floor_switch=0,
+        cm_t1_value=0.0,
+        cm_t4_value=0.0,
+        rego_switch=0,
+        emb_switch=0,
+        opex_balancing_cfd=0.0,
+        opex_corrective_maint_annual_gbpk=0.0,
+        bess_opex_ltsa_annual_gbpk=0.0,
+        bess_opex_pcs_warranty_annual_gbpk=0.0,
+        bess_opex_augmentation_annual_gbpk=0.0,
+    )
+
+
+def _run_pirr_core(inp: PirrInputs) -> PirrResults:
+    """Single-pass PIRR computation. Used internally by run_pirr() for
+    each of the 3 variants. Returns a full PirrResults but only fills
+    project_irr (the combined-style number for whatever inputs are given).
+    """
     res = PirrResults()
     rates = dict(DEFAULT_ESCALATION_RATES)
     if inp.ppa_escalation_rate:

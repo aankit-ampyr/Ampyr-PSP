@@ -40,6 +40,8 @@ Each Revisions entry: date, what changed, why. Each `A*` decision: keep original
 | 2026-05-07 | **Old engine parked, not deleted.** `src/financial_model.py` → `src/financial_model_v0.py`; `src/consolidated_model.py` → `src/consolidated_model_v0.py`. Imports updated in 7 consumers (`gas_model`, `Step7_Financial`, `tests/test_project_irr`, `tests/test_financial_regression`, `tests/validate_vs_excel`). Test suite still runs and reproduces 8.46% — audit reproducibility preserved. | User direction. Parking keeps the failure mode auditable while the rewrite proceeds. |
 | 2026-05-11 | **A17 added: rewrite scaffold + 6 structural fixes from Excel dumps.** New engine [src/project_irr.py](../src/project_irr.py) (~650 lines, no calibration constants). D13 PIRR trajectory across the session: 19.61% → 13.53% → 12.25% → 10.27%. Structural fixes (each traceable to a specific Excel cell/row): gas PPA→merchant switchover at year 10 + EOL at year 20 (Cash Flows-Gas r21 conditional); gas opex on gross 28.32 MW not effective 25 MW (verified via Insurance back-calc); gas Major Maintenance + Reactive Maintenance per MWh (Cash Flows-Gas r44 + r48); BESS opex tenor 10 yr (Inputs F112); Solar Corrective Maintenance as level annual not full rate (FS r39, 8-event step pattern); BESS LTSA + PCS Warranty + Augmentation step costs (BESS r113-115); land lease `max(fixed, rev_dep)` not sum (Op r147/148/157 logic); BESS revenue zeroed to match Excel snapshot (FS r24 = £0). | Excel dump evidence + Guardrail #5 (no fudge factors). |
 | 2026-05-11 | **3 SME questions queued in [docs/Project_IRR_SME_Questions_v2.md](Project_IRR_SME_Questions_v2.md).** Q1: is 8.9% from the current workbook or a different snapshot? Q2: should BESS revenue switches be ON or OFF for the Burton Leonard case (Excel currently shows £0)? Q3: is `max()` a fair approximation of the `Solar&BESS Operation` r155 Lease Adjustment? Engine paused at 10.27% PIRR pending answers. | Excel-side debugging exhausted; remaining 137 bps depends on these answers. |
+| 2026-05-11 | **Q4 added to v2 questions:** PPA-tariff sensitivity gap (engine 0.55 pp vs Excel 1.5 pp on £170→£160). | Full SME matrix run revealed structural sensitivity gap on top of magnitude gap. |
+| 2026-05-11 | **A18 added: Anchal answered Q1/Q2/Q3, Q1 ambiguous.** Q1 — implicit, reiterated 3-PIRR structure (8.85% S+B, 9.23% Combined, 10.77% Gas). Whether the 8.9% target maps to Solar+BESS-only or Combined remains ambiguous — explicit follow-up sent. Q2 — confirmed: BESS revenue zero for the Burton Leonard case ("solar+BESS together meeting PPA demand, contributing to PPA revenue"); engine matches. Q3 — Final lease = monthly fixed + July adjustment (= max(0, annual rev − annual fixed)); equivalent to annual-level max(fixed, rev_dep); my monthly max() approximation lands same total when rev_dep > fixed in every month (true for D13). Net new finding: Excel's r148 Revenue Lease sums to £30k = ~10% of S+B revenue not 5% (rev_dep_pct or revenue-base discrepancy to investigate). | SME response 2026-05-11. |
 
 ---
 
@@ -219,6 +221,29 @@ Standard solar PV finance convention. Made explicit because the SME flagged it d
 | [Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv](../Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv) | Secondary regression — matches A10 row 3 |
 
 Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case label. Both files moved from `Inputs/Answers/` (originals deleted, folder removed). Test/ folder duplicates flagged for cleanup during audit work — see A9.
+
+### A18. Anchal Q1/Q2/Q3 answers + Q1 follow-up (NEW 2026-05-11)
+
+Anchal answered the v2 questions same day. Q2 and Q3 fully clarified; Q1 implicit, follow-up sent.
+
+**Q1 — implicit answer; follow-up pending.** Anchal reiterated the 3-PIRR structure: Solar+BESS PIRR = 8.85% (`Equity!D175`), Combined Solar+BESS+Gas PIRR = 9.23% (`Consol Cash Flows!B9`), Gas PIRR = 10.77% (`Cash Flows-Gas!D84`). The May 7 matrix target of 8.9% sits suspiciously close to the current Solar+BESS PIRR (8.85%), but a 3.8h → 4h BESS upgrade could plausibly shift either PIRR by ~30 bps. Without explicit confirmation, the right comparison target is ambiguous:
+
+| Case | Engine Combined | Engine S+B-only | Target | Δ Combined | Δ S+B-only |
+| --- | --- | --- | --- | --- | --- |
+| 82/170 (D13) | 10.28% | 7.49% | 8.9% | +1.38 | -1.41 |
+| 82/160 | 9.73% | 6.85% | 7.4% | +2.33 | -0.55 |
+| 115/170 | 9.97% | 8.58% | 9.8% | +0.17 | -1.22 |
+| 115/160 | 9.41% | 7.92% | 8.5% | +0.91 | -0.58 |
+
+Follow-up sent: "should I compare against S+B-only PIRR or Combined?" Engine paused pending answer.
+
+**Q2 — answered: BESS revenue zero is correct.** Direct quote: "BESS revenue separately is zero for this exercise purpose as solar+BESS are together meeting the PPA demand and contributing to PPA revenue, therefore you may ignore the separate CM/floor, etc revenue for BESS separately." Spec §5.2 should be updated to note BESS floor + CM T-1 + CM T-4 are off for the Burton Leonard case (BESS earns its return through PPA contribution, not separate streams). Engine already matches; no code change needed.
+
+**Q3 — answered: lease mechanism explained.** Direct quote: "Final lease that is part of opex = Fixed lease (row 147) + Lease Adjustment (row 155). Row 155 (Lease Adjustment) = max(annual revenue lease row 154 − annual fixed lease row 153). Row 153 and Row 154 are just annualised (sum of last 12 months Aug to July) of row 147 and 148 respectively as these expenses are payable in July only for last 12 months."
+
+Mechanism: each month pay `fixed_lease` (r147); each July pay top-up = `max(0, annual_rev_lease − annual_fixed_lease)`. Net annual ≈ `max(annual_fixed, annual_rev)`. My engine's monthly `max(fixed, rev_dep)` gives same lifetime total when rev_dep > fixed in every month (holds for D13 — rev_dep £15k > fixed £8k always). Approximation acceptable for v1.
+
+**Open from Q3 — separate issue:** Excel r148 (Revenue Lease) lifetime sum = £30,143. At 5% rev-share, that implies revenue base of £602,860 — but S+B-only revenue is £301,428. So either rev_dep_pct is 10% (not 5% per spec) or the rev base includes more than S+B (e.g., gas PPA revenue). Excel-inspectable; queued.
 
 ### A17. Rewrite scaffold + structural fixes (NEW 2026-05-11)
 

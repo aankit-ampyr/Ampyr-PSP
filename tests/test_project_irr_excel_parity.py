@@ -77,34 +77,39 @@ def test_secondary_matrix_rows(case):
     assert abs(r["computed"] - r["expected"]) <= TOLERANCE_PP, msg
 
 
-# Standalone runner — prints the full matrix table for diagnostics
+# Standalone runner — prints all 3 PIRRs side-by-side for diagnostics
 def main():
-    print("=" * 78)
-    print("SME REFERENCE MATRIX — engine vs target")
-    print("=" * 78)
-    print(f"{'Case':<10} {'Solar':<8} {'Grid':<6} {'Tariff':<7} "
-          f"{'PIRR':<8} {'Target':<8} {'Delta':<10} {'Status':<6}")
-    print("-" * 78)
+    print("=" * 92)
+    print("SME REFERENCE MATRIX — engine vs target (3 PIRRs reported, target interpretation TBD)")
+    print("=" * 92)
+    print(f"{'Case':<11} {'Solar':<6} {'Tariff':<7} "
+          f"{'Combined':<10} {'S+B-only':<10} {'Gas':<8} "
+          f"{'Target':<8} {'ΔCombined':<10} {'ΔS+B':<8}")
+    print("-" * 92)
 
-    all_within = True
     for case in SME_MATRIX:
-        r = _run_case(case)
-        status = "PASS" if abs(r["computed"] - r["expected"]) <= TOLERANCE_PP else "FAIL"
-        if status == "FAIL":
-            all_within = False
-        print(f"{r['id']:<10} {case['solar_mwp']:<8} {case['grid_mw']:<6} "
-              f"£{case['tariff']:<6.0f} {r['computed']*100:<7.2f}% "
-              f"{r['expected']*100:<7.1f}% {r['delta_pp']:+6.2f} pp  {status}")
+        inputs = d13_inputs(
+            solar_dc_mwp=case["solar_mwp"],
+            grid_limit_mw=case["grid_mw"],
+            ppa_tariff=case["tariff"],
+        )
+        result = run_pirr(inputs)
+        target = case["expected"]
+        delta_combined = (result.project_irr - target) * 100
+        delta_sb = (result.project_irr_solar_bess - target) * 100
+        print(
+            f"{case['id']:<11} {case['solar_mwp']:<6} £{case['tariff']:<6.0f} "
+            f"{result.project_irr*100:>7.2f}%   {result.project_irr_solar_bess*100:>7.2f}%   "
+            f"{result.project_irr_gas*100:>6.2f}%  {target*100:>5.1f}%   "
+            f"{delta_combined:+6.2f}    {delta_sb:+6.2f}"
+        )
 
-    print("-" * 78)
-    print(f"All four rows within ±0.1 pp: {all_within}")
+    print("-" * 92)
     print()
-    print("Delta pattern reading:")
-    print("  - Consistent drift across all rows → single global calibration issue")
-    print("    (e.g., wrong audit-target snapshot, curve fidelity)")
-    print("  - Mixed deltas → per-case bug (scaling, switches, conditional logic)")
+    print("Pending Anchal's Q1 follow-up: should we compare against Combined or S+B-only column?")
+    print("Excel current snapshot reference: S+B = 8.85%, Combined = 9.23%, Gas = 10.77%.")
 
-    return all_within
+    return True
 
 
 if __name__ == "__main__":
