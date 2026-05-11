@@ -24,29 +24,50 @@ from src.project_irr import PirrInputs
 
 # Solar profile path (D20: canonical Burton Leonard files)
 D13_SOLAR_PROFILE = Path("Inputs/Burton_Leonard_82MWp_DC_58MW_AC.csv")
+LARGE_SOLAR_PROFILE = Path("Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv")
 
 
-# Baringa blend nominal merchant prices (Baringa and Aurora!row131).
-# Years before 2034 carry zero in the Excel (no curve published) — engine
-# falls back to merchant_price_default for those.
+# Baringa Blend nominal merchant prices, Fixed-Tilt technology
+# (Baringa and Aurora!row131 "Applied", with Solar&BESS Inputs F68=Blend, F69=FT).
+# Excel intentionally leaves 2029-2034 at zero — no curve published for those
+# years. Engine treats these zeros as deliberate (no merchant revenue).
+# Curve runs in 3-year blocks reflecting Excel's underlying period averaging.
 D13_MERCHANT_PRICES = {
-    2034: 67.85, 2035: 67.85, 2036: 67.85, 2037: 67.85, 2038: 70.41,
-    2039: 71.32, 2040: 72.16, 2041: 72.94, 2042: 74.30, 2043: 75.31,
-    2044: 75.97, 2045: 76.69, 2046: 77.05, 2047: 77.05, 2048: 77.05,
-    2049: 77.05, 2050: 77.05, 2051: 77.24, 2052: 77.24, 2053: 77.24,
-    2054: 77.24, 2055: 77.24, 2056: 77.24, 2057: 77.24, 2058: 77.24,
-    2059: 77.24, 2060: 77.24, 2061: 77.24, 2062: 77.24,
+    2029: 0.0, 2030: 0.0, 2031: 0.0, 2032: 0.0, 2033: 0.0, 2034: 0.0,
+    2035: 67.26, 2036: 67.26, 2037: 67.26,
+    2038: 87.69, 2039: 87.69, 2040: 87.69,
+    2041: 89.80, 2042: 89.80, 2043: 89.80,
+    2044: 62.95, 2045: 62.95, 2046: 62.95,
+    2047: 59.12, 2048: 59.12, 2049: 59.12,
+    2050: 74.17, 2051: 74.17, 2052: 74.17,
+    2053: 73.46, 2054: 73.46, 2055: 73.46,
+    2056: 55.37, 2057: 55.37, 2058: 55.37,
+    2059: 55.97, 2060: 55.97, 2061: 55.97,
+    2062: 72.60, 2063: 72.60, 2064: 72.60,
+    2065: 77.24, 2066: 77.24, 2067: 77.24,
 }
 
 
-def d13_inputs() -> PirrInputs:
-    """Build PirrInputs for the D13 audit case.
+def d13_inputs(
+    solar_dc_mwp: float = 82.0,
+    grid_limit_mw: float = 58.4,
+    ppa_tariff: float = 170.0,
+    solar_profile: Path | None = None,
+) -> PirrInputs:
+    """Build PirrInputs for the SME reference matrix.
 
-    Year-1 monthly aggregates come from running the existing dispatch
-    helper on the canonical 58 MW AC profile (D20).
+    Defaults to D13 (82 MWp / £170 / 58 MW grid profile). Override
+    `solar_dc_mwp` / `ppa_tariff` / `solar_profile` to switch to one of the
+    other 3 SME matrix rows.
+
+    Year-1 monthly aggregates come from running the existing dispatch helper
+    on the canonical Burton Leonard profile selected for the case.
     """
+    if solar_profile is None:
+        solar_profile = D13_SOLAR_PROFILE if solar_dc_mwp <= 100 else LARGE_SOLAR_PROFILE
+
     energy = compute_monthly_energy(
-        solar_profile_path=D13_SOLAR_PROFILE,
+        solar_profile_path=solar_profile,
         load_mw=25.0,
         bess_mwh=250.0,
         bess_mw=62.5,
@@ -61,8 +82,8 @@ def d13_inputs() -> PirrInputs:
         project_life_years=35,
 
         # --- Capacity ---
-        solar_dc_mwp=82.0,           # F31
-        grid_limit_mw=58.4,
+        solar_dc_mwp=solar_dc_mwp,   # F31 (case-parameterised)
+        grid_limit_mw=grid_limit_mw, # case-parameterised
         bess_mwh=250.0,              # F116 × F117
         bess_mw=62.5,                # F116
         bess_operating_life_years=10,  # F112
@@ -87,14 +108,14 @@ def d13_inputs() -> PirrInputs:
         monthly_gas_mwh=monthly["gas_energy"],
 
         # --- PPA (Overall Inputs E13/E14) ---
-        ppa_tariff_gbp_mwh=170.0,
+        ppa_tariff_gbp_mwh=ppa_tariff,  # case-parameterised
         ppa_tenor_years=10,
         ppa_indexation="NIL",
         ppa_escalation_rate=0.0,
 
         # --- Solar merchant ---
         merchant_prices=D13_MERCHANT_PRICES,
-        merchant_price_default=67.85,   # Baringa value at curve start
+        merchant_price_default=0.0,    # Excel uses 0 for pre-curve years; no fallback
 
         # --- REGOs (F79-82) ---
         rego_switch=1,

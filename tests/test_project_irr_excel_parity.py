@@ -1,12 +1,17 @@
 """
-Project IRR Excel-parity test — locks the D13 audit target.
+Project IRR Excel-parity test — locks the SME reference matrix.
 
-Spec D13: 82 MWp DC / 58.4 MW grid / £170 PPA / 250 MWh BESS /
-          25 MW gas / 25 MW load / Burton Leonard 58 MW profile
-          → expected PIRR = 8.9% (tolerance ±0.1 pp).
+Spec D13 (primary audit row): 82 MWp DC / 58.4 MW grid / £170 PPA /
+250 MWh BESS / 25 MW gas / 25 MW load / Burton Leonard 58 MW profile
+→ expected PIRR = 8.9% (tolerance ±0.1 pp).
 
-Other three SME rows from the matrix are wired in but currently xfailed
-until D13 lands. See docs/Financial_Assumptions_Spec.md §9.
+Three other matrix rows tracked as `xfail` until D13 passes. Their deltas
+are informative even when D13 is out of tolerance — consistent drift across
+all four rows would indicate a single global calibration issue rather than
+a per-case bug.
+
+See docs/Financial_Assumptions_Spec.md §9 and
+docs/Project_IRR_Integration_Decisions.md A10/A12/A17.
 
 Run:  python tests/test_project_irr_excel_parity.py
   or: python -m pytest tests/test_project_irr_excel_parity.py -v
@@ -17,65 +22,89 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import pytest
+
 from src.project_irr import run_pirr
 from tests.fixtures.d13_inputs import d13_inputs
 
 
-D13_TARGET = 0.089
 TOLERANCE_PP = 0.001   # 0.1 percentage points = 0.001 in decimal
 
 
+# SME reference matrix — image supplied 2026-05-07
+SME_MATRIX = [
+    {"id": "d13",   "solar_mwp": 82.0,  "grid_mw": 58.4, "tariff": 170.0, "expected": 0.089, "primary": True},
+    {"id": "m82_160",  "solar_mwp": 82.0,  "grid_mw": 58.4, "tariff": 160.0, "expected": 0.074, "primary": False},
+    {"id": "m115_170", "solar_mwp": 115.0, "grid_mw": 81.9, "tariff": 170.0, "expected": 0.098, "primary": False},
+    {"id": "m115_160", "solar_mwp": 115.0, "grid_mw": 81.9, "tariff": 160.0, "expected": 0.085, "primary": False},
+]
+
+
+def _run_case(case: dict) -> dict:
+    inputs = d13_inputs(
+        solar_dc_mwp=case["solar_mwp"],
+        grid_limit_mw=case["grid_mw"],
+        ppa_tariff=case["tariff"],
+    )
+    result = run_pirr(inputs)
+    return {
+        "id": case["id"],
+        "computed": result.project_irr,
+        "expected": case["expected"],
+        "delta_pp": (result.project_irr - case["expected"]) * 100,
+    }
+
+
+# Primary test — locks the D13 audit target
 def test_d13_audit():
-    """D13 audit row: 8.9% ± 0.1 pp."""
-    inputs = d13_inputs()
-    result = run_pirr(inputs)
-    pirr = result.project_irr
-
-    delta_pp = (pirr - D13_TARGET) * 100
-    msg = (f"D13 PIRR = {pirr*100:.2f}% (target {D13_TARGET*100:.1f}%, "
-           f"delta = {delta_pp:+.2f} pp)")
+    case = SME_MATRIX[0]
+    r = _run_case(case)
+    msg = (f"{r['id']}: PIRR={r['computed']*100:.2f}% vs target "
+           f"{r['expected']*100:.1f}% (delta={r['delta_pp']:+.2f} pp)")
     print(msg)
+    assert abs(r["computed"] - r["expected"]) <= TOLERANCE_PP, msg
 
-    assert abs(pirr - D13_TARGET) <= TOLERANCE_PP, msg
+
+# Secondary rows — xfail-tracked until engine lands within tolerance.
+# Keeping them visible so a regression in any case is caught early.
+@pytest.mark.xfail(reason="Awaiting SME confirmation on switches + curve fidelity (see SME Questions v2)")
+@pytest.mark.parametrize("case", SME_MATRIX[1:], ids=[c["id"] for c in SME_MATRIX[1:]])
+def test_secondary_matrix_rows(case):
+    r = _run_case(case)
+    msg = (f"{r['id']}: PIRR={r['computed']*100:.2f}% vs target "
+           f"{r['expected']*100:.1f}% (delta={r['delta_pp']:+.2f} pp)")
+    print(msg)
+    assert abs(r["computed"] - r["expected"]) <= TOLERANCE_PP, msg
 
 
+# Standalone runner — prints the full matrix table for diagnostics
 def main():
-    """Standalone runner with breakdown for diagnostics during iteration."""
-    inputs = d13_inputs()
-    result = run_pirr(inputs)
-    pirr = result.project_irr
-    delta_pp = (pirr - D13_TARGET) * 100
+    print("=" * 78)
+    print("SME REFERENCE MATRIX — engine vs target")
+    print("=" * 78)
+    print(f"{'Case':<10} {'Solar':<8} {'Grid':<6} {'Tariff':<7} "
+          f"{'PIRR':<8} {'Target':<8} {'Delta':<10} {'Status':<6}")
+    print("-" * 78)
 
-    print("=" * 70)
-    print("D13 AUDIT")
-    print("=" * 70)
-    print(f"  PIRR computed   = {pirr*100:.3f}%")
-    print(f"  PIRR target     = {D13_TARGET*100:.1f}%")
-    print(f"  Delta           = {delta_pp:+.3f} pp")
-    print(f"  Tolerance       = ±{TOLERANCE_PP*100:.1f} pp")
-    print(f"  Pass            = {abs(pirr - D13_TARGET) <= TOLERANCE_PP}")
-    print()
-    print("HEADLINES (lifetime, GBPk)")
-    print(f"  Total CAPEX           = {result.total_capex:>14,.0f}")
-    print(f"  Total revenue         = {result.total_revenue_lifetime:>14,.0f}")
-    print(f"  Total OPEX            = {result.total_opex_lifetime:>14,.0f}")
-    print(f"  Total tax paid        = {result.total_tax_lifetime:>14,.0f}")
-    print()
-    print("REVENUE BREAKDOWN (lifetime, GBPk)")
-    for label, arr in [
-        ("PPA",                  result.rev_ppa),
-        ("Solar merchant",       result.rev_solar_merchant),
-        ("REGO",                 result.rev_rego),
-        ("11 kV embedded",       result.rev_embedded),
-        ("CM T-1",               result.rev_cm_t1),
-        ("CM T-4",               result.rev_cm_t4),
-        ("BESS floor",           result.rev_bess_floor),
-        ("Gas PPA",              result.rev_gas_ppa),
-        ("Gas merchant",         result.rev_gas_merchant),
-    ]:
-        print(f"  {label:<22s}= {arr.sum():>14,.0f}")
+    all_within = True
+    for case in SME_MATRIX:
+        r = _run_case(case)
+        status = "PASS" if abs(r["computed"] - r["expected"]) <= TOLERANCE_PP else "FAIL"
+        if status == "FAIL":
+            all_within = False
+        print(f"{r['id']:<10} {case['solar_mwp']:<8} {case['grid_mw']:<6} "
+              f"£{case['tariff']:<6.0f} {r['computed']*100:<7.2f}% "
+              f"{r['expected']*100:<7.1f}% {r['delta_pp']:+6.2f} pp  {status}")
 
-    return abs(pirr - D13_TARGET) <= TOLERANCE_PP
+    print("-" * 78)
+    print(f"All four rows within ±0.1 pp: {all_within}")
+    print()
+    print("Delta pattern reading:")
+    print("  - Consistent drift across all rows → single global calibration issue")
+    print("    (e.g., wrong audit-target snapshot, curve fidelity)")
+    print("  - Mixed deltas → per-case bug (scaling, switches, conditional logic)")
+
+    return all_within
 
 
 if __name__ == "__main__":

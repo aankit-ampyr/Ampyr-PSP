@@ -515,20 +515,23 @@ def _calc_revenue(inp: PirrInputs, rates: dict, dates: np.ndarray,
 
 
 def _merchant_price(prices: dict, year: int, default: float) -> float:
+    """Look up annual merchant price. Zero in the dict means *deliberately
+    zero* (Excel uses 0 for years before the curve starts) — return as-is,
+    don't fall back to default.
+    """
     if not prices:
         return default
     if year in prices:
-        return prices[year] if prices[year] > 0 else default
+        return prices[year]
     keys = sorted(prices.keys())
-    if year < keys[0]:
-        return prices[keys[0]] or default
-    if year > keys[-1]:
-        return prices[keys[-1]] or default
+    if year < keys[0] or year > keys[-1]:
+        # Outside the curve range entirely → use default (no extrapolation)
+        return default
+    # Interpolate between bracketing years
     for j in range(len(keys) - 1):
         if keys[j] <= year <= keys[j + 1]:
             f = (year - keys[j]) / (keys[j + 1] - keys[j])
-            v = prices[keys[j]] * (1 - f) + prices[keys[j + 1]] * f
-            return v if v > 0 else default
+            return prices[keys[j]] * (1 - f) + prices[keys[j + 1]] * f
     return default
 
 
