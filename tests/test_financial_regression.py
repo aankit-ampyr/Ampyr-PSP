@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from datetime import date
 import numpy as np
-from src.financial_model import (
+from src.financial_model_v0 import (
     FinancialInputs, FinancialResults,
     run_financial_model, calc_xirr, calc_xnpv,
     build_timeline, calc_revenue, calc_opex, calc_capex,

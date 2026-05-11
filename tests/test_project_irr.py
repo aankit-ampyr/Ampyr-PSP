@@ -24,11 +24,11 @@ import numpy as np
 from src.excel_reader import read_model_params
 from src.dispatch_energy import compute_monthly_energy
 from src.gas_model import GasInputs, run_gas_model, gas_inputs_from_params
-from src.financial_model import (
+from src.financial_model_v0 import (
     TariffModelInputs, FinancialResults,
     run_tariff_model, tariff_inputs_from_params,
 )
-from src.consolidated_model import run_consolidated_irr
+from src.consolidated_model_v0 import run_consolidated_irr
 
 
 # =========================================================================

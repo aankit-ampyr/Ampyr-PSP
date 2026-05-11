@@ -225,7 +225,7 @@ def read_excel_outputs():
 
 def run_python_engine(inputs_data):
     """Run the Python financial model with inputs read from Excel."""
-    from src.financial_model import FinancialInputs, run_financial_model
+    from src.financial_model_v0 import FinancialInputs, run_financial_model
 
     def to_date(val):
         """Convert Excel datetime to Python date."""

@@ -1,6 +1,11 @@
 """
 Consolidated Financial Model — Combines Solar+BESS and Gas FCFFs.
 
+PARKED 2026-05-07. Audit (A9 Step A) showed −0.44 pp at the D13 target;
+the `gas_ownership_share` calibration constant violates Guardrail #5.
+Retained for audit reproducibility only — do not use for new work.
+See docs/Project_IRR_Integration_Decisions.md A16 for details.
+
 Merges the two independent FCFF streams onto a common date grid,
 sums them, and computes the Overall Project IRR via XIRR.
 
@@ -10,7 +15,7 @@ Mirrors the 'Consol Cash Flows' sheet in Off-Grid Solution v8.xlsm.
 from datetime import date
 import numpy as np
 
-from src.financial_model import FinancialResults, calc_xirr, calc_xnpv
+from src.financial_model_v0 import FinancialResults, calc_xirr, calc_xnpv
 
 
 def run_consolidated_irr(

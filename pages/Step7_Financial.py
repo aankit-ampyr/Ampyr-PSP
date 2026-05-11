@@ -22,7 +22,7 @@ from src.wizard_state import (
 from src.financial_config import (
     INPUT_CELLS, REFERENCE_CASE, ITERATION_A1_PARAMS, ITERATION_A2_PARAMS,
 )
-from src.financial_model import (
+from src.financial_model_v0 import (
     FinancialInputs, FinancialResults,
     run_financial_model, inputs_from_wizard_state,
 )
@@ -1162,7 +1162,7 @@ def main():
                         run_hourly_dispatch,
                         aggregate_to_monthly,
                     )
-                    from src.financial_model import (
+                    from src.financial_model_v0 import (
                         tariff_inputs_from_wizard_state,
                         run_tariff_model,
                     )

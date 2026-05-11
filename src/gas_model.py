@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import date
 import numpy as np
 
-from src.financial_model import calc_xirr
+from src.financial_model_v0 import calc_xirr
 
 
 # =========================================================================

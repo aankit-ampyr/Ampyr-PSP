@@ -1,6 +1,11 @@
 """
 Financial Model Engine — Iteration A1: Core FCFF Chain
 
+PARKED 2026-05-07. A9 Step A audit showed −0.44 pp at the D13 target
+(8.46% vs 8.9% expected) — every row of the SME 4-case matrix breaches
+the 0.1 pp tolerance. Retained for audit reproducibility only — do not
+use for new work. See docs/Project_IRR_Integration_Decisions.md A16.
+
 Replicates the ungeared Project IRR calculation from Off-Grid Solution v8.xlsm.
 Pure Python implementation for fast screening of 50+ configurations.
 
