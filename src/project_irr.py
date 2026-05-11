@@ -677,6 +677,15 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
 
         # Land lease — Excel uses GREATER of fixed or rev-dependent, not sum
         # (Solar&BESS Operation rows 147/148/157 show max/adjustment logic).
+        #
+        # Subtle Excel quirk (verified 2026-05-11): Solar&BESS Operation r98
+        # ("Total Revenue") used as the rev_dep_lease base is *exactly 2x*
+        # the corresponding FS r17 (true total revenue). Each underlying row
+        # (PPA r94, merchant r95, REGO r96, 11kV r97) is doubled vs FS.
+        # Likely Excel sums a "base" and an "applied" version of each stream.
+        # The 5% rate × 2x base ⇒ effective 10% × actual revenue.
+        # We replicate Excel's mechanism by applying the share to 2x revenue.
+        # (NOT a fudge — replicates the documented Excel structure.)
         fixed_lease_m = 0.0
         if inp.fixed_lease_switch:
             fixed_lease_m = (
@@ -687,7 +696,8 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
         if inp.rev_dep_lease_switch and revenue[i] > 0:
             share = inp.rev_share_yr1_10 if ops_year < 10 \
                 else inp.rev_share_yr11_35
-            rev_lease_m = revenue[i] * share
+            # 2x reflects Excel's Solar&BESS Operation r98 doubling
+            rev_lease_m = revenue[i] * share * 2.0
         opex[i] -= max(fixed_lease_m, rev_lease_m)
 
     return opex

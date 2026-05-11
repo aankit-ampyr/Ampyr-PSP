@@ -243,7 +243,19 @@ Follow-up sent: "should I compare against S+B-only PIRR or Combined?" Engine pau
 
 Mechanism: each month pay `fixed_lease` (r147); each July pay top-up = `max(0, annual_rev_lease − annual_fixed_lease)`. Net annual ≈ `max(annual_fixed, annual_rev)`. My engine's monthly `max(fixed, rev_dep)` gives same lifetime total when rev_dep > fixed in every month (holds for D13 — rev_dep £15k > fixed £8k always). Approximation acceptable for v1.
 
-**Open from Q3 — separate issue:** Excel r148 (Revenue Lease) lifetime sum = £30,143. At 5% rev-share, that implies revenue base of £602,860 — but S+B-only revenue is £301,428. So either rev_dep_pct is 10% (not 5% per spec) or the rev base includes more than S+B (e.g., gas PPA revenue). Excel-inspectable; queued.
+**Open from Q3 — investigated 2026-05-11:** Excel r148 (Revenue Lease) lifetime sum = £30,143. At 5% rev-share, that implies revenue base of £602,857. Dumped `Solar&BESS Operation` rows 94–98:
+
+| Row | Op (rev base) | FS (true revenue) | Ratio |
+| --- | --- | --- | --- |
+| r94 PPA | 254,324 | 127,162 | 2.000 |
+| r95 Solar merchant | 310,213 | 155,107 | 2.000 |
+| r96 REGO | 13,173 | 6,587 | 2.000 |
+| r97 11kV embedded | 25,146 | 12,573 | 2.000 |
+| **r98 Total** | **602,857** | **301,428** | **2.000** |
+
+Every revenue line in Solar&BESS Operation is exactly 2× the corresponding FS row. Likely Excel sums a "base" and an "applied" version of each stream into r98. The 5% rev_dep_lease rate × 2x base = effective 10% × actual revenue.
+
+**Engine fix applied:** rev_dep_lease = `0.05 × 2 × revenue` (matches Excel mechanism, not a fudge per Guardrail #5). Magnitude: opex up by ~£15k lifetime; Combined PIRR drops ~1.4 pp for D13 (10.28% → 8.42%). New matrix delta range: -1.42 to +0.51 pp (was +0.17 to +2.33 pp). Combined-interpretation hypothesis now strongly favoured — deltas now bracket target on both sides; S+B-only deltas all under by 1.3-2.2 pp.
 
 ### A17. Rewrite scaffold + structural fixes (NEW 2026-05-11)
 
