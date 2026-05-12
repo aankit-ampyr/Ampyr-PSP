@@ -4,6 +4,8 @@
 **From:** Ankit
 **Context:** Follow-up after the May 7 review. I've been digitising the PIRR pathway from `Off-Grid Solution v8.xlsm` into Python. The engine is close to your 8.9% target on three of the four matrix rows, but four narrow Excel mechanics need your input to close the residual gap and explain a PPA-tariff sensitivity pattern. All narrow.
 
+**Status 2026-05-12:** All four questions answered. Q1 follow-up + Q4 answered today. See decisions log A20 for engine state vs both targets (S+B 8.9%, Combined 9.2%).
+
 ---
 
 ## Q1. Source of the 8.9% number

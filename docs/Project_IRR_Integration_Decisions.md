@@ -41,6 +41,7 @@ Each Revisions entry: date, what changed, why. Each `A*` decision: keep original
 | 2026-05-11 | **A17 added: rewrite scaffold + 6 structural fixes from Excel dumps.** New engine [src/project_irr.py](../src/project_irr.py) (~650 lines, no calibration constants). D13 PIRR trajectory across the session: 19.61% → 13.53% → 12.25% → 10.27%. Structural fixes (each traceable to a specific Excel cell/row): gas PPA→merchant switchover at year 10 + EOL at year 20 (Cash Flows-Gas r21 conditional); gas opex on gross 28.32 MW not effective 25 MW (verified via Insurance back-calc); gas Major Maintenance + Reactive Maintenance per MWh (Cash Flows-Gas r44 + r48); BESS opex tenor 10 yr (Inputs F112); Solar Corrective Maintenance as level annual not full rate (FS r39, 8-event step pattern); BESS LTSA + PCS Warranty + Augmentation step costs (BESS r113-115); land lease `max(fixed, rev_dep)` not sum (Op r147/148/157 logic); BESS revenue zeroed to match Excel snapshot (FS r24 = £0). | Excel dump evidence + Guardrail #5 (no fudge factors). |
 | 2026-05-11 | **3 SME questions queued in [docs/Project_IRR_SME_Questions_v2.md](Project_IRR_SME_Questions_v2.md).** Q1: is 8.9% from the current workbook or a different snapshot? Q2: should BESS revenue switches be ON or OFF for the Burton Leonard case (Excel currently shows £0)? Q3: is `max()` a fair approximation of the `Solar&BESS Operation` r155 Lease Adjustment? Engine paused at 10.27% PIRR pending answers. | Excel-side debugging exhausted; remaining 137 bps depends on these answers. |
 | 2026-05-11 | **Q4 added to v2 questions:** PPA-tariff sensitivity gap (engine 0.55 pp vs Excel 1.5 pp on £170→£160). | Full SME matrix run revealed structural sensitivity gap on top of magnitude gap. |
+| 2026-05-12 | **A20 added: Anchal answered Q1-followup + Q4.** Q1: compare against BOTH `S+B PIRR = 8.9%` and `Combined S+B+Gas PIRR = 9.2%` for D13. Resolves the ambiguity — matrix targets (8.9, 7.4, 9.8, 8.5) are S+B-only PIRRs. Q4: "No tariff-dependent mechanism as such, PPA revenue varies linearly with tariff... only you may check if revenue lease is creating any impact as its linked to revenue." | SME response 2026-05-12. |
 | 2026-05-12 | **A19 added: Step 7 migrated to new engine + P0 frontend bug fixes.** Acted on May 9 bug review (3 highest-risk correctness issues). (1) `wizard_state.set_current_step()` cap raised from 5 to 7 — wizard now navigates all real steps. (2) `Step7_Financial.check_prerequisites()` reads from `st.session_state.sizing_results` (Step 3's actual write location, matching Step 4) instead of the unused canonical `wizard['results']['simulation_results']` — surgical fix, architectural unification deferred to P1. (3) Step 7 imports swapped from parked `financial_model_v0` to `project_irr`; hardcoded `target_load_mw = 25.0` replaced with `wizard['setup']['load_mw']` from Step 1; results display now shows all 3 PIRRs (Combined / Solar+BESS / Gas). New adapter `pirr_inputs_from_wizard_state(fin, setup, monthly_aggregates)` bridges wizard state to engine. | May 9 bug review identified Step 7 as shipping a parked engine with hardcoded inputs — production correctness issue. |
 | 2026-05-11 | **A18 added: Anchal answered Q1/Q2/Q3, Q1 ambiguous.** Q1 — implicit, reiterated 3-PIRR structure (8.85% S+B, 9.23% Combined, 10.77% Gas). Whether the 8.9% target maps to Solar+BESS-only or Combined remains ambiguous — explicit follow-up sent. Q2 — confirmed: BESS revenue zero for the Burton Leonard case ("solar+BESS together meeting PPA demand, contributing to PPA revenue"); engine matches. Q3 — Final lease = monthly fixed + July adjustment (= max(0, annual rev − annual fixed)); equivalent to annual-level max(fixed, rev_dep); my monthly max() approximation lands same total when rev_dep > fixed in every month (true for D13). Net new finding: Excel's r148 Revenue Lease sums to £30k = ~10% of S+B revenue not 5% (rev_dep_pct or revenue-base discrepancy to investigate). | SME response 2026-05-11. |
 
@@ -222,6 +223,34 @@ Standard solar PV finance convention. Made explicit because the SME flagged it d
 | [Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv](../Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv) | Secondary regression — matches A10 row 3 |
 
 Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case label. Both files moved from `Inputs/Answers/` (originals deleted, folder removed). Test/ folder duplicates flagged for cleanup during audit work — see A9.
+
+### A20. Anchal Q1-follow-up + Q4 answers (NEW 2026-05-12)
+
+Both questions answered.
+
+**Q1 follow-up — Compare against BOTH PIRRs.** Anchal: *"You should compare both: S+B PIRR of 8.9% and combined S+B+Gas PIRR of 9.2%."*
+
+This resolves the interpretation ambiguity from A18:
+
+- May 7 matrix targets (8.9, 7.4, 9.8, 8.5) are **Solar+BESS-only PIRRs**.
+- Combined Solar+BESS+Gas PIRR for D13 = **9.2%** (separate number, mentioned only for D13).
+
+Engine state vs both targets:
+
+| Case | S+B Engine | S+B Target | ΔS+B | Combined Engine | Comb Target | ΔComb |
+| --- | --- | --- | --- | --- | --- | --- |
+| 82/170 D13 | 6.66% | 8.9% | -2.24 | 8.42% | 9.2% | -0.78 |
+| 82/160 | 6.06% | 7.4% | -1.34 | 7.91% | — | — |
+| 115/170 | 7.71% | 9.8% | -2.09 | 8.38% | — | — |
+| 115/160 | 7.09% | 8.5% | -1.41 | 7.85% | — | — |
+
+S+B-only is **uniformly under target by 1.3-2.2 pp**. Combined-D13 is closer but my engine's gas IRR (~25%) is 2× Excel's (10.77%), so gas over-contributes to lift Combined. Calibrating gas down to match Excel would drop Combined too (current 8.42% → ~7%), confirming the residual is in the S+B side, not gas.
+
+**Q4 — No tariff-dependent mechanism, but check rev_dep_lease.** Anchal: *"No tariff dependent mechanism as such, PPA revenue varies linearly with tariff... only you may check if revenue lease is creating any impact as its linked to revenue."*
+
+Implication: the PPA-tariff sensitivity gap (engine 0.6 pp vs target ~1.5 pp per £10 tariff cut) isn't explained by a hidden tariff-dependent formula. Anchal's hint is that rev_dep_lease may not be modelled correctly. We applied a 2x base fix per A18 (replicating Excel Op r98 doubling), but the impact on tariff sensitivity is small (<0.05 pp). The bulk of the sensitivity gap remains unexplained.
+
+**Open hypothesis:** my engine may be over-stating tax offsets or under-stating PPA revenue magnitude in some way that flattens the sensitivity response. Worth investigating: (a) revert the 2x rev_lease fix and re-test sensitivity (per Anchal's hint that Excel applies 5%, not 10%), (b) check whether the S+B-only deltas would close if revenue side has missing items.
 
 ### A18. Anchal Q1/Q2/Q3 answers + Q1 follow-up (NEW 2026-05-11)
 
