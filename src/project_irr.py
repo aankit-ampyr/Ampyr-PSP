@@ -675,17 +675,18 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
             days = _days_in_month(d)
             opex[i] -= inp.gas_fixed_cost_gbp_day * days * gas_esc / 1000
 
-        # Land lease — Excel uses GREATER of fixed or rev-dependent, not sum
-        # (Solar&BESS Operation rows 147/148/157 show max/adjustment logic).
+        # Land lease — Excel uses GREATER of fixed or rev-dependent, not sum.
+        # Annual mechanism per Anchal 2026-05-11 (decisions log A18):
+        #   Final lease = Fixed lease (monthly) + July adjustment
+        #                 where adjustment = max(annual_rev_lease - annual_fixed, 0)
+        # Net: when rev_lease > fixed every month, equivalent to monthly max().
         #
-        # Subtle Excel quirk (verified 2026-05-11): Solar&BESS Operation r98
-        # ("Total Revenue") used as the rev_dep_lease base is *exactly 2x*
-        # the corresponding FS r17 (true total revenue). Each underlying row
-        # (PPA r94, merchant r95, REGO r96, 11kV r97) is doubled vs FS.
-        # Likely Excel sums a "base" and an "applied" version of each stream.
-        # The 5% rate × 2x base ⇒ effective 10% × actual revenue.
-        # We replicate Excel's mechanism by applying the share to 2x revenue.
-        # (NOT a fudge — replicates the documented Excel structure.)
+        # Note 2026-05-12 (A20): the 2x multiplier I added in A18 (replicating
+        # Excel Op r98 doubling) was reverted. Per Anchal's Q4 reply, Excel
+        # applies 5% to actual revenue; the 2x observed in Solar&BESS Operation
+        # r98 is a workbook artifact (label row summing both base+applied
+        # versions of each stream), not a real multiplier. Reverting improved
+        # S+B PIRR uniformly by ~0.8 pp across all 4 matrix rows.
         fixed_lease_m = 0.0
         if inp.fixed_lease_switch:
             fixed_lease_m = (
@@ -696,8 +697,7 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
         if inp.rev_dep_lease_switch and revenue[i] > 0:
             share = inp.rev_share_yr1_10 if ops_year < 10 \
                 else inp.rev_share_yr11_35
-            # 2x reflects Excel's Solar&BESS Operation r98 doubling
-            rev_lease_m = revenue[i] * share * 2.0
+            rev_lease_m = revenue[i] * share
         opex[i] -= max(fixed_lease_m, rev_lease_m)
 
     return opex
