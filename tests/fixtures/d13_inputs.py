@@ -27,24 +27,24 @@ D13_SOLAR_PROFILE = Path("Inputs/Burton_Leonard_82MWp_DC_58MW_AC.csv")
 LARGE_SOLAR_PROFILE = Path("Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv")
 
 
-# Baringa Blend nominal merchant prices, Fixed-Tilt technology
-# (Baringa and Aurora!row131 "Applied", with Solar&BESS Inputs F68=Blend, F69=FT).
-# Excel intentionally leaves 2029-2034 at zero — no curve published for those
-# years. Engine treats these zeros as deliberate (no merchant revenue).
-# Curve runs in 3-year blocks reflecting Excel's underlying period averaging.
+# Excel merchant curve — ACTUAL evaluated monthly prices from `Solar&BESS
+# Operation` r66, averaged per year.
+#
+# Background: Op r66 uses `LOOKUP(date, 'Curves and D&T'!J29:TZ29,
+# 'Curves and D&T'!J30:TZ30)`. Curves r29-30 has 6 columns per year (multiple
+# scenarios). A naive "first price per year" extract from r30 cherry-picks
+# high-scenario values and over-states by 30-60%. The correct values come
+# from extracting the LOOKUP results directly per month, then averaging.
+# Curve runs £62 (2027) → £118 (2066), nominal with ~2% CAGR. CPI-like.
 D13_MERCHANT_PRICES = {
-    2029: 0.0, 2030: 0.0, 2031: 0.0, 2032: 0.0, 2033: 0.0, 2034: 0.0,
-    2035: 67.26, 2036: 67.26, 2037: 67.26,
-    2038: 87.69, 2039: 87.69, 2040: 87.69,
-    2041: 89.80, 2042: 89.80, 2043: 89.80,
-    2044: 62.95, 2045: 62.95, 2046: 62.95,
-    2047: 59.12, 2048: 59.12, 2049: 59.12,
-    2050: 74.17, 2051: 74.17, 2052: 74.17,
-    2053: 73.46, 2054: 73.46, 2055: 73.46,
-    2056: 55.37, 2057: 55.37, 2058: 55.37,
-    2059: 55.97, 2060: 55.97, 2061: 55.97,
-    2062: 72.60, 2063: 72.60, 2064: 72.60,
-    2065: 77.24, 2066: 77.24, 2067: 77.24,
+    2027: 62.18, 2028: 65.53, 2029: 69.39, 2030: 74.19, 2031: 72.71,
+    2032: 69.56, 2033: 69.26, 2034: 70.22, 2035: 73.83, 2036: 77.23,
+    2037: 79.91, 2038: 80.91, 2039: 82.58, 2040: 79.10, 2041: 80.43,
+    2042: 80.31, 2043: 83.28, 2044: 85.92, 2045: 87.42, 2046: 87.26,
+    2047: 89.21, 2048: 89.19, 2049: 92.76, 2050: 92.95, 2051: 96.73,
+    2052: 97.27, 2053: 99.56, 2054: 101.15, 2055: 103.96, 2056: 106.05,
+    2057: 107.49, 2058: 108.14, 2059: 107.48, 2060: 106.45, 2061: 107.59,
+    2062: 109.74, 2063: 111.94, 2064: 114.17, 2065: 116.46, 2066: 118.79,
 }
 
 
