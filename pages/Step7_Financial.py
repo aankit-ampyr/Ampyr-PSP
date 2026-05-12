@@ -22,9 +22,9 @@ from src.wizard_state import (
 from src.financial_config import (
     INPUT_CELLS, REFERENCE_CASE, ITERATION_A1_PARAMS, ITERATION_A2_PARAMS,
 )
-from src.financial_model_v0 import (
-    FinancialInputs, FinancialResults,
-    run_financial_model, inputs_from_wizard_state,
+from src.project_irr import (
+    PirrInputs, PirrResults,
+    run_pirr, pirr_inputs_from_wizard_state,
 )
 
 
@@ -109,11 +109,15 @@ def save_financial_inputs(updates: dict):
 
 def check_prerequisites():
     """Check that Step 5 multi-year projection data is available."""
-    state = get_wizard_state()
-
     # Check for multi-year monthly data from Step 5
     has_multiyear = 'multiyear_monthly' in st.session_state
-    has_sizing = state.get('results', {}).get('simulation_results') is not None
+    # Step 3 writes to st.session_state.sizing_results (matches Step 4's reader).
+    # Canonical wizard['results']['simulation_results'] is currently unused by
+    # any writer — kept as a future-state contract. See P1 cleanup.
+    has_sizing = (
+        'sizing_results' in st.session_state
+        and st.session_state.sizing_results is not None
+    )
 
     return has_multiyear, has_sizing
 
@@ -1135,18 +1139,11 @@ def main():
     then computes **XIRR** (Project IRR) and **XNPV**.
     """)
 
-    run_col1, run_col2 = st.columns(2)
-    with run_col1:
-        run_dispatch = st.button(
-            "Run with Dispatch (recommended)",
-            type="primary",
-            use_container_width=True,
-        )
-    with run_col2:
-        run_legacy = st.button(
-            "Run Financial Analysis (legacy)",
-            use_container_width=True,
-        )
+    run_dispatch = st.button(
+        "Run Financial Analysis",
+        type="primary",
+        use_container_width=True,
+    )
 
     if run_dispatch:
         fin_state = get_financial_state()
@@ -1162,10 +1159,6 @@ def main():
                         run_hourly_dispatch,
                         aggregate_to_monthly,
                     )
-                    from src.financial_model_v0 import (
-                        tariff_inputs_from_wizard_state,
-                        run_tariff_model,
-                    )
 
                     # 1. Load + scale solar profile
                     profile_path = (Path(__file__).parent.parent
@@ -1178,9 +1171,9 @@ def main():
                         ref_mwp = float(raw_profile.max())
                     solar_mw = raw_profile * (target_mwp / ref_mwp)
 
-                    # 2. Hourly dispatch
-                    # TODO: replace hard-coded 25 MW with Step 1 load builder once wired
-                    target_load_mw = 25.0
+                    # 2. Hourly dispatch — load from Step 1 setup, not hardcoded
+                    setup_state = get_wizard_state().get('setup', {})
+                    target_load_mw = float(setup_state.get('load_mw', 25.0))
                     bess_mw = float(fin_state.get('bess_capacity_mw', 62.5))
                     bess_mwh = bess_mw * float(
                         fin_state.get('bess_duration_hrs', 4.0))
@@ -1195,14 +1188,10 @@ def main():
                     )
                     monthly = aggregate_to_monthly(hourly, solar_mw)
 
-                    # 3. Financial model (dispatch-driven revenue)
-                    tfi = tariff_inputs_from_wizard_state(fin_state)
-                    results = run_tariff_model(
-                        tfi,
-                        monthly_solar_bess_to_dc=monthly['solar_bess_to_dc'],
-                        monthly_surplus=monthly['solar_surplus'],
-                        monthly_solar_gen=monthly['solar_gen'],
-                    )
+                    # 3. Financial model — new project_irr engine
+                    pi = pirr_inputs_from_wizard_state(
+                        fin_state, setup_state, monthly)
+                    results = run_pirr(pi)
 
                     st.session_state['financial_results'] = results
                     st.session_state['dispatch_monthly'] = monthly
@@ -1216,7 +1205,7 @@ def main():
                                if not np.isnan(results.project_irr) else "n/a")
                     st.success(
                         f"Dispatch: {green_pct:.1f}% green / {gas_pct:.1f}% "
-                        f"gas (load fixed at {target_load_mw:.0f} MW). "
+                        f"gas (load = {target_load_mw:.0f} MW from Step 1). "
                         f"Project IRR: {irr_str}"
                     )
                 except Exception as e:
@@ -1224,45 +1213,53 @@ def main():
                     import traceback
                     st.code(traceback.format_exc())
 
-    if run_legacy:
-        fin_state = get_financial_state()
-        if not fin_state.get('enabled'):
-            st.warning("Please save financial inputs first (button above).")
-        else:
-            with st.spinner("Running financial model..."):
-                try:
-                    fi = inputs_from_wizard_state(fin_state)
-                    results = run_financial_model(fi)
-                    st.session_state['financial_results'] = results
-                except Exception as e:
-                    st.error(f"Financial model error: {e}")
-
     # Display results if available
     if 'financial_results' in st.session_state:
-        results: FinancialResults = st.session_state['financial_results']
+        results: PirrResults = st.session_state['financial_results']
 
-        # --- Summary metrics ---
+        # --- Primary metric: Combined Project IRR ---
         st.subheader("Summary")
         m_col1, m_col2, m_col3, m_col4 = st.columns(4)
         with m_col1:
             irr_pct = results.project_irr * 100 if not np.isnan(results.project_irr) else 0
-            st.metric("Project IRR", f"{irr_pct:.2f}%")
+            st.metric("Project IRR (Combined)", f"{irr_pct:.2f}%",
+                      help="Solar+BESS+Gas Combined PIRR — matches Excel "
+                      "`Consol Cash Flows!B9`.")
         with m_col2:
             st.metric("Project NPV (GBPm)", f"{results.project_npv / 1000:,.2f}")
         with m_col3:
             st.metric("Total CAPEX (GBPm)", f"{results.total_capex / 1000:,.2f}")
         with m_col4:
-            payback_yrs = results.payback_month / 12 if results.payback_month > 0 else 0
+            # Payback: month when cumulative FCFF first turns positive
+            if len(results.fcff) > 0:
+                cum = np.cumsum(results.fcff)
+                pos_idx = np.where(cum > 0)[0]
+                payback_yrs = pos_idx[0] / 12 if len(pos_idx) > 0 else 0
+            else:
+                payback_yrs = 0
             st.metric("Payback", f"{payback_yrs:.1f} yrs" if payback_yrs > 0 else "N/A")
 
+        # --- Component PIRRs (per Anchal Q1 — Excel reports all 3) ---
         m2_col1, m2_col2, m2_col3 = st.columns(3)
         with m2_col1:
-            st.metric("Lifetime Revenue (GBPm)", f"{results.total_revenue_lifetime / 1000:,.1f}")
+            sb_pct = results.project_irr_solar_bess * 100 \
+                if not np.isnan(results.project_irr_solar_bess) else 0
+            st.metric("Solar+BESS PIRR", f"{sb_pct:.2f}%",
+                      help="S+B standalone — matches Excel `Equity!D175`.")
         with m2_col2:
-            st.metric("Lifetime OPEX (GBPm)", f"{results.total_opex_lifetime / 1000:,.1f}")
+            gas_pct = results.project_irr_gas * 100 \
+                if not np.isnan(results.project_irr_gas) else 0
+            st.metric("Gas PIRR", f"{gas_pct:.2f}%",
+                      help="Gas standalone — matches Excel `Cash Flows-Gas!D84`.")
         with m2_col3:
             net = results.total_revenue_lifetime - results.total_opex_lifetime
             st.metric("Lifetime EBITDA (GBPm)", f"{net / 1000:,.1f}")
+
+        m3_col1, m3_col2 = st.columns(2)
+        with m3_col1:
+            st.metric("Lifetime Revenue (GBPm)", f"{results.total_revenue_lifetime / 1000:,.1f}")
+        with m3_col2:
+            st.metric("Lifetime OPEX (GBPm)", f"{results.total_opex_lifetime / 1000:,.1f}")
 
         # --- Charts ---
         st.subheader("Monthly Cash Flows")

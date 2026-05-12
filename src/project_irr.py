@@ -1002,3 +1002,163 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
     res.project_irr = xirr(dates, fcff)
     res.project_npv = xnpv(dates, fcff, inp.discount_rate)
     return res
+
+
+# =============================================================================
+# WIZARD STATE ADAPTER
+# =============================================================================
+
+def pirr_inputs_from_wizard_state(
+    fin: dict,
+    setup: dict | None = None,
+    monthly_aggregates: dict | None = None,
+) -> PirrInputs:
+    """Build PirrInputs from wizard_state['financial'] + Step 1 setup + dispatch monthly aggregates.
+
+    Strategy: start from PirrInputs() defaults (which are the D13 fixture
+    values), override with whatever scalar fields the wizard state provides.
+    Arrays (merchant curve, embedded benefits, seasonality) keep the engine
+    defaults unless explicitly overridden — wizard state doesn't carry them
+    today and the D13 defaults are SME-confirmed.
+
+    Args:
+        fin: wizard_state['financial'] dict
+        setup: wizard_state['setup'] dict (for load_mw — D8 / Step 1 contract)
+        monthly_aggregates: dict from dispatch_energy.compute_monthly_energy()
+            with keys 'solar_bess_to_dc', 'solar_surplus', 'gas_energy'
+
+    Returns: PirrInputs ready to feed run_pirr()
+    """
+    setup = setup or {}
+    monthly_aggregates = monthly_aggregates or {}
+
+    def f(key, default):
+        v = fin.get(key)
+        return float(v) if v is not None else float(default)
+
+    def i(key, default):
+        v = fin.get(key)
+        return int(v) if v is not None else int(default)
+
+    bess_mw = f("bess_capacity_mw", 62.5)
+    bess_duration = f("bess_duration_hrs", 4.0)
+
+    # Convert display-% inputs (wizard convention) to decimal (engine convention)
+    degradation_decimal = f("degradation_pct", 0.3) / 100.0
+
+    # Defaults for monthly arrays: use zeros if dispatch hasn't run yet
+    z = np.zeros(12)
+    return PirrInputs(
+        # --- Capacity (D8: DC MWp for capex, AC profile peak ≈ grid limit) ---
+        solar_dc_mwp=f("solar_capacity_mwp", 82.0),
+        grid_limit_mw=f("grid_limit_mw", 58.4),
+        bess_mw=bess_mw,
+        bess_mwh=bess_mw * bess_duration,
+        bess_operating_life_years=i("bess_operating_life", 10),
+        gas_mw=f("gas_mw", 25.0),
+        gas_capacity_mw_gross=f("gas_capacity_mw_gross", 28.32),
+        load_mw=float(setup.get("load_mw", 25.0)),
+
+        # --- Solar yield ---
+        yield_p50=f("yield_p50", 967.0),
+        yield_p75=f("yield_p75", 936.0),
+        yield_p90=f("yield_p90", 895.0),
+        generation_selection=str(fin.get("generation_selection", "P50")),
+        solar_degradation_pct=degradation_decimal,
+
+        # --- Year-1 monthly aggregates from dispatch ---
+        monthly_solar_bess_to_dc=np.asarray(
+            monthly_aggregates.get("solar_bess_to_dc", z)),
+        monthly_solar_surplus=np.asarray(
+            monthly_aggregates.get("solar_surplus", z)),
+        monthly_gas_mwh=np.asarray(monthly_aggregates.get("gas_energy", z)),
+
+        # --- PPA ---
+        ppa_tariff_gbp_mwh=f("ppa_tariff_gbp_mwh", 170.0),
+        ppa_tenor_years=i("ppa_tenor_years", 10),
+        ppa_escalation_rate=f("ppa_escalation_pct", 0.0) / 100.0,
+
+        # --- REGOs ---
+        rego_switch=i("rego_switch", 1),
+        rego_price=f("rego_price", 2.5),
+        rego_tenor_years=i("rego_tenor_years", 35),
+
+        # --- 11kV embedded benefits ---
+        emb_switch=i("emb_benefits_switch", 1),
+        emb_tenor_years=i("emb_benefits_tenor", 15),
+
+        # --- BESS revenue switches (defaults: OFF per Anchal Q2 2026-05-11)
+        # — user can override in wizard if running a non-Burton-Leonard case
+        bess_floor_switch=i("bess_floor_switch", 0),
+        bess_floor_price=f("bess_floor_price", 40.0),
+        bess_floor_rev_share=f("bess_floor_rev_share", 9.0) / 100.0,
+        bess_floor_tenor_years=i("bess_floor_tenor", 10),
+        cm_t1_value=f("cm_t1_value", 0.0),
+        cm_t1_derating=f("cm_t1_derating", 27.15) / 100.0,
+        cm_t1_tenor_years=i("cm_t1_tenor", 3),
+        cm_t4_value=f("cm_t4_value", 0.0),
+        cm_t4_derating=f("cm_t4_derating", 20.94) / 100.0,
+        cm_t4_tenor_years=i("cm_t4_tenor", 15),
+
+        # --- Solar OPEX (GBP/kWp/yr) ---
+        opex_pv_om=f("opex_pv_om", 5.48),
+        opex_grid_conn=f("opex_grid_conn", 0.003),
+        opex_greenkeeping=f("opex_greenkeeping", 1.5),
+        opex_community=f("opex_community", 0.5),
+        opex_real_estate_tax=f("opex_real_estate_tax", 1.222),
+        opex_non_tech_am=f("opex_non_tech_am", 1.3),
+        opex_subsidy_loss=f("opex_subsidy_loss", 0.0),
+        opex_insurance=f("opex_insurance", 2.021),
+        opex_corrective_maint=f("opex_corrective_maint", 3.2),
+        opex_tech_am=f("opex_tech_am", 0.3),
+        opex_balancing_cfd=f("opex_balancing_cfd", 2.75),
+
+        # --- BESS OPEX (GBPk/MW/yr) ---
+        bess_opex_om=f("bess_opex_om", 7.063),
+        bess_opex_import=f("bess_opex_import", 0.0),
+        bess_opex_rates=f("bess_opex_rates", 3.276),
+        bess_opex_lease=f("bess_opex_lease", 1.489),
+
+        # --- Land ---
+        fixed_lease_switch=i("fixed_lease_switch", 1),
+        fixed_lease_acres=f("fixed_lease_acres", 205.0),
+        fixed_lease_price=f("fixed_lease_price", 700.0),
+        rev_dep_lease_switch=i("rev_dep_lease_switch", 1),
+        rev_share_yr1_10=f("rev_share_yr1_10", 5.0) / 100.0,
+        rev_share_yr11_35=f("rev_share_yr11_35", 5.0) / 100.0,
+
+        # --- CAPEX (GBP/kWp solar items) ---
+        capex_acquisition=f("capex_acquisition", 0.0),
+        capex_development=f("capex_development", 2.949),
+        capex_discharge=f("capex_discharge", 0.983),
+        capex_dd=f("capex_dd", 3.775),
+        capex_epc=f("capex_epc", 400.0),
+        capex_grid=f("capex_grid", 57.858),
+        capex_sdlt=f("capex_sdlt", 0.753),
+        capex_land_legal=f("capex_land_legal", 3.686),
+        capex_other_finance=f("capex_other_finance", 5.0),
+        capex_other_legal=f("capex_other_legal", 0.0),
+        capex_land_purchase=f("capex_land_purchase", 0.0),
+        capex_ampyr_tech=f("capex_ampyr_tech", 3.236),
+        capex_success_fee=f("capex_success_fee", 0.0),
+        capex_community=f("capex_community", 0.0),
+        capex_landowner_fees=f("capex_landowner_fees", 11.597),
+        capex_insurance=f("capex_insurance", 6.329),
+        capex_land_lease_constr=f("capex_land_lease_constr", 2.457),
+        capex_asset_adoption=f("capex_asset_adoption", 0.0),
+        capex_others=f("capex_others", 0.0),
+        capex_misc=f("capex_misc", 4.916),
+        capex_bess_gbp_per_kw_bess=f("capex_bess", 600.0),
+        capex_contingency_pct=f("capex_contingency_pct", 1.0) / 100.0,
+
+        # --- Tax ---
+        corp_tax_rate=f("corp_tax_rate_low", 25.0) / 100.0,
+        taxation_month=i("taxation_month", 12),
+
+        # --- Working capital ---
+        debtor_days=i("wc_debtors_days", 30),
+        creditor_days=i("wc_creditors_days", 30),
+
+        # --- Discount (for NPV reporting) ---
+        discount_rate=f("project_discount_rate", 6.5) / 100.0,
+    )

@@ -396,10 +396,13 @@ def get_current_step() -> int:
     return st.session_state.wizard['current_step']
 
 
+TOTAL_STEPS = 7   # Setup, Rules, Sizing, Results, MultiYear, GreenEnergy, Financial
+
+
 def set_current_step(step: int) -> None:
     """Set current wizard step."""
     init_wizard_state()
-    st.session_state.wizard['current_step'] = max(1, min(5, step))
+    st.session_state.wizard['current_step'] = max(1, min(TOTAL_STEPS, step))
 
 
 def can_navigate_to_step(target_step: int) -> bool:
