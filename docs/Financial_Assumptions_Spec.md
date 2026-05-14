@@ -13,6 +13,7 @@ Add a Project IRR (PIRR) ranking dimension to the operational sizing sweep, so t
 ## 2. Scope
 
 In scope:
+
 - **Ungeared Project IRR** (XIRR on FCFF) replicating Excel `Consol Cash Flows!B9` for the Burton Leonard base case
 - **Debt-aware tax line** — interest tax shield is captured via `(EBIT − Interest) × tax_rate` (Ampyr internal convention; see §4.1)
 - All ~10 Excel revenue streams (PPA, solar merchant, REGO, 11kV embedded benefits, BESS merchant, BESS floor, Capacity Market T-1/T-4, gas PPA, gas merchant)
@@ -21,6 +22,7 @@ In scope:
 - Multi-config sweep producing PIRR per configuration
 
 Out of scope (explicitly):
+
 - Equity IRR / Levered IRR
 - Debt sizing convergence, cash sweep, DSCR sculpting (the Excel's `Solve_P1` macro)
 - DSRA mechanics beyond the pre-funded amount
@@ -34,7 +36,7 @@ Out of scope (explicitly):
 ## 3. Locked decisions
 
 | # | Decision | Source |
-|---|---|---|
+| --- | --- | --- |
 | D1 | PIRR = ungeared FCFF IRR matching `Consol Cash Flows!B9`. Same definition Ampyr uses internally. | SME Q1 |
 | D2 | Tax computed as `(EBIT − Interest) × tax_rate` — interest tax shield IS included even though FCFF is ungeared in cash terms. Engine therefore needs minimal debt inputs (gearing, rate, tenor) for the tax calc. | SME Q1 correction |
 | D3 | Capex includes IDC, Financing Fees, and pre-funded DSRA (all in the Excel total `Solar&BESS Inputs!E361 = £82,026k`) — align with Excel methodology, not textbook. | SME Q2 |
@@ -47,14 +49,21 @@ Out of scope (explicitly):
 | D10 | **Time granularity:** 420 monthly periods (35 yr × 12 mo). Annual rejected. | Earlier — keeps Excel parity |
 | D11 | **Indexation:** per-line-item with own escalation case + start date, mirroring Excel's 14 indexation cases (`Curves and D&T`). | Earlier |
 | D12 | **IRR solver:** XIRR via bisection (Excel-compatible day count). | Earlier |
-| D13 | **Audit target:** **PIRR = 8.9%** for `82 MWp DC / 58.4 MW grid / £170 PPA / 250 MWh BESS / 25 MW gas / 25 MW load / Burton Leonard 58 MW profile`. Tolerance: **0.1 pp** (8.8–9.0%). Year-by-year FCFF within 1%; 35-year totals within 0.5%. | SME image + Q3 |
-| D14 | **Audit reference is the SME's matrix, not `Consol Cash Flows!B9 = 9.23%`.** That Excel cell value reflects an older case (Burton Top-3.8h, 3.8 hr BESS) and is superseded by the SME's 4-row reference matrix. | SME image |
+| D13 | **Audit target:** **Combined PV+BESS+Gas PIRR = 9.2%** for `82 MWp DC / 58.4 MW grid / £170 PPA / 250 MWh BESS / 25 MW gas / 25 MW load / Burton Leonard 58 MW profile`. Tolerance: **0.1 pp** (9.1–9.3%). Year-by-year FCFF within 1%; 35-year totals within 0.5%. **Per Anchal 2026-05-14 reply**: the matrix column is explicitly "Project IRR (Overall for PV+BESS+Gas)" — Combined, not S+B-only. Supersedes the A20 misinterpretation. See decisions log A29. | SME 2026-05-14 |
+| D14 | **Audit reference is the SME's 2026-05-14 matrix**, not Excel `Consol Cash Flows!B9 = 9.23%` (older Burton Top-3.8h snapshot). New 82 MWp values are slightly different from the May 7 image ("minor change in 82MW configuration" — 8.9→9.2 Combined for £170, 7.4→7.8 for £160). 115 MWp values unchanged (9.8 / 8.5). All four matrix rows are Combined PIRR. Per-config green/gas share also given as dispatch cross-check (82 MWp: 34.5/65.5; 115 MWp: 42.8/57.2). | SME 2026-05-14 |
 | D15 | **Wizard layout:** new optional **Step 3a Financial Sweep** between Step 3 Sizing and Step 4 Results. Existing Step 7 stays as single-config financial deep-dive. | User decision |
 | D16 | **Performance budget:** 8–12 s for a 100-config financial sweep (operational sweep stays cached). | Earlier |
 | D17 | **`#REF!` errors in the Excel** (broken named ranges `BESS_Hrs`, `BESS_MW`, `gearing_actual`, `Energy_copy`, `EBITDA_Val`, `PV_Val`, `Hours_output`, `No_projects`, `ProjectID`, plus `IC!C150:C158` opex rows) are confirmed by SME to be **outside the PIRR calc chain** — ignore. Flag any new `#REF!` discovered to be inside the chain. | SME Q3 |
 | D18 | **Validation cases:** Burton Leonard base case only for v1. Multi-case validation deferred to a later iteration. | SME Q4 |
 | D19 | **Existing `src/financial_model.py` (1,547 lines):** ~~treat as earlier attempt; audit-first.~~ **2026-05-07: Audit run, rewrite confirmed.** Engine produced 8.46% vs 8.9% (−44 bps; all 4 SME rows breach 0.1 pp tolerance) plus a `gas_ownership_share=0.58` calibration constant violating Guardrail #5. Parked as `src/financial_model_v0.py` and `src/consolidated_model_v0.py`; imports updated in 7 consumer sites. See decisions log A16. | Earlier + SME Q3 + A16 audit |
 | D20 | **Reference solar profiles** (canonical):<br>• `Inputs/Burton_Leonard_82MWp_DC_58MW_AC.csv` — primary audit profile (matches D13)<br>• `Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv` — secondary regression (SME image row 1) | SME-supplied |
+| D21 | **Tax depreciation = Reducing Balance with SLM crossover.** Excel `D&T!E165` Applied = "RB"; rate = `D&T!E164 = 2/36` (5.556% p.a., double-declining over a 36-year nominal life). Crossover to SLM-on-remaining when SLM ≥ RB amount, ensuring lifetime depreciation = total capex (smooth taper, no end-of-life spike). | Excel D&T r163-165 |
+| D22 | **Shareholder Loan (SHL) tax shield in scope.** SHL principal = `shl_pct_of_unfunded` × (1 − senior_gearing) × total_capex (Excel `Solar&BESS Inputs!F556 = 0.99`). Annual interest at `shl_rate = 15%` p.a. (`F553`). Deductible interest subject to UK CIR cap = max(£2m, 30% × EBITDA) on **total** interest (senior + SHL), senior prioritised, SHL fills remaining headroom. Mirrors Excel `D&T!r197/r210-r212`. | Excel D&T + Solar&BESS Inputs F553/F556 |
+| D23 | **Solar balancing services split** (A32): CfD rate £2.75/MWh flat (NIL indexation per Excel `Inputs!F287` active branch) during PPA tenor only; merchant rate (time-varying £1.35→£2.67/MWh £/MWh curve derived from `Op r142 / Op r52`) post-PPA. Excel sources `Solar&BESS Inputs!F282` (CfD rate, scalar) and `Baringa and Aurora!F1:...` (merchant rate, lookup curve referenced from F283 cell-note). Engine field `merchant_balancing_rate_by_ops_year: dict`. | Excel Op r141/r142 + Inputs F282/F283/F287 |
+| D24 | **Land lease formula is annual, not monthly** (A33): `total_lease = Σ fixed_m + max(0, annual_rev_lease - annual_fixed_lease)`. Pre-A33 engine took `Σ max(fixed_m, rev_m)` — wrong when seasonal revenue dips below fixed in some months. | Anchal Q3 (A18) + 2026-05-15 implementation |
+| D25 | **PV O&M escalation = "O&M - Year 3 Onwards" not CPI** (A34): flat for ops_years 0-2, then 2%/yr from year 3 onwards. Excel `Solar&BESS Inputs!r267`. Engine has its own field `opex_pv_om_indexation` (separate from the bundled `opex_solar_fixed_indexation = "CPI"` for the other 8 solar fixed lines). | Excel `Inputs!r267` + Op r117 year-by-year verification |
+| D26 | **Capex per-month phasing infrastructure available, default OFF** (A35): engine `_calc_capex` supports `capex_phasing_sb` / `capex_phasing_gas` dicts keyed by `(year, month)`. Burton-Leonard curves stored as `_DEFAULT_CAPEX_PHASING_*_BY_MONTH`. Defaults empty — phasing-only fix regresses audit by 11 bps because Excel pairs it with (i) depreciation starting at capex-addition month per `D&T!r68`, (ii) UK NOL carry-forward of pre-COD losses. Activate when paired mechanisms land. | A35 diagnostic + gap analysis §3.12/§3.13 |
+| D27 | **Gas major maintenance is a discrete-event schedule, not level annual** (A36): Excel `Cash Flows-Gas!r44` has 8 events concentrated in ops_years 1, 3, 4, 6, 7, 9, 12, 15 totaling £16,650k nominal. Year 15 alone is £7,928k (47% of lifetime). Engine field `gas_major_maint_schedule: dict` defaults to `_DEFAULT_GAS_MAJOR_MAINT_SCHEDULE`. Values applied without additional escalation (already nominal). Empty dict falls back to legacy `gas_opex_major_maint_annual = 685.0` × gas inflation. | Excel `Cash Flows-Gas!r44` extracted 2026-05-15 |
 
 ---
 
@@ -90,7 +99,7 @@ PIRR_c = XIRR(dates[1..420], FCFF_c[1..420])
 The engine takes these inputs but does not produce a debt cash flow:
 
 | Input | Excel default | Excel cell | Used for |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Gearing ratio | 80% | `Solar&BESS Inputs!F415` | Initial debt principal = gearing × total capex |
 | Weighted avg interest rate | ~5.5% | derived from `F445/F453/F500/F508` | Per-period interest expense |
 | Debt tenor | 19.5 yr (fixed) / 22 yr (sculpted) | `F431` / `F486` | Amortisation profile |
@@ -104,7 +113,7 @@ Implementation: compute a single straight-line amortisation schedule (no DSCR sc
 For each configuration `c`, the financial layer receives:
 
 | From operational sweep (per config) | Used as |
-|---|---|
+| --- | --- |
 | `monthly_mwh_delivered[12]` | PPA revenue base |
 | `monthly_mwh_exported[12]` | Solar merchant revenue base |
 | `monthly_bess_cycles[12]` | BESS LTSA / augmentation triggers |
@@ -178,7 +187,7 @@ The full enumeration lives in [src/financial_config.py](../src/financial_config.
 ### 5.4 Tax & financial (~12 lines)
 
 | Input | Default | Excel cell |
-|---|---|---|
+| --- | --- | --- |
 | Corporate tax rate | 25% | `Inputs-Gas!F69` (or override) |
 | Project life | 35 yr | `Solar&BESS Inputs!F24` |
 | Solar degradation | 0.3% / yr from Y2 | `Solar&BESS Inputs!F40` |
@@ -191,6 +200,12 @@ The full enumeration lives in [src/financial_config.py](../src/financial_config.
 | weighted interest rate | ~5.5% | derived |
 | debt tenor | 19.5 / 22 yr | `F431` / `F486` |
 | grace period | 36 mo | `F432` |
+| **SHL (D22)**: % of unfunded | 99% | `Solar&BESS Inputs!F556` |
+| SHL rate | 15% p.a. | `Solar&BESS Inputs!F553` |
+| CIR de minimis threshold | £2m | `D&T!D210` |
+| CIR EBITDA cap | 30% | `D&T!E210` |
+| **Depreciation method (D21)** | Reducing Balance | `D&T!E165` |
+| Depreciation rate | 5.556% p.a. (2/36) | `D&T!E164` |
 
 ### 5.5 Indexation rates (~5 lines)
 
@@ -252,6 +267,7 @@ Step 7 Financial   (unchanged — single-config deep-dive on a chosen row)
 ```
 
 Key UX rules:
+
 - Step 3a is **optional** — user can skip and go straight to Step 4
 - Financial assumptions live in Step 1 (collapsed by default); Step 3a allows in-place override before running, for quick what-if iteration
 - Step 4's results table is **data-driven** — shows PIRR columns only if `financial_results` exists in session state
@@ -271,7 +287,7 @@ st.session_state.financial_results           # NEW — DataFrame — PIRR, NPV, 
 ### Cache invalidation rules
 
 | Trigger | Effect |
-|---|---|
+| --- | --- |
 | User changes Step 1/2 (setup, rules) → re-runs Step 3 | All three financial caches cleared |
 | User changes financial assumptions only (no operational change) → reruns Step 3a | `financial_results` cleared; `sizing_results` and `sizing_monthly_aggregates` preserved |
 | User uploads a new solar profile → re-runs Step 3 | All caches cleared (profile change invalidates everything) |
@@ -280,19 +296,21 @@ st.session_state.financial_results           # NEW — DataFrame — PIRR, NPV, 
 
 ## 9. Audit success criteria (v1)
 
-**Primary test:** drive the engine with the configuration in D13 and reproduce **PIRR = 8.9 ± 0.1 pp** (i.e. 8.8–9.0%).
+**Primary test:** drive the engine with the configuration in D13 and reproduce **Combined PV+BESS+Gas PIRR = 9.2 ± 0.1 pp** (i.e. 9.1–9.3%).
 
-**Secondary tests** (free, derived from SME image):
-| Solar DC | Grid | Tariff | BESS | Expected PIRR |
-|---|---|---|---|---|
-| 82 MWp | 58.4 MW | £170 | 250 MWh | **8.9%** (primary) |
-| 82 MWp | 58.4 MW | £160 | 250 MWh | 7.4% |
-| 115 MWp | 81.9 MW | £170 | 250 MWh | 9.8% |
-| 115 MWp | 81.9 MW | £160 | 250 MWh | 8.5% |
+**Secondary tests** (free, derived from SME's 2026-05-14 matrix — see D14 + decisions log A29):
 
-Each becomes a `tests/test_project_irr_excel_parity.py` row. CI fails if any drifts more than 10 bps.
+| Solar DC | Grid | Tariff | BESS | Expected Combined PIRR | Green / Gas Share |
+| --- | --- | --- | --- | --- | --- |
+| 82 MWp | 58.4 MW | £170 | 250 MWh | **9.2%** (primary, D13) | 34.5% / 65.5% |
+| 82 MWp | 58.4 MW | £160 | 250 MWh | 7.8% | 34.5% / 65.5% |
+| 115 MWp | 81.9 MW | £170 | 250 MWh | 9.8% | 42.8% / 57.2% |
+| 115 MWp | 81.9 MW | £160 | 250 MWh | 8.5% | 42.8% / 57.2% |
+
+Each becomes a `tests/test_project_irr_excel_parity.py` row. CI fails if any drifts more than 10 bps. **All four targets are Combined PV+BESS+Gas PIRRs** per Anchal's 2026-05-14 reply (matrix column header explicitly reads "Project IRR (Overall for PV+BESS+Gas)"). The per-config Green/Gas share targets serve as a dispatch cross-check (engine currently matches to ±0.7 pp).
 
 **Audit plan:**
+
 1. Import inputs from Excel via the existing `src/financial_config.py` `INPUT_CELLS` mapping — extend if any values are missing.
 2. Run the existing `src/financial_model.py` engine with the audit config.
 3. Compute headline PIRR + monthly FCFF.

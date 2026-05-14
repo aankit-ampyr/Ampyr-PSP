@@ -3,7 +3,7 @@
 **Project Sizing Platform — BESS & DG Sizing Tool**
 
 | Field | Value |
-|-------|-------|
+| ------- | ------- |
 | Version | 1.2.0 |
 | Author | Ankit Agarwal, GM — Product & Technology, Ampyr GTC |
 | Audience | DoublU Development Team (React + FastAPI rebuild) |
@@ -143,6 +143,7 @@ C:\repos\Ampyr-PSP\
 ### State Management
 
 All configuration persists in `st.session_state.wizard_state` — a nested dictionary with sections:
+
 - `setup` — Step 1 parameters
 - `rules` — Step 2 dispatch rules
 - `sizing` — Step 3 range definitions
@@ -150,6 +151,7 @@ All configuration persists in `st.session_state.wizard_state` — a nested dicti
 - `financial` — Step 7 financial parameters
 
 Key functions:
+
 - `init_wizard_state()` — Initialise defaults if not present
 - `get_wizard_state()` — Read current state
 - `update_wizard_state(section, key, value)` — Write to specific section
@@ -169,7 +171,7 @@ Defines the 8,760-hour electricity demand pattern the system must serve.
 **Mode Selection** (`setup.load_mode`):
 
 | Mode | Description | Parameters |
-|------|-------------|------------|
+| ------ | ------------- | ------------ |
 | `constant` | Fixed MW every hour | `load_mw` |
 | `day_only` | MW during day hours, 0 at night | `load_mw`, `load_day_start`, `load_day_end` |
 | `night_only` | MW during night hours, 0 during day | `load_mw`, `load_night_start`, `load_night_end` |
@@ -178,6 +180,7 @@ Defines the 8,760-hour electricity demand pattern the system must serve.
 | `csv` | User-uploaded 8,760-hour CSV | `load_csv_data` |
 
 **Built-in Presets**:
+
 - `constant_25mw` — 25 MW, all hours
 - `constant_50mw` — 50 MW, all hours
 - `office_hours` — 25 MW, hours 8–18
@@ -217,6 +220,7 @@ for hour in range(8760):
 ```
 
 **Load Analysis Metrics**:
+
 ```python
 total_energy_mwh = sum(load_profile)
 peak_load_mw = max(load_profile)
@@ -227,7 +231,7 @@ load_factor = total_energy_mwh / (peak_load_mw * 8760)
 **Input Fields**:
 
 | Field | Type | Min | Max | Default | Step |
-|-------|------|-----|-----|---------|------|
+| ------- | ------ | ----- | ----- | --------- | ------ |
 | `load_mw` | number_input | 1.0 | 500.0 | 25.0 | 5.0 |
 | `load_day_start` | slider | 0 | 23 | 6 | 1 |
 | `load_day_end` | slider | 0 | 23 | 18 | 1 |
@@ -241,20 +245,24 @@ load_factor = total_energy_mwh / (peak_load_mw * 8760)
 Defines the hourly solar generation used as the primary energy source.
 
 **Sources**:
+
 - **Inputs folder**: Pre-loaded CSV files from `Inputs/` directory (default: `Solar Profile.csv`, 67.9 MW peak)
 - **Upload**: User-uploaded CSV file
 
 **Validation Requirements**:
+
 - Must contain exactly 8,760 rows (one per hour of year)
 - All values must be >= 0 (no negative generation)
 - Values should not exceed rated capacity × 1.1
 
 **Scaling Formula** (`src/data_loader.py`):
+
 ```python
 scaled_profile = base_profile × (target_capacity / base_peak_capacity)
 ```
 
 **Solar Statistics**:
+
 ```python
 max_mw = max(profile)
 mean_mw = mean(profile)
@@ -268,14 +276,14 @@ zero_hours = count(profile == 0)
 **Container Types** (multiselect):
 
 | Container | Energy | Power | C-Rate |
-|-----------|--------|-------|--------|
+| ----------- | -------- | ------- | -------- |
 | `5mwh_2.5mw` | 5 MWh | 2.5 MW | 0.5C (2-hour duration) |
 | `5mwh_1.25mw` | 5 MWh | 1.25 MW | 0.25C (4-hour duration) |
 
 **Input Fields**:
 
 | Field | Type | Min | Max | Default | Step | Unit |
-|-------|------|-----|-----|---------|------|------|
+| ------- | ------ | ----- | ----- | --------- | ------ | ------ |
 | `bess_efficiency` | slider | 70 | 95 | 87 | 1 | % (round-trip) |
 | `bess_min_soc` | slider | 0 | 50 | 5 | 5 | % |
 | `bess_max_soc` | slider | 50 | 100 | 95 | 5 | % |
@@ -284,6 +292,7 @@ zero_hours = count(profile == 0)
 | `bess_enforce_cycle_limit` | checkbox | — | — | True | — | boolean |
 
 **Derived Constants** (computed at simulation initialisation):
+
 ```python
 one_way_efficiency = sqrt(bess_efficiency / 100)    # e.g., sqrt(0.87) = 0.933
 usable_capacity = capacity × (max_soc - min_soc) / 100
@@ -296,7 +305,7 @@ discharge_power_limit = capacity × C_rate_discharge  # MW
 ### 3.4 Diesel Generator (DG)
 
 | Field | Type | Min | Max | Default | Step | Unit |
-|-------|------|-----|-----|---------|------|------|
+| ------- | ------ | ----- | ----- | --------- | ------ | ------ |
 | `dg_enabled` | checkbox | — | — | True | — | boolean |
 | `dg_operating_mode` | radio | — | — | binary | — | binary / variable |
 | `dg_min_load_pct` | slider | 10 | 50 | 30 | 5 | % (variable mode only) |
@@ -304,7 +313,7 @@ discharge_power_limit = capacity × C_rate_discharge  # MW
 **Fuel Model Parameters** (when `dg_fuel_curve_enabled = True`):
 
 | Field | Type | Min | Max | Default | Step | Unit |
-|-------|------|-----|-----|---------|------|------|
+| ------- | ------ | ----- | ----- | --------- | ------ | ------ |
 | `dg_fuel_f0` | number_input | 0.01 | 0.10 | 0.03 | 0.005 | L/hr/kW (no-load) |
 | `dg_fuel_f1` | number_input | 0.15 | 0.35 | 0.22 | 0.01 | L/kWh (load) |
 | `dg_fuel_flat_rate` | number_input | 0.15 | 0.40 | 0.25 | 0.01 | L/kWh (simple model) |
@@ -313,7 +322,7 @@ discharge_power_limit = capacity × C_rate_discharge  # MW
 ### 3.5 Degradation Strategy
 
 | Strategy | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `standard` | Battery operates at nameplate capacity, degrades naturally |
 | `overbuild` | Install 20% extra capacity to offset future degradation |
 | `augmentation` | Add replacement capacity at year 8 |
@@ -343,13 +352,14 @@ discharge_power_limit = capacity × C_rate_discharge  # MW
 #### Q1: DG Timing — "When can the generator run?"
 
 | Option | Value | Description |
-|--------|-------|-------------|
+| -------- | ------- | ------------- |
 | Anytime | `anytime` | No time restriction |
 | Day only | `day_only` | Only during configurable day hours |
 | Night only | `night_only` | Only during configurable night hours |
 | Custom blackout | `custom_blackout` | Cannot run during specified hours |
 
 Additional inputs per option:
+
 - `day_only`: `day_start_slider` (0–23), `day_end_slider` (0–23)
 - `night_only`: `night_start_slider` (0–23), `night_end_slider` (0–23)
 - `custom_blackout`: `blackout_start_slider` (0–23), `blackout_end_slider` (0–23)
@@ -359,41 +369,42 @@ Additional inputs per option:
 Available options depend on timing selection:
 
 | Timing | Available Triggers |
-|--------|--------------------|
+| -------- | -------------------- |
 | `anytime` | `reactive` (load deficit), `soc_based` (SOC threshold) |
 | `day_only` | `soc_based` only |
 | `night_only` | `proactive` (pre-emptive charging), `soc_based` |
 | `custom_blackout` | `reactive` only |
 
 SoC-based trigger additional inputs:
+
 - `soc_on_threshold`: slider, min=bess_min_soc, max=bess_max_soc−10, step=5 (default 30%)
 - `soc_off_threshold`: slider, min=soc_on+10, max=bess_max_soc, step=5 (default 80%)
 
 #### Q3: DG Charges BESS
 
 | Option | Value | Description |
-|--------|-------|-------------|
+| -------- | ------- | ------------- |
 | No — solar only | `False` | Excess DG output is curtailed |
 | Yes — excess charges BESS | `True` | DG excess power is stored in battery |
 
 #### Q4: Load Serving Priority
 
 | Option | Value | Description |
-|--------|-------|-------------|
+| -------- | ------- | ------------- |
 | BESS first | `bess_first` | Discharge battery before starting DG |
 | DG first | `dg_first` | Start DG before using battery |
 
 #### Q5: DG Takeover Mode
 
 | Option | Value | Description |
-|--------|-------|-------------|
+| -------- | ------- | ------------- |
 | No — DG fills gap | `False` | DG supplements solar+BESS shortfall |
 | Yes — DG serves full load | `True` | When activated, DG serves entire load; solar diverted to BESS |
 
 #### Q6: Cycle Charging (only when DG mode = `variable`)
 
 | Field | Type | Min | Max | Default | Step |
-|-------|------|-----|-----|---------|------|
+| ------- | ------ | ----- | ----- | --------- | ------ |
 | Enabled | radio | — | — | False | — |
 | Min DG load | slider | 50 | 90 | 70 | 5 |
 | Off SOC | slider | soc_on+20 | max_soc | 80 | 5 |
@@ -405,7 +416,7 @@ SoC-based trigger additional inputs:
 The system auto-maps user answers to a dispatch template ID:
 
 | Template | Name | Conditions | Merit Order |
-|----------|------|------------|-------------|
+| ---------- | ------ | ------------ | ------------- |
 | **T0** | Solar + BESS Only | DG disabled | Solar -> Battery -> Unserved |
 | **T1** | Green Priority | Anytime + Reactive | Solar -> Battery -> DG -> Unserved |
 | **T2** | DG Night Charge | Night + Proactive | Solar -> DG -> Battery |
@@ -415,6 +426,7 @@ The system auto-maps user answers to a dispatch template ID:
 | **T6** | DG Night SoC Trigger | Night + SoC-based | Solar -> Battery -> DG (night, SoC) |
 
 **Inference Decision Tree**:
+
 ```
 if not dg_enabled → T0
 elif dg_timing == 'anytime':
@@ -445,18 +457,19 @@ elif dg_timing == 'custom_blackout' → T3
 **BESS Capacity Range**:
 
 | Field | Type | Min | Max | Default | Step | Unit |
-|-------|------|-----|-----|---------|------|------|
+| ------- | ------ | ----- | ----- | --------- | ------ | ------ |
 | `capacity_min` | number_input | 5 | 500 | 25 | 5 | MWh |
 | `capacity_max` | number_input | cap_min | 1000 | 150 | 5 | MWh |
 
 **Duration Classes**: Automatically derived from selected container types in Step 1:
+
 - `5mwh_2.5mw` → 2-hour duration
 - `5mwh_1.25mw` → 4-hour duration
 
 **DG Capacity Range** (if DG enabled):
 
 | Field | Type | Min | Max | Default | Step | Unit |
-|-------|------|-----|-----|---------|------|------|
+| ------- | ------ | ----- | ----- | --------- | ------ | ------ |
 | `dg_min` | number_input | 0 | 200 | load_mw | 5 | MW |
 | `dg_max` | number_input | dg_min | 200 | load_mw | 5 | MW |
 | `dg_step` | selectbox | — | — | 5 | — | MW |
@@ -476,7 +489,7 @@ total_configurations = capacity_count × duration_count × dg_count
 **Delivery Mode** (`delivery_mode`):
 
 | Mode | Description |
-|------|-------------|
+| ------ | ------------- |
 | `maximize` | Find configs that maximise delivery % |
 | `at_least` | Configs delivering >= target % |
 | `exactly` | Configs delivering exactly target % (±0.5%) |
@@ -484,19 +497,21 @@ total_configurations = capacity_count × duration_count × dg_count
 **Optimisation Priority** (`optimize_for`):
 
 | Priority | Sorts by |
-|----------|----------|
+| ---------- | ---------- |
 | `min_bess_size` | Smallest BESS capacity meeting goal |
 | `min_wastage` | Lowest solar curtailment % |
 | `min_dg_hours` | Fewest DG runtime hours |
 | `min_cycles` | Fewest BESS equivalent cycles |
 
 **Secondary Constraints**:
+
 - `max_wastage_pct` — Maximum acceptable solar curtailment %
 - `max_dg_hours` — Maximum acceptable DG runtime hours
 
 ### 5.4 Simulation Execution
 
 For each configuration in the sweep:
+
 1. Compute BESS power from capacity and duration: `power_mw = capacity_mwh / duration_hrs`
 2. Compute container count: `containers = ceil(capacity_mwh / container_energy_mwh)`
 3. Build `SimulationParams` from wizard state + this configuration
@@ -511,7 +526,7 @@ For each configuration in the sweep:
 Each row in the sweep results contains:
 
 | Column | Unit | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | BESS (MWh) | MWh | Battery energy capacity |
 | Duration (hr) | hours | Discharge duration at rated power |
 | Power (MW) | MW | Battery power rating |
@@ -539,6 +554,7 @@ Each row in the sweep results contains:
 ### 6.1 Data Structures
 
 #### SimulationParams (Input)
+
 ```python
 @dataclass
 class SimulationParams:
@@ -589,6 +605,7 @@ class SimulationParams:
 ```
 
 #### SimulationState (Mutable During Simulation)
+
 ```python
 @dataclass
 class SimulationState:
@@ -613,6 +630,7 @@ class SimulationState:
 ```
 
 #### HourlyResult (Output Per Hour)
+
 ```python
 @dataclass
 class HourlyResult:
@@ -672,6 +690,7 @@ def initialize_simulation(params) -> SimulationState:
 ### 6.3 Core Helper Functions
 
 #### charge_bess()
+
 ```python
 def charge_bess(state, energy_available, charge_power_used):
     """Charge battery. Returns (energy_accepted, new_power_used)."""
@@ -692,6 +711,7 @@ def charge_bess(state, energy_available, charge_power_used):
 ```
 
 #### discharge_bess()
+
 ```python
 def discharge_bess(state, params, energy_needed):
     """Discharge battery. Returns (energy_delivered, discharged_flag)."""
@@ -732,6 +752,7 @@ Verification: energy_in × 0.9327 × 0.9327 = energy_in × 0.87 = RTE ✓
 ```
 
 **Example**: To deliver 10 MWh to load from battery:
+
 - Energy withdrawn from battery = 10 / 0.9327 = 10.72 MWh
 - To store that 10.72 MWh, solar input needed = 10.72 / 0.9327 = 11.49 MWh
 - Round-trip loss = 11.49 − 10 = 1.49 MWh (13% loss) ✓
@@ -752,6 +773,7 @@ if current_hour_day != previous_hour_day:
 ```
 
 **Example**: 100 MWh battery, 5–95% SOC → usable_capacity = 90 MWh
+
 - Discharge 45 MWh → daily_cycles = 45/90 = 0.5 cycles
 - Discharge another 45 MWh → daily_cycles = 90/90 = 1.0 cycle
 - Discharge another 90 MWh → daily_cycles = 180/90 = 2.0 cycles → **BESS disabled**
@@ -789,6 +811,7 @@ For each hour `t` (0 to 8759):
 ### 6.7 Template Dispatch Logic
 
 #### T0: Solar + BESS Only
+
 ```
 excess_solar → charge_bess()
 remaining_load → discharge_bess()
@@ -797,6 +820,7 @@ remaining_load → discharge_bess()
 #### T1: Green Priority (Reactive DG)
 
 **With `bess_first` priority**:
+
 ```
 excess_solar → charge_bess()
 remaining_load → discharge_bess()
@@ -804,6 +828,7 @@ if remaining_load > 0 → activate_dg()
 ```
 
 **With `dg_first` priority**:
+
 ```
 excess_solar → charge_bess()
 if remaining_load > 0 → activate_dg()
@@ -811,6 +836,7 @@ if remaining_load > 0 → discharge_bess()
 ```
 
 **With `dg_takeover_mode`**:
+
 ```
 Check: can solar + BESS meet full load?
   If YES → normal dispatch (no DG)
@@ -818,6 +844,7 @@ Check: can solar + BESS meet full load?
 ```
 
 #### T2: DG Night Charge (Proactive)
+
 ```
 if is_night:
     excess_solar → charge_bess()
@@ -828,6 +855,7 @@ else:
 ```
 
 #### T3: DG Blackout Window
+
 ```
 if is_blackout:
     # DG cannot run — same as T0
@@ -838,6 +866,7 @@ else:
 ```
 
 #### T4: DG Emergency (SoC-Triggered, Anytime)
+
 ```
 excess_solar → charge_bess()
 remaining_load → discharge_bess()
@@ -848,6 +877,7 @@ if dg_was_running and soc < soc_off_mwh:
 ```
 
 #### T5: DG Day Charge (SoC-Triggered, Day Only)
+
 ```
 if is_day:
     Same as T4 but DG only available during day hours
@@ -856,6 +886,7 @@ else:
 ```
 
 #### T6: DG Night SoC Trigger
+
 ```
 if is_night:
     Same as T4 but DG only available during night hours
@@ -866,6 +897,7 @@ else:
 ### 6.8 DG Activation Functions
 
 #### Standard Activation
+
 ```python
 def activate_dg(state, params, hour, remaining_load, ...):
     dg_output = dg_capacity  # Full rated output (binary mode)
@@ -886,6 +918,7 @@ def activate_dg(state, params, hour, remaining_load, ...):
 ```
 
 #### Cycle Charging Activation
+
 ```python
 def activate_dg_cycle_charging(state, params, hour, remaining_load, ...):
     # DG runs at minimum load percentage for efficiency
@@ -898,6 +931,7 @@ def activate_dg_cycle_charging(state, params, hour, remaining_load, ...):
 ```
 
 #### DG Takeover
+
 ```python
 def check_dg_takeover(params, state, hour, ...):
     # Check if green sources can meet full load
@@ -962,6 +996,7 @@ hours_green_mar_oct = count(green delivery hours in Mar–Oct)
 Displays all configurations from the sweep with columns from Section 5.5. Supports:
 
 **Filters**:
+
 - Show only 100% delivery configurations
 - Show only zero-DG configurations
 - Sort by: Delivery %, BESS (MWh), Wastage %, Green %, DG Hours
@@ -969,6 +1004,7 @@ Displays all configurations from the sweep with columns from Section 5.5. Suppor
 ### 7.2 Configuration Selection
 
 User can select a specific configuration for detailed hourly analysis:
+
 - Container type (radio button)
 - BESS capacity (number_input, step=5 MWh)
 - DG capacity (number_input, step=5 MW)
@@ -1004,6 +1040,7 @@ STEP 4: Return top 3 recommendations with:
 ### 7.4 Hourly Detail View
 
 For the selected configuration, displays:
+
 - Hourly data table with all energy flows
 - Colour coding: Green=Charging, Lavender=Discharging, Yellow=DG, Pink=Unmet
 - Date range selector with quick buttons (Week, Month, Summer, Winter)
@@ -1024,7 +1061,7 @@ For the selected configuration, displays:
 ### 8.1 Degradation Parameters
 
 | Field | Options/Range | Default |
-|-------|---------------|---------|
+| ------- | --------------- | --------- |
 | Factory degradation | [0, 4, 6, 8, 10] % | 0% |
 | Annual degradation | [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0] %/year | 2.5% |
 | Sizing strategy | year1, year10, year20 | year1 |
@@ -1032,12 +1069,13 @@ For the selected configuration, displays:
 ### 8.2 Sizing Strategy
 
 | Strategy | Description | Nameplate Formula |
-|----------|-------------|-------------------|
+| ---------- | ------------- | ------------------- |
 | Year 1 BOL | Size for beginning of life | `target_capacity = user_selected_capacity` |
 | Year 10 EOL | Oversize so that Year 10 capacity matches target | `nameplate = target / (1 - factory_deg/100 - annual_deg/100 × 10)` |
 | Year 20 EOL | Oversize so that Year 20 capacity matches target | `nameplate = target / (1 - factory_deg/100 - annual_deg/100 × 20)` |
 
 **Container Rounding**:
+
 ```python
 actual_nameplate = ceil(raw_nameplate / container_energy) × container_energy
 ```
@@ -1052,6 +1090,7 @@ year_N_capacity = year_1_capacity × (1 - annual_degradation / 100) ^ (N - 1)
 ### 8.4 Re-simulation at Degraded Capacity
 
 For each year, the full 8,760-hour simulation is re-run with the degraded BESS capacity:
+
 ```python
 for year in range(1, projection_years + 1):
     degraded_capacity = year_N_capacity(year)
@@ -1092,6 +1131,7 @@ for year in range(1, projection_years + 1):
 Extracts stress cycles from the SOC history for accurate fatigue life estimation.
 
 **Algorithm**:
+
 1. Find reversal points (local maxima and minima) in SOC history
 2. Apply 4-point algorithm to identify enclosed cycles:
    - Examine consecutive points A, B, C, D
@@ -1104,7 +1144,7 @@ Extracts stress cycles from the SOC history for accurate fatigue life estimation
 For LFP chemistry, damage is not linear with depth:
 
 | DoD (%) | Stress Factor | Meaning |
-|---------|---------------|---------|
+| --------- | --------------- | --------- |
 | 10% | 0.3x | Shallow cycling = low damage |
 | 20% | 0.5x | |
 | 40% | 0.7x | |
@@ -1141,7 +1181,7 @@ remaining_capacity = initial_capacity × (1 - total_capacity_loss)
 ### 9.6 Strategies
 
 | Strategy | Implementation |
-|----------|---------------|
+| ---------- | --------------- |
 | **Standard** | Install nameplate, accept degradation |
 | **Overbuild** | Install nameplate × 1.20, extra capacity absorbs degradation |
 | **Augmentation** | Install nameplate, add replacement modules at year 8 |
@@ -1160,6 +1200,7 @@ fuel_rate (L/hr) = F0 × P_rated_kW + F1 × P_actual_kW
 ```
 
 Where:
+
 - `F0` = 0.03 L/hr/kW (no-load fuel consumption coefficient)
 - `F1` = 0.22 L/kWh (load-dependent fuel consumption coefficient)
 - `P_rated_kW` = DG rated capacity in kW
@@ -1168,6 +1209,7 @@ Where:
 ### 10.2 Flat Rate Alternative
 
 When fuel curve is disabled:
+
 ```
 fuel_consumed (L) = P_actual_kW × flat_rate × hours
 flat_rate = 0.25 L/kWh (default)
@@ -1185,18 +1227,21 @@ calculate_efficiency_at_load(p_rated_mw, load_pct, f0, f1) → {fuel_rate, speci
 ### 10.4 Worked Examples
 
 **25 MW DG at 100% load (Willans)**:
+
 ```
 fuel_rate = 0.03 × 25,000 + 0.22 × 25,000 = 750 + 5,500 = 6,250 L/hr
 specific = 6,250 / 25,000 = 0.25 L/kWh
 ```
 
 **25 MW DG at 50% load (Willans)**:
+
 ```
 fuel_rate = 0.03 × 25,000 + 0.22 × 12,500 = 750 + 2,750 = 3,500 L/hr
 specific = 3,500 / 12,500 = 0.28 L/kWh (less efficient at part load)
 ```
 
 **25 MW DG at 100% load (Flat rate)**:
+
 ```
 fuel = 25,000 kW × 0.25 L/kWh × 1 hr = 6,250 L
 ```
@@ -1211,7 +1256,7 @@ fuel = 25,000 kW × 0.25 L/kWh × 1 hr = 6,250 L
 ### 11.1 Optimisation Parameters
 
 | Dimension | Min | Max | Step | Unit |
-|-----------|-----|-----|------|------|
+| ----------- | ----- | ----- | ------ | ------ |
 | Solar capacity | 50 | 200 | 25 | MW |
 | BESS capacity | 0 | 300 | 25 | MWh |
 | Container types | — | — | — | [5mwh_2.5mw, 5mwh_1.25mw] |
@@ -1220,16 +1265,19 @@ fuel = 25,000 kW × 0.25 L/kWh × 1 hr = 6,250 L
 ### 11.2 Key Metrics
 
 **Green Energy Percentage** (energy-based):
+
 ```python
 green_energy_pct = (solar_to_load + bess_to_load) / (solar_to_load + bess_to_load + dg_to_load) × 100
 ```
 
 **Green Hours Percentage** (hour-based):
+
 ```python
 green_hours_pct = hours_green_delivery / hours_with_load × 100
 ```
 
 **Green Hours March–October** (summer season):
+
 ```python
 green_hours_pct_mar_oct = hours_green_mar_oct / hours_with_load_mar_oct × 100
 ```
@@ -1237,6 +1285,7 @@ green_hours_pct_mar_oct = hours_green_mar_oct / hours_with_load_mar_oct × 100
 ### 11.3 Viability Criteria
 
 A configuration is "viable" when:
+
 ```python
 meets_green_target = green_energy_pct >= green_energy_target_pct  # default 50%
 meets_wastage_limit = wastage_pct <= max_wastage_pct              # default 20%
@@ -1246,6 +1295,7 @@ is_viable = meets_green_target AND meets_wastage_limit
 ### 11.4 Result Fields
 
 Each configuration in the results includes:
+
 - Solar capacity (MW), BESS capacity (MWh), duration (hr), power (MW), containers (count), DG capacity (MW)
 - delivery_pct, green_energy_pct, green_hours_pct, green_hours_pct_mar_oct, wastage_pct
 - delivery_hours, load_hours, green_hours, dg_runtime_hours, dg_starts
@@ -1284,7 +1334,7 @@ Revenue (FS!row27)
 #### Timing
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `model_start` | 2024-07-01 | date | Model start date |
 | `construction_start` | 2026-01-01 | date | Construction begins |
 | `construction_months` | 18 | months | Construction duration |
@@ -1294,7 +1344,7 @@ Revenue (FS!row27)
 #### Solar Generation
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `solar_capacity_mwp` | 82.0 | MWp | Installed solar capacity |
 | `yield_p50` | 967.0 | MWh/MWp/Yr | P50 specific yield |
 | `yield_p75` | 936.0 | MWh/MWp/Yr | P75 specific yield |
@@ -1309,7 +1359,7 @@ Revenue (FS!row27)
 #### BESS
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `bess_switch` | 1 | 0/1 | BESS included |
 | `bess_capacity_mw` | 62.5 | MW | BESS power rating |
 | `bess_duration_hrs` | 4.0 | hours | BESS duration |
@@ -1326,7 +1376,7 @@ Revenue (FS!row27)
 #### Revenue Streams — PPA
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `ppa_selection` | 1 | int | PPA scenario |
 | `ppa_price_gbp_mwh` | 50.0 | GBP/MWh | PPA strike price |
 | `ppa_indexation` | CPI | — | Price escalation basis |
@@ -1335,7 +1385,7 @@ Revenue (FS!row27)
 #### Revenue Streams — REGOs
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `rego_switch` | 1 | 0/1 | REGOs enabled |
 | `rego_price` | 5.0 | GBP/MWh | REGO price |
 | `rego_indexation` | CPI | — | REGO price escalation |
@@ -1344,7 +1394,7 @@ Revenue (FS!row27)
 #### Revenue Streams — Capacity Market
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `cm_t1_value` | 20.0 | GBPk/MW/Yr | T-1 auction price |
 | `cm_t1_derating` | 27.15 | % | T-1 de-rating factor |
 | `cm_t1_tenor` | 1 | years | T-1 contract tenor |
@@ -1355,7 +1405,7 @@ Revenue (FS!row27)
 #### CAPEX (all in GBP/kWp unless noted)
 
 | Parameter | Default | Description |
-|-----------|---------|-------------|
+| ----------- | --------- | ------------- |
 | `capex_epc` | 400.0 | EPC (Engineering, Procurement, Construction) |
 | `capex_grid` | 30.0 | Grid connection |
 | `capex_development` | 15.0 | Development costs |
@@ -1382,7 +1432,7 @@ Revenue (FS!row27)
 #### Solar OPEX (all in GBP/kWp/Year)
 
 | Parameter | Default | Description |
-|-----------|---------|-------------|
+| ----------- | --------- | ------------- |
 | `opex_pv_om` | 5.48 | PV O&M |
 | `opex_grid_conn` | 1.50 | Grid connection fee |
 | `opex_greenkeeping` | 0.50 | Greenkeeping/landscaping |
@@ -1400,7 +1450,7 @@ Revenue (FS!row27)
 #### BESS OPEX (all in GBPk/MW/Year)
 
 | Parameter | Default | Description |
-|-----------|---------|-------------|
+| ----------- | --------- | ------------- |
 | `bess_opex_om` | 7.06 | O&M |
 | `bess_opex_import` | 0.00 | Import charges |
 | `bess_opex_rates` | 0.00 | Business rates |
@@ -1409,7 +1459,7 @@ Revenue (FS!row27)
 #### Land
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `fixed_lease_switch` | 0 | 0/1 | Fixed lease enabled |
 | `fixed_lease_acres` | 200 | acres | Lease area |
 | `fixed_lease_price` | 800 | GBP/Acre/Yr | Annual rent |
@@ -1422,7 +1472,7 @@ Revenue (FS!row27)
 #### Tax
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `corp_tax_rate_low` | 19.0 | % | UK small profits rate |
 | `corp_tax_rate_high` | 25.0 | % | UK main rate |
 | `corp_tax_threshold` | 250.0 | GBPk | Threshold for main rate |
@@ -1431,7 +1481,7 @@ Revenue (FS!row27)
 #### Working Capital & Financial
 
 | Parameter | Default | Unit | Description |
-|-----------|---------|------|-------------|
+| ----------- | --------- | ------ | ------------- |
 | `wc_debtors_days` | 45 | days | Receivables collection period |
 | `wc_creditors_days` | 30 | days | Payables payment period |
 | `project_discount_rate` | 8.0 | % | NPV discount rate |
@@ -1441,6 +1491,7 @@ Revenue (FS!row27)
 ### 12.3 Financial Calculation Functions
 
 #### build_timeline()
+
 ```python
 total_months = months_between(model_start, cod_date) + project_life_years × 12
 dates = [model_start, model_start+1month, ..., end]
@@ -1661,7 +1712,7 @@ Fields per product: Manufacturer, Model, Capacity (MWh), Container Size, Chemist
 ### 13.2 Container Sizes
 
 | Category | Configuration | Capacity Range |
-|----------|--------------|----------------|
+| ---------- | -------------- | ---------------- |
 | 20-ft Standard | Single rack | 2–3 MWh |
 | 20-ft Mid-Range | Multi-rack | 3–4 MWh |
 | 20-ft High-Density | Dense packing | 4–5 MWh |
@@ -1673,7 +1724,7 @@ Fields per product: Manufacturer, Model, Capacity (MWh), Container Size, Chemist
 ### 13.3 Duration Classes
 
 | Class | Energy:Power Ratio | Use Case |
-|-------|-------------------|----------|
+| ------- | ------------------- | ---------- |
 | 1-hour | 1:1 | Frequency response |
 | 2-hour | 1:2 | Peak shaving |
 | 4-hour | 1:4 | Load shifting |
@@ -1683,7 +1734,7 @@ Fields per product: Manufacturer, Model, Capacity (MWh), Container Size, Chemist
 ### 13.4 Pricing Data (2025)
 
 | Component | Price |
-|-----------|-------|
+| ----------- | ------- |
 | LFP cells | $40/kWh |
 | Complete BESS (global) | $125/kWh |
 | Complete BESS (Europe) | $150–200/kWh |
@@ -1703,7 +1754,7 @@ Total Cost = Capacity × Price × (1 + Installation%)
 ### 14.1 Global Constants (`src/config.py`)
 
 | Constant | Value | Unit | Description |
-|----------|-------|------|-------------|
+| ---------- | ------- | ------ | ------------- |
 | `TARGET_DELIVERY_MW` | 25.0 | MW | Binary delivery target |
 | `SOLAR_CAPACITY_MW` | 67.0 | MW | Default solar capacity |
 | `MIN_SOC` | 0.05 | fraction | 5% minimum SOC |
@@ -1750,7 +1801,7 @@ DEFAULT_DOD_STRESS_CURVE = {
 ### Appendix A: Glossary
 
 | Term | Full Name | Description |
-|------|-----------|-------------|
+| ------ | ----------- | ------------- |
 | BESS | Battery Energy Storage System | Grid-scale battery installation |
 | BOL | Beginning of Life | Nameplate capacity at installation |
 | CAPEX | Capital Expenditure | Upfront investment costs |
@@ -1782,7 +1833,7 @@ DEFAULT_DOD_STRESS_CURVE = {
 ### Appendix B: File-to-Function Cross-Reference
 
 | Function | File | Purpose |
-|----------|------|---------|
+| ---------- | ------ | --------- |
 | `build_load_profile()` | `src/load_builder.py` | Generate 8,760-hour load array |
 | `load_solar_profile()` | `src/data_loader.py` | Load CSV solar data |
 | `scale_solar_profile()` | `src/data_loader.py` | Scale solar to target capacity |

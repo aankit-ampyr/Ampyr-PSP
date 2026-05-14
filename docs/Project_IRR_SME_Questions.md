@@ -34,6 +34,7 @@ These are the ones we most need a sanity check on.
 **Q2.1** — *Convention of "Project IRR".* We are defining PIRR as the **ungeared, post-tax IRR on Free Cash Flow to the Firm (FCFF)** — i.e. revenue − opex − tax − capex − ΔWC, with no debt service and no equity injections, where tax is computed as if 100 % equity-funded (no interest tax shield). This matches `Consol Cash Flows!B9` in the Excel. **Is this what Ampyr internally means by "Project IRR"?** Some sponsors mean post-tax post-debt, some mean pre-tax, some mean ATCF on a different basis. We want to confirm we are calculating the same number you do.
 
 **Q2.2** — *Is PIRR even the right ranking metric for a sizing sweep?* When the user sweeps BESS MWh from 100 to 500, we expect:
+
 - BESS capex rises linearly with MWh
 - Energy delivered to load rises with diminishing returns
 - BESS opex (LTSA, augmentation) rises with cycles
@@ -50,7 +51,7 @@ Is that what you would expect to see in practice, or does PIRR typically decline
 The Excel has ~10 revenue streams. We default to porting all of them. Please flag any that **do not actually apply** to a UK off-grid solar + BESS + gas hybrid feeding a data centre under PPA, and any we are **missing**.
 
 | # | Stream | Excel value (active Burton Top case) | Our intent | SME — please confirm |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 1 | **Solar PPA revenue** (energy delivered to data centre × tariff) | £170/MWh, 10-year PPA, 0 % indexation | Include | Q3.1 — Is the PPA energy-based (£/MWh delivered) or capacity-based (£/MW availability), and what happens during solar/BESS outages? Does the data centre still pay if we cannot deliver? |
 | 2 | **Solar merchant** (energy exported / wasted) | Priced against Baringa / Aurora / Blend curves, 5 % discount | Include | Q3.2 — On an "off-grid" hybrid, can wasted solar actually be sold to merchant, or is it curtailed and earns nothing? The Excel name "Off-Grid Solution" implies the latter, but the model includes a non-zero merchant revenue. Which is correct for Burton Top? |
 | 3 | **REGO** | £2.5/MWh, 35-year tenor, switch on | Include | Q3.3 — Is REGO revenue genuine recurring revenue or a one-off uplift on the PPA? Does the £2.5/MWh hold for 35 years, or do we need a price curve? |
@@ -71,6 +72,7 @@ The Excel has ~10 revenue streams. We default to porting all of them. Please fla
 ## 4. Capex — what scales with what in the sweep
 
 The user can run two sweep modes:
+
 - **Mode A (BESS-only sweep):** solar MWp fixed, BESS MWh / duration / DG MW vary.
 - **Mode B (full sweep):** solar MWp also varies as a sweep dimension.
 
@@ -79,7 +81,7 @@ For each capex line, we need to know what drives it. Our current rules below —
 ### 4.1 Solar-driven capex (scales linearly with solar MWp)
 
 | Line | Excel £/kWp | Our rule | SME — please confirm |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | EPC Cost | 400 | Linear with solar MWp | Q4.1.1 — Does EPC really scale linearly across the 50–150 MWp range, or are there step functions for larger inverter sizes / transformer counts? |
 | Acquisition Fee | 0 | Linear with solar MWp | Q4.1.2 — Or is this a fixed lump sum per project? |
 | Development Costs | 2.95 | Linear with solar MWp | |
@@ -124,7 +126,7 @@ Active case: £4.7m grid costs on 82 MWp ≈ £57.86/kWp.
 We exclude these three from the PIRR capex stack:
 
 | Line | Excel value (Burton Top) | Why we exclude |
-|---|---|---|
+| --- | --- | --- |
 | IDC (Interest During Construction) | £1,000k | Interest on construction debt; only exists if there is debt. Project IRR is ungeared — no debt, no IDC. |
 | Financing Fees (Arrangement + Commitment + Structuring) | £1,248k | Lender fees. Same logic. |
 | Pre-funded Cash / DSRA | £200k | Lender protection cash buffer; released to equity at debt maturity. Lender artefact. |
@@ -226,7 +228,7 @@ If the Python diverges from Excel by more than this, we rewrite from scratch rat
 ## 10. Summary of our current decisions (for SME quick reference)
 
 | # | Decision |
-|---|---|
+| --- | --- |
 | 1 | PIRR = ungeared post-tax IRR on FCFF (matches Excel `Consol Cash Flows!B9` = 9.23 % for Burton Top base case) |
 | 2 | Two sweep modes: BESS-only (solar fixed) and full (solar + BESS swept) |
 | 3 | Per-config dispatch re-run inside financial layer, monthly aggregation |

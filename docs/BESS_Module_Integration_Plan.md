@@ -9,7 +9,7 @@ This document details the plan for converting the **BESS Sizing Tool** from a st
 ### 1.1 Current State
 
 | Aspect | Current State |
-|--------|---------------|
+| -------- | --------------- |
 | **Application Type** | Standalone Streamlit app |
 | **Authentication** | None |
 | **Data Persistence** | Session state only (ephemeral) |
@@ -19,7 +19,7 @@ This document details the plan for converting the **BESS Sizing Tool** from a st
 ### 1.2 Target State
 
 | Aspect | Target State |
-|--------|--------------|
+| -------- | -------------- |
 | **Application Type** | AmpyrOS module |
 | **Authentication** | SSO via AmpyrOS platform |
 | **Data Persistence** | PostgreSQL database |
@@ -152,7 +152,7 @@ modules/bess_sizing/
 ### 3.2 File Migration Map
 
 | Current Location | New Location | Changes Required |
-|------------------|--------------|------------------|
+| ------------------ | -------------- | ------------------ |
 | `src/dispatch_engine.py` | `sdk/core/dispatch_engine.py` | Remove st.* imports |
 | `src/financial_model.py` | `sdk/analysis/financial.py` | No changes |
 | `src/degradation_engine.py` | `sdk/analysis/degradation.py` | No changes |
@@ -697,6 +697,7 @@ def save_step_config():
 ### Phase 1: SDK Extraction (Week 5, Days 1-2)
 
 1. **Create module directory structure**
+
    ```bash
    mkdir -p modules/bess_sizing/{sdk,api,db,services,ui}
    mkdir -p modules/bess_sizing/sdk/{core,analysis,utils}
@@ -725,6 +726,7 @@ def save_step_config():
    - SimulationRepository with status tracking
 
 3. **Run migrations**
+
    ```bash
    alembic revision --autogenerate -m "Add BESS sizing tables"
    alembic upgrade head
@@ -767,7 +769,7 @@ def save_step_config():
 ### 10.1 Critical Rules to Maintain
 
 | Rule | Description | Implementation |
-|------|-------------|----------------|
+| ------ | ------------- | ---------------- |
 | **Binary Delivery** | Always 25 MW or 0, never partial | Check in dispatch_engine.py |
 | **Cycle Limits** | Max 2.0 cycles per day | Enforced in state machine |
 | **SOC Bounds** | 5% - 95% operational window | Clamping in charge/discharge |
@@ -779,7 +781,7 @@ def save_step_config():
 All 7 templates (T0-T6) must work identically:
 
 | Template | Description | Key Behavior |
-|----------|-------------|--------------|
+| ---------- | ------------- | -------------- |
 | T0 | Solar + BESS Only | No DG at all |
 | T1 | Green Priority | DG as last resort |
 | T2 | DG Night Charge | Proactive night charging |
@@ -793,6 +795,7 @@ All 7 templates (T0-T6) must work identically:
 ## 11. Verification Checklist
 
 ### SDK Verification
+
 - [ ] All 7 dispatch templates produce identical results to current app
 - [ ] Binary delivery constraint enforced
 - [ ] Cycle limits enforced correctly
@@ -800,6 +803,7 @@ All 7 templates (T0-T6) must work identically:
 - [ ] Efficiency calculations match
 
 ### API Verification
+
 - [ ] Project CRUD works correctly
 - [ ] Simulations run and complete
 - [ ] Results return correct data
@@ -807,6 +811,7 @@ All 7 templates (T0-T6) must work identically:
 - [ ] Error handling is robust
 
 ### UI Verification
+
 - [ ] Authentication flow works
 - [ ] Projects save and load correctly
 - [ ] All wizard steps function
@@ -814,6 +819,7 @@ All 7 templates (T0-T6) must work identically:
 - [ ] Exports download properly
 
 ### Integration Verification
+
 - [ ] Platform auth passes to module
 - [ ] Permissions enforced correctly
 - [ ] Audit logs captured

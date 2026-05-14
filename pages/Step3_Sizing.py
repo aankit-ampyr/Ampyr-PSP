@@ -21,7 +21,11 @@ from src.wizard_state import (
     set_current_step, mark_step_completed, get_step_status, can_navigate_to_step
 )
 from src.load_builder import build_load_profile
-from src.data_loader import load_solar_profile, load_solar_profile_by_name
+from src.data_loader import (
+    get_active_solar_profile,
+    load_solar_profile,
+    load_solar_profile_by_name,
+)
 from src.dispatch_engine import SimulationParams, run_simulation, calculate_metrics
 
 
@@ -106,36 +110,17 @@ def get_load_profile(setup):
 
 
 def get_solar_profile(setup):
-    """Get solar profile from setup configuration."""
-    solar_source = setup.get('solar_source', 'inputs')
+    """Return the canonical solar profile from wizard state as a list of MW values.
 
-    # Handle uploaded CSV data
-    if solar_source == 'upload' and setup.get('solar_csv_data') is not None:
-        solar_data = setup['solar_csv_data']
-        if isinstance(solar_data, list):
-            return solar_data[:8760] if len(solar_data) >= 8760 else solar_data
-        return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
+    Step 1 owns profile loading + validation. This wrapper preserves the
+    list-of-floats return type expected by `SimulationParams.solar_profile`.
 
-    # Handle selection from Inputs folder
-    if solar_source in ('inputs', 'default'):
-        selected_file = setup.get('solar_selected_file')
-        if selected_file:
-            try:
-                solar_data = load_solar_profile_by_name(selected_file)
-                if solar_data is not None and len(solar_data) > 0:
-                    return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-            except Exception:
-                pass
-
-    # Fallback: load default profile
-    try:
-        solar_data = load_solar_profile()
-        if solar_data is not None and len(solar_data) > 0:
-            return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-    except Exception:
-        pass
-
-    return None
+    See decisions log A27.
+    """
+    arr = get_active_solar_profile(setup)
+    if arr is None:
+        return None
+    return arr.tolist()
 
 
 def run_sizing_simulation(capacity_range, container_types, dg_range, setup, rules, progress_callback=None):
@@ -543,6 +528,13 @@ col1, col2, col3 = st.columns([1, 1, 1])
 with col1:
     if st.button("← Back to Rules", use_container_width=True):
         st.switch_page("pages/Step2_Rules.py")
+
+with col2:
+    has_results = 'sizing_results' in st.session_state and st.session_state.sizing_results is not None
+    if st.button("£ Add Financial Analysis", disabled=not has_results,
+                 use_container_width=True,
+                 help="Optional: rank configs by Project IRR alongside operational metrics (Step 3a)."):
+        st.switch_page("pages/Step3a_FinancialSweep.py")
 
 with col3:
     has_results = 'sizing_results' in st.session_state and st.session_state.sizing_results is not None

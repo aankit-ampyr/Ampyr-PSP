@@ -10,9 +10,11 @@
 ## 1. Overview
 
 ### 1.1 Description
+
 Proactive night charging strategy. DG automatically turns ON when night window begins to serve load and charge BESS. During day, DG is disabled to maximize green energy usage. BESS is sized to cover daytime load with solar support.
 
 ### 1.2 Use Case
+
 - Sites with cheap/available fuel at night
 - Sites requiring green-only operation during business hours
 - Maximizing solar utilization during day
@@ -20,18 +22,21 @@ Proactive night charging strategy. DG automatically turns ON when night window b
 ### 1.3 Merit Order
 
 **Night Hours:**
+
 1. DG to load (proactive - ON at night start)
 2. DG excess to BESS
 3. BESS discharge (if DG off due to SoC threshold)
 4. Unserved energy
 
 **Day Hours:**
+
 1. Solar direct to load
 2. BESS discharge to load
 3. Emergency DG (if enabled and SoC critical)
 4. Unserved energy
 
 ### 1.4 Key Characteristics
+
 - DG turns ON proactively at night start (not reactive to load deficit)
 - DG runs at Full Capacity when ON
 - DG turns OFF based on user selection: Day starts OR SoC threshold reached
@@ -42,15 +47,16 @@ Proactive night charging strategy. DG automatically turns ON when night window b
 ## 2. Input Parameters
 
 ### 2.1 Profiles (8760 hourly values)
+
 | Parameter | Description | Unit |
-|-----------|-------------|------|
+| ----------- | ------------- | ------ |
 | `load_profile[t]` | Hourly load demand | MW |
 | `solar_profile[t]` | Hourly solar generation | MW |
 
 ### 2.2 BESS Parameters
 
 | Parameter | Description | Unit | Default | Fixed Mode | Sizing Mode |
-|-----------|-------------|------|---------|------------|-------------|
+| ----------- | ------------- | ------ | --------- | ------------ | ------------- |
 | `bess_capacity` | Total energy capacity | MWh | Required | User input | Iterated (range) |
 | `bess_charge_power` | Max charge rate | MW | Required | User input | **Auto-calculated** |
 | `bess_discharge_power` | Max discharge rate | MW | Required | User input | **Auto-calculated** |
@@ -64,25 +70,29 @@ Proactive night charging strategy. DG automatically turns ON when night window b
 | `bess_enforce_cycle_limit` | Enforce limit? | Boolean | False | User input | User input |
 
 ### 2.3 DG Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `dg_capacity` | Rated power output | MW | Required |
 | `dg_charges_bess` | Can DG charge BESS? | Boolean | True |
 
 ### 2.4 Time Window Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `night_window_mode` | How night is defined | Fixed / Dynamic | Fixed |
 | `night_start_hour` | Night begins (if Fixed) | Hour (0-23) | 18 |
 | `night_end_hour` | Night ends (if Fixed) | Hour (0-23) | 6 |
 
 **Night Window Modes:**
+
 - **Fixed:** User specifies start/end hours (e.g., 18:00 - 06:00)
 - **Dynamic:** Night = hours outside the solar production window
 
 ### 2.5 DG Control Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `dg_off_trigger` | What turns DG off | Day_Start / SoC_Threshold | Day_Start |
 | `dg_soc_on_threshold` | SoC below which DG turns ON (if SoC_Threshold mode) | % | 30 |
 | `dg_soc_off_threshold` | SoC above which DG turns OFF (if SoC_Threshold mode) | % | 80 |
@@ -94,6 +104,7 @@ Proactive night charging strategy. DG automatically turns ON when night window b
 In **Sizing Mode**, the simulation engine iterates through multiple configurations.
 
 **User Inputs (Sizing Mode):**
+
 - `bess_capacity_min`, `bess_capacity_max`, `bess_capacity_step` (MWh range)
 - `dg_capacity_min`, `dg_capacity_max`, `dg_capacity_step` (MW range)
 
@@ -101,7 +112,7 @@ In **Sizing Mode**, the simulation engine iterates through multiple configuratio
 For each BESS capacity value, the system automatically tests 7 duration classes:
 
 | Duration | C-Rate | Power Calculation |
-|----------|--------|-------------------|
+| ---------- | -------- | ------------------- |
 | 1-hour | 1C | `power = capacity ÷ 1` |
 | 2-hour | 0.5C | `power = capacity ÷ 2` |
 | 3-hour | 0.33C | `power = capacity ÷ 3` |
@@ -111,6 +122,7 @@ For each BESS capacity value, the system automatically tests 7 duration classes:
 | 10-hour | 0.1C | `power = capacity ÷ 10` |
 
 **Power Derivation:**
+
 ```
 bess_charge_power = bess_capacity ÷ duration_hours
 bess_discharge_power = bess_capacity ÷ duration_hours
@@ -219,7 +231,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 5. State Variables
 
 | Variable | Description | Initial Value | Resets |
-|----------|-------------|---------------|--------|
+| ---------- | ------------- | --------------- | -------- |
 | `soc` | Current BESS state of charge (MWh) | `bess_capacity × initial_soc / 100` | Never |
 | `daily_discharge` | BESS energy discharged today (MWh) | 0 | Daily |
 | `daily_cycles` | BESS cycles consumed today | 0 | Daily |
@@ -229,8 +241,9 @@ soc = bess_capacity × bess_initial_soc / 100
 | `bess_discharged_this_hour` | BESS discharged flag | False | Hourly |
 
 **Per-Day Tracking Arrays:**
+
 | Variable | Description | Size |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `max_daily_cycles_per_day[]` | Peak cycles reached each day | 365 |
 
 ---
@@ -238,7 +251,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 6. Hourly Output Variables
 
 | Variable | Description | Unit |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `solar_to_load` | Solar energy serving load directly | MWh |
 | `solar_to_bess` | Solar energy charging BESS | MWh |
 | `solar_curtailed` | Excess solar wasted | MWh |
@@ -258,7 +271,7 @@ soc = bess_capacity × bess_initial_soc / 100
 When run in Sizing Mode, the simulation produces a **comparison table**:
 
 | Column | Description | Unit |
-|--------|-------------|------|
+| -------- | ------------- | ------ |
 | `capacity` | BESS energy capacity | MWh |
 | `duration` | Duration class | hours |
 | `power` | Calculated charge/discharge power | MW |
@@ -298,7 +311,7 @@ The dispatch logic steps (0-10) remain identical. Only the initialization of pow
 ## 11. Assumptions and Simplifications
 
 | Assumption | Description |
-|------------|-------------|
+| ------------ | ------------- |
 | **Hourly resolution** | Δt = 1 hour; MW values represent MWh |
 | **No simultaneous charge/discharge** | BESS either charges OR discharges in any hour |
 | **365-day year** | 8760 hours; leap years not handled |
@@ -316,11 +329,13 @@ The dispatch logic steps (0-10) remain identical. Only the initialization of pow
 Before marking implementation complete, verify:
 
 **Sizing Mode:**
+
 - [ ] Sizing Mode correctly derives power from capacity and duration
 - [ ] All 7 duration classes tested for each capacity × DG combination
 - [ ] Output comparison table includes all required columns
 
 **Core Logic:**
+
 - [ ] Night vs day classification (fixed/dynamic) working as specified
 - [ ] Pre-simulation validation catches invalid threshold ordering
 - [ ] DG ON/OFF follows SoC deadband hysteresis

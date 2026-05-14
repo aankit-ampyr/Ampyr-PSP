@@ -10,14 +10,17 @@
 ## 1. Overview
 
 ### 1.1 Description
+
 Pure green off-grid system. Load is served only by solar generation and battery storage. Any unmet demand is recorded as unserved energy.
 
 ### 1.2 Merit Order
+
 1. Solar direct to load
 2. BESS discharge to load
 3. Unserved energy
 
 ### 1.3 Charging Sources
+
 - BESS charges from excess solar only
 - No grid or DG charging available
 
@@ -26,15 +29,16 @@ Pure green off-grid system. Load is served only by solar generation and battery 
 ## 2. Input Parameters
 
 ### 2.1 Profiles (8760 hourly values)
+
 | Parameter | Description | Unit |
-|-----------|-------------|------|
+| ----------- | ------------- | ------ |
 | `load_profile[t]` | Hourly load demand | MW |
 | `solar_profile[t]` | Hourly solar generation | MW |
 
 ### 2.2 BESS Parameters
 
 | Parameter | Description | Unit | Default | Fixed Mode | Sizing Mode |
-|-----------|-------------|------|---------|------------|-------------|
+| ----------- | ------------- | ------ | --------- | ------------ | ------------- |
 | `bess_capacity` | Total energy capacity | MWh | Required | User input | Iterated (range) |
 | `bess_charge_power` | Max charge rate | MW | Required | User input | **Auto-calculated** |
 | `bess_discharge_power` | Max discharge rate | MW | Required | User input | **Auto-calculated** |
@@ -52,13 +56,14 @@ Pure green off-grid system. Load is served only by solar generation and battery 
 In **Sizing Mode**, the simulation engine iterates through multiple configurations:
 
 **User Inputs (Sizing Mode):**
+
 - `bess_capacity_min`, `bess_capacity_max`, `bess_capacity_step` (MWh range)
 
 **System-Generated:**
 For each capacity value, the system automatically tests 7 duration classes:
 
 | Duration | C-Rate | Power Calculation |
-|----------|--------|-------------------|
+| ---------- | -------- | ------------------- |
 | 1-hour | 1C | `power = capacity ÷ 1` |
 | 2-hour | 0.5C | `power = capacity ÷ 2` |
 | 3-hour | 0.33C | `power = capacity ÷ 3` |
@@ -68,6 +73,7 @@ For each capacity value, the system automatically tests 7 duration classes:
 | 10-hour | 0.1C | `power = capacity ÷ 10` |
 
 **Power Derivation:**
+
 ```
 bess_charge_power = bess_capacity ÷ duration_hours
 bess_discharge_power = bess_capacity ÷ duration_hours
@@ -76,6 +82,7 @@ bess_discharge_power = bess_capacity ÷ duration_hours
 **Assumption:** Charge power = Discharge power (symmetric) in Sizing Mode.
 
 **Why Duration Matters:**
+
 - Same capacity with different power ratings produces different results
 - Lower power (longer duration) = may curtail solar (can't absorb spikes fast enough)
 - Higher power (shorter duration) = better load following but more expensive
@@ -119,7 +126,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 4. State Variables
 
 | Variable | Description | Initial Value | Resets |
-|----------|-------------|---------------|--------|
+| ---------- | ------------- | --------------- | -------- |
 | `soc` | Current state of charge (MWh) | `bess_capacity × initial_soc / 100` | Never |
 | `daily_discharge` | Energy discharged today (MWh) | 0 | Daily |
 | `daily_cycles` | Cycles consumed today | 0 | Daily |
@@ -131,7 +138,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 5. Hourly Output Variables
 
 | Variable | Description | Unit |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `solar_to_load` | Solar energy serving load directly | MWh |
 | `solar_to_bess` | Solar energy charging BESS | MWh |
 | `solar_curtailed` | Excess solar wasted | MWh |
@@ -310,7 +317,7 @@ bess_equivalent_cycles = IF usable_capacity > 0 THEN (bess_throughput / usable_c
 When run in Sizing Mode, the simulation produces a **comparison table** with one row per configuration:
 
 | Column | Description | Unit |
-|--------|-------------|------|
+| -------- | ------------- | ------ |
 | `capacity` | BESS energy capacity | MWh |
 | `duration` | Duration class tested | hours |
 | `power` | Calculated charge/discharge power | MW |
@@ -327,7 +334,7 @@ When run in Sizing Mode, the simulation produces a **comparison table** with one
 **Example Output:**
 
 | Capacity | Duration | Power | Delivery % | Curtailed % | Cycles |
-|----------|----------|-------|------------|-------------|--------|
+| ---------- | ---------- | ------- | ------------ | ------------- | -------- |
 | 50 MWh | 1-hr | 50 MW | 92.1% | 1.2% | 312 |
 | 50 MWh | 2-hr | 25 MW | 89.4% | 4.8% | 298 |
 | 50 MWh | 4-hr | 12.5 MW | 82.3% | 12.6% | 245 |
@@ -336,6 +343,7 @@ When run in Sizing Mode, the simulation produces a **comparison table** with one
 | 100 MWh | 4-hr | 25 MW | 93.1% | 3.4% | 156 |
 
 **Interpretation:**
+
 - Same 50 MWh capacity with 1-hr duration (50 MW power) delivers 92.1% with only 1.2% curtailment
 - Same 50 MWh with 4-hr duration (12.5 MW power) delivers only 82.3% with 12.6% curtailment
 - The 4-hr system can't absorb solar spikes fast enough → more curtailment
@@ -346,8 +354,9 @@ When run in Sizing Mode, the simulation produces a **comparison table** with one
 ## 9. Validation Test Case
 
 ### 9.1 Test Parameters
+
 | Parameter | Value |
-|-----------|-------|
+| ----------- | ------- |
 | Load | 10 MW constant (all hours) |
 | Solar | 15 MW (hours 8-17), 0 MW (other hours) |
 | BESS Capacity | 20 MWh |
@@ -362,8 +371,9 @@ When run in Sizing Mode, the simulation produces a **comparison table** with one
 ### 9.2 Expected Results for Hours 1-3
 
 **Hour 1 (Night, Solar = 0)**
+
 | Variable | Expected Value | Calculation |
-|----------|----------------|-------------|
+| ---------- | ---------------- | ------------- |
 | solar_to_load | 0 | min(0, 10) |
 | remaining_load | 10 | 10 - 0 |
 | discharge_available | 8 | 10 - 2 |
@@ -374,16 +384,18 @@ When run in Sizing Mode, the simulation produces a **comparison table** with one
 | unserved | 2.62 | 10 - 7.38 |
 
 **Hour 2 (Night, Solar = 0, SoC = 2 MWh at minimum)**
+
 | Variable | Expected Value | Calculation |
-|----------|----------------|-------------|
+| ---------- | ---------------- | ------------- |
 | solar_to_load | 0 | |
 | discharge_available | 0 | 2 - 2 |
 | bess_to_load | 0 | No energy available |
 | unserved | 10 | Full load unserved |
 
 **Hour 8 (Day starts, Solar = 15)**
+
 | Variable | Expected Value | Calculation |
-|----------|----------------|-------------|
+| ---------- | ---------------- | ------------- |
 | solar_to_load | 10 | min(15, 10) |
 | remaining_load | 0 | 10 - 10 |
 | excess_solar | 5 | 15 - 10 |
@@ -399,7 +411,7 @@ When run in Sizing Mode, the simulation produces a **comparison table** with one
 ## 10. Edge Cases
 
 | Scenario | Expected Behavior |
-|----------|-------------------|
+| ---------- | ------------------- |
 | Solar = 0, BESS at min SoC | Full load is unserved |
 | Solar > Load, BESS at max SoC | Excess solar curtailed |
 | Solar = Load exactly | No BESS action, no curtailment |

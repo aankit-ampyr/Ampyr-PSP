@@ -227,9 +227,10 @@ def main():
                 "Generation Case",
                 options=["P50", "P75", "P90"],
                 index=["P50", "P75", "P90"].index(
-                    fin.get('generation_selection', REF.get('generation_selection', 'P90'))
+                    fin.get('generation_selection', 'P50')
                 ),
-                help="Yield scenario selection",
+                help="Yield scenario selection. D13 audit / Excel "
+                "`Solar&BESS Inputs!F66` = P50.",
             )
             yield_p50 = st.number_input(
                 "P50 Gross Yield (MWh/MWp/Yr)",
@@ -340,7 +341,8 @@ def main():
             bess_operating_life = st.number_input(
                 "BESS Operating Life (years)",
                 min_value=5, max_value=30,
-                value=int(fin.get('bess_operating_life', 15)),
+                value=int(fin.get('bess_operating_life', 10)),
+                help="D13 / Excel `Solar&BESS Inputs!F112` = 10 years",
             )
             bess_degradation_pct = st.number_input(
                 "BESS Degradation (%/yr)",
@@ -401,6 +403,7 @@ def main():
 
     # --- REGOs ---
     with st.expander("REGOs (Renewable Energy Guarantees of Origin)"):
+        # REGO defaults aligned to engine / D13 fixture per A28.
         rego_col1, rego_col2 = st.columns(2)
         with rego_col1:
             rego_switch = st.selectbox(
@@ -411,43 +414,53 @@ def main():
             rego_price = st.number_input(
                 "REGO Price (GBP/MWh)",
                 min_value=0.0, max_value=50.0,
-                value=float(fin.get('rego_price', 5.0)),
+                value=float(fin.get('rego_price', 2.5)),
                 step=0.5,
+                help="Excel `Solar&BESS Inputs!F80` = 2.5",
             )
         with rego_col2:
             rego_indexation = st.selectbox(
                 "REGO Indexation",
-                options=["CPI", "RPI", "Fixed"],
+                options=["NIL", "CPI", "RPI", "Fixed"],
                 index=0,
+                help="Excel `Solar&BESS Inputs!F81` = NIL INDEXATION",
             )
             rego_tenor_years = st.number_input(
                 "REGO Tenor (years)",
                 min_value=0, max_value=35,
-                value=int(fin.get('rego_tenor_years', 15)),
+                value=int(fin.get('rego_tenor_years', 35)),
+                help="Excel `Solar&BESS Inputs!F82` = 35",
             )
 
     # --- Capacity Market ---
     with st.expander("Capacity Market"):
+        # CM defaults aligned to D13 fixture per A28: OFF for Burton Leonard
+        # case (Anchal Q2 reply A18 — "BESS revenue separately is zero for
+        # this exercise purpose"). Per `tests/fixtures/d13_inputs.py`,
+        # cm_t1_value = cm_t4_value = 0.0. Engine PirrInputs defaults are
+        # 20.0/60.0 (non-Burton typical) but D13 audit case uses 0.
         cm_col1, cm_col2 = st.columns(2)
         with cm_col1:
             st.subheader("T-1 Contract")
             cm_t1_value = st.number_input(
                 "T-1 Value (GBPk/MW/Yr)",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('cm_t1_value', REF.get('cm_t1_value', 20))),
+                value=float(fin.get('cm_t1_value', 0.0)),
                 step=1.0,
+                help="D13 / Burton Leonard: 0 (off). Non-Burton typical: 20.",
             )
             cm_t1_derating = st.number_input(
                 "T-1 De-rating Factor (%)",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('cm_t1_derating',
-                                    _pct_to_display(REF.get('cm_t1_derating', 0.2715)))),
+                value=float(fin.get('cm_t1_derating', 27.15)),
                 step=0.1, format="%.2f",
+                help="Excel default 0.2715 (27.15%)",
             )
             cm_t1_tenor = st.number_input(
                 "T-1 Tenor (years)",
                 min_value=0, max_value=20,
-                value=int(fin.get('cm_t1_tenor', 1)),
+                value=int(fin.get('cm_t1_tenor', 3)),
+                help="Excel default = 3 years",
             )
         with cm_col2:
             st.subheader("T-4 Contract")
@@ -456,51 +469,64 @@ def main():
                 min_value=0.0, max_value=100.0,
                 value=float(fin.get('cm_t4_value', 0.0)),
                 step=1.0,
+                help="D13 / Burton Leonard: 0 (off). Non-Burton typical: 60.",
             )
             cm_t4_derating = st.number_input(
                 "T-4 De-rating Factor (%)",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('cm_t4_derating', 0.0)),
+                value=float(fin.get('cm_t4_derating', 20.94)),
                 step=0.1, format="%.2f",
+                help="Excel default 0.2094 (20.94%)",
             )
             cm_t4_tenor = st.number_input(
                 "T-4 Tenor (years)",
                 min_value=0, max_value=20,
-                value=int(fin.get('cm_t4_tenor', 0)),
+                value=int(fin.get('cm_t4_tenor', 15)),
+                help="Excel default = 15 years",
             )
 
     # --- Embedded Benefits ---
     with st.expander("Embedded Benefits (11kV)"):
+        # Embedded benefits defaults aligned to D13 fixture per A28: ON
+        # (Excel `Solar&BESS Inputs!F87` = 1, CPI indexation, 15-yr tenor).
         emb_col1, emb_col2 = st.columns(2)
         with emb_col1:
             emb_benefits_switch = st.selectbox(
                 "Embedded Benefits Enabled",
                 options=["Yes", "No"],
-                index=0 if fin.get('emb_benefits_switch', 0) else 1,
+                index=0 if fin.get('emb_benefits_switch', 1) else 1,
+                help="Excel `Solar&BESS Inputs!F87` = 1 (on)",
             )
             emb_benefits_tenor = st.number_input(
                 "Embedded Benefits Tenor (years)",
                 min_value=0, max_value=35,
                 value=int(fin.get('emb_benefits_tenor', 15)),
+                help="Excel `Solar&BESS Inputs!F89` = 15",
             )
         with emb_col2:
             emb_benefits_index = st.selectbox(
                 "Embedded Benefits Indexation",
                 options=["CPI", "RPI", "Fixed"],
                 index=0,
+                help="Excel `Solar&BESS Inputs!F88` = CPI",
             )
 
     # --- BESS Floor ---
     with st.expander("BESS Floor Price"):
+        # BESS floor defaults aligned to D13 fixture per A28: OFF for Burton
+        # Leonard case (Anchal Q2 reply A18). Engine PirrInputs default is 1
+        # (typical non-Burton); D13 fixture sets to 0.
         bf_col1, bf_col2 = st.columns(2)
         with bf_col1:
             bess_floor_switch = st.selectbox(
                 "BESS Floor Enabled",
                 options=["Yes", "No"],
-                index=0 if fin.get('bess_floor_switch', 1) else 1,
+                index=0 if fin.get('bess_floor_switch', 0) else 1,
+                help="D13 / Burton Leonard: OFF (BESS earns return through "
+                "PPA contribution, not separate floor). Non-Burton: ON.",
             )
             bess_floor_price = st.number_input(
-                "Floor Price (GBP/MW/yr)",
+                "Floor Price (GBPk/MW/yr)",
                 min_value=0.0, max_value=200.0,
                 value=float(fin.get('bess_floor_price',
                                     REF.get('bess_floor_price', 40))),
@@ -510,8 +536,9 @@ def main():
             bess_floor_rev_share = st.number_input(
                 "Floor Underwriter Revenue Share (%)",
                 min_value=0.0, max_value=50.0,
-                value=float(fin.get('bess_floor_rev_share', 10.0)),
+                value=float(fin.get('bess_floor_rev_share', 9.0)),
                 step=0.5,
+                help="Excel default 0.09 (9%)",
             )
             bess_floor_tenor = st.number_input(
                 "Floor Tenor (years)",
@@ -529,25 +556,32 @@ def main():
 
         cx_col1, cx_col2, cx_col3 = st.columns(3)
 
+        # CAPEX defaults aligned to engine PirrInputs / D13 fixture per A28
+        # (Excel `Solar&BESS Inputs` F335-F355). Step 7's previous defaults
+        # silently disagreed with the engine, causing the Step 3a smoke-test
+        # §13 £65m CAPEX regression. See decisions log A28.
         with cx_col1:
             capex_epc = st.number_input(
                 "EPC Cost",
                 min_value=0.0, max_value=1000.0,
                 value=float(fin.get('capex_epc', REF.get('capex_epc', 400))),
                 step=10.0,
-                help="Engineering, Procurement, Construction",
+                help="Engineering, Procurement, Construction. Excel "
+                "`Solar&BESS Inputs!F340` = 400 GBP/kWp",
             )
             capex_grid = st.number_input(
                 "Grid Costs",
                 min_value=0.0, max_value=500.0,
-                value=float(fin.get('capex_grid', 30.0)),
+                value=float(fin.get('capex_grid', 57.858)),
                 step=1.0,
+                help="Excel `Solar&BESS Inputs!F341` = 57.858 GBP/kWp DC",
             )
             capex_development = st.number_input(
                 "Development Costs",
                 min_value=0.0, max_value=200.0,
-                value=float(fin.get('capex_development', 15.0)),
-                step=1.0,
+                value=float(fin.get('capex_development', 2.949)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F336` = 2.949 GBP/kWp",
             )
             capex_acquisition = st.number_input(
                 "Acquisition Fee",
@@ -558,39 +592,44 @@ def main():
             capex_dd = st.number_input(
                 "DD Costs",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_dd', 5.0)),
-                step=1.0,
+                value=float(fin.get('capex_dd', 3.775)),
+                step=0.1, format="%.3f",
+                help="Due Diligence. Excel `Solar&BESS Inputs!F339` = 3.775",
             )
             capex_discharge = st.number_input(
                 "Discharge of Conditions",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_discharge', 0.0)),
-                step=1.0,
+                value=float(fin.get('capex_discharge', 0.983)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F338` = 0.983",
             )
             capex_sdlt = st.number_input(
                 "Stamp Duty Land Tax",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_sdlt', 0.0)),
-                step=1.0,
+                value=float(fin.get('capex_sdlt', 0.753)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F343` = 0.753",
             )
 
         with cx_col2:
             capex_land_legal = st.number_input(
                 "Land-Related Legal",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_land_legal', 2.0)),
-                step=1.0,
+                value=float(fin.get('capex_land_legal', 3.686)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F344` = 3.686",
             )
             capex_other_finance = st.number_input(
                 "Other (Financing etc.)",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_other_finance', 0.0)),
+                value=float(fin.get('capex_other_finance', 5.0)),
                 step=1.0,
+                help="Excel `Solar&BESS Inputs!F345` = 5.0",
             )
             capex_other_legal = st.number_input(
                 "Other Legal (PPA, EPC etc.)",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_other_legal', 2.0)),
+                value=float(fin.get('capex_other_legal', 0.0)),
                 step=1.0,
             )
             capex_land_purchase = st.number_input(
@@ -602,8 +641,9 @@ def main():
             capex_ampyr_tech = st.number_input(
                 "Ampyr Tech",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_ampyr_tech', 0.0)),
-                step=1.0,
+                value=float(fin.get('capex_ampyr_tech', 3.236)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F347` = 3.236",
             )
             capex_success_fee = st.number_input(
                 "Success Fee",
@@ -619,30 +659,39 @@ def main():
             )
 
         with cx_col3:
+            # capex_bess: Excel `Solar&BESS Inputs!F349` = 600 GBP/kW BESS.
+            # Pre-A28 default of 80 (labelled "GBP/kWp solar") was a unit
+            # mismatch with the engine's `capex_bess_gbp_per_kw_bess` field
+            # — produced the £65m vs £101.6m CAPEX gap in smoke test §13.
             capex_bess = st.number_input(
                 "BESS CAPEX",
-                min_value=0.0, max_value=500.0,
-                value=float(fin.get('capex_bess', 80.0)),
-                step=5.0,
-                help="BESS capital cost in GBP/kWp of solar capacity",
+                min_value=0.0, max_value=2000.0,
+                value=float(fin.get('capex_bess', 600.0)),
+                step=10.0,
+                help="BESS capital cost in GBP per kW of BESS power. "
+                "Excel `Solar&BESS Inputs!F349` = 600 GBP/kW BESS. "
+                "Multiplied by `bess_capacity_mw` to get total BESS capex.",
             )
             capex_landowner_fees = st.number_input(
                 "Landowner Fees / Premiums",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_landowner_fees', 0.0)),
-                step=1.0,
+                value=float(fin.get('capex_landowner_fees', 11.597)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F350` = 11.597",
             )
             capex_insurance = st.number_input(
                 "Insurance (CAPEX)",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_insurance', 3.0)),
-                step=1.0,
+                value=float(fin.get('capex_insurance', 6.329)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F351` = 6.329",
             )
             capex_land_lease_constr = st.number_input(
                 "Land Lease (Construction)",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_land_lease_constr', 0.0)),
-                step=1.0,
+                value=float(fin.get('capex_land_lease_constr', 2.457)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F352` = 2.457",
             )
             capex_asset_adoption = st.number_input(
                 "Asset Adoption Value",
@@ -659,8 +708,9 @@ def main():
             capex_misc = st.number_input(
                 "Miscellaneous",
                 min_value=0.0, max_value=100.0,
-                value=float(fin.get('capex_misc', 0.0)),
-                step=1.0,
+                value=float(fin.get('capex_misc', 4.916)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F355` = 4.916",
             )
 
         # Contingency
@@ -699,42 +749,51 @@ def main():
     with st.expander("Solar OPEX (GBP/kWp/Yr)", expanded=True):
         ox_col1, ox_col2 = st.columns(2)
 
+        # OPEX defaults aligned to engine PirrInputs / D13 fixture per A28
+        # (Excel `Solar&BESS Inputs` F215-F225, F282).
         with ox_col1:
             opex_pv_om = st.number_input(
                 "PV Plant O&M",
                 min_value=0.0, max_value=50.0,
                 value=float(fin.get('opex_pv_om', REF.get('opex_pv_om', 5.48))),
-                step=0.1, format="%.2f",
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F215` = 5.48",
             )
             opex_grid_conn = st.number_input(
                 "Grid Connection Expense",
                 min_value=0.0, max_value=50.0,
-                value=float(fin.get('opex_grid_conn', 1.5)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('opex_grid_conn', 0.003)),
+                step=0.001, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F216` = 0.003 GBP/kWp/yr "
+                "(near-zero — gas-fired baseload doesn't use grid connection)",
             )
             opex_greenkeeping = st.number_input(
                 "Greenkeeping, Metering etc.",
                 min_value=0.0, max_value=20.0,
-                value=float(fin.get('opex_greenkeeping', 0.5)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('opex_greenkeeping', 1.5)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F217` = 1.5",
             )
             opex_community_opex = st.number_input(
                 "Community Benefit (OPEX)",
                 min_value=0.0, max_value=20.0,
-                value=float(fin.get('opex_community', 0.0)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('opex_community', 0.5)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F218` = 0.5",
             )
             opex_real_estate_tax = st.number_input(
                 "Real Estate Taxes",
                 min_value=0.0, max_value=20.0,
-                value=float(fin.get('opex_real_estate_tax', 1.0)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('opex_real_estate_tax', 1.222)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F219` = 1.222",
             )
             opex_non_tech_am = st.number_input(
                 "Non-Technical Asset Management",
                 min_value=0.0, max_value=20.0,
-                value=float(fin.get('opex_non_tech_am', 1.0)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('opex_non_tech_am', 1.3)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F220` = 1.3",
             )
 
         with ox_col2:
@@ -742,33 +801,38 @@ def main():
                 "Landowner Subsidy Loss",
                 min_value=0.0, max_value=20.0,
                 value=float(fin.get('opex_subsidy_loss', 0.0)),
-                step=0.1, format="%.2f",
+                step=0.1, format="%.3f",
             )
             opex_insurance_opex = st.number_input(
                 "Insurance on Plant & Machinery",
                 min_value=0.0, max_value=20.0,
                 value=float(fin.get('opex_insurance',
-                                    REF.get('opex_insurance', 2.02))),
-                step=0.1, format="%.2f",
+                                    REF.get('opex_insurance', 2.021))),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F222` = 2.021",
             )
             opex_fixed_lease = st.number_input(
                 "Fixed Lease OPEX",
                 min_value=0.0, max_value=20.0,
                 value=float(fin.get('opex_fixed_lease', 0.0)),
-                step=0.1, format="%.2f",
+                step=0.1, format="%.3f",
+                help="Engine reads Fixed Lease from §7 Land section "
+                "(£/acre/yr × acres), not from this field.",
             )
             opex_corrective_maint = st.number_input(
                 "Corrective Maintenance",
                 min_value=0.0, max_value=20.0,
                 value=float(fin.get('opex_corrective_maint',
                                     REF.get('opex_corrective_maint', 3.2))),
-                step=0.1, format="%.2f",
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F224` = 3.2",
             )
             opex_tech_am = st.number_input(
                 "Technical Asset Management",
                 min_value=0.0, max_value=20.0,
-                value=float(fin.get('opex_tech_am', 1.5)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('opex_tech_am', 0.3)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F225` = 0.3",
             )
 
         # Variable OPEX
@@ -779,14 +843,16 @@ def main():
                 "Social/Local Participation",
                 min_value=0.0, max_value=20.0,
                 value=float(fin.get('opex_social_cost', 0.0)),
-                step=0.1, format="%.2f",
+                step=0.1, format="%.3f",
             )
         with vox_col2:
             opex_balancing_cfd = st.number_input(
                 "Balancing Services for CfD",
                 min_value=0.0, max_value=20.0,
-                value=float(fin.get('opex_balancing_cfd', 0.0)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('opex_balancing_cfd', 2.75)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F282` = 2.75 GBP/MWh "
+                "(applied to solar generation)",
             )
 
         # Total solar OPEX
@@ -798,32 +864,38 @@ def main():
 
     # --- BESS OPEX ---
     with st.expander("BESS OPEX (GBPk/MW/Yr)"):
+        # BESS OPEX defaults aligned to engine PirrInputs per A28 (Excel
+        # `Solar&BESS Inputs` F308-F311).
         box_col1, box_col2 = st.columns(2)
         with box_col1:
             bess_opex_om = st.number_input(
                 "BESS O&M Expense",
                 min_value=0.0, max_value=50.0,
-                value=float(fin.get('bess_opex_om', REF.get('bess_opex_om', 7.06))),
-                step=0.1, format="%.2f",
+                value=float(fin.get('bess_opex_om',
+                                    REF.get('bess_opex_om', 7.063))),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F308` = 7.063",
             )
             bess_opex_import = st.number_input(
                 "BESS Import Charges",
                 min_value=0.0, max_value=50.0,
                 value=float(fin.get('bess_opex_import', 0.0)),
-                step=0.1, format="%.2f",
+                step=0.1, format="%.3f",
             )
         with box_col2:
             bess_opex_rates = st.number_input(
                 "BESS Business Rates",
                 min_value=0.0, max_value=50.0,
-                value=float(fin.get('bess_opex_rates', 0.0)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('bess_opex_rates', 3.276)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F310` = 3.276",
             )
             bess_opex_lease = st.number_input(
                 "BESS Lease",
                 min_value=0.0, max_value=50.0,
-                value=float(fin.get('bess_opex_lease', 0.0)),
-                step=0.1, format="%.2f",
+                value=float(fin.get('bess_opex_lease', 1.489)),
+                step=0.1, format="%.3f",
+                help="Excel `Solar&BESS Inputs!F311` = 1.489",
             )
 
     # =========================================================================
@@ -834,45 +906,53 @@ def main():
     with st.expander("Land Lease & Purchase"):
         land_col1, land_col2 = st.columns(2)
 
+        # Land defaults aligned to D13 fixture per A28 (Burton Leonard:
+        # fixed + rev-dep lease ON, 205 acres × £700/acre/yr, 5%/5% rev share).
         with land_col1:
             st.subheader("Fixed Lease")
             fixed_lease_switch = st.selectbox(
                 "Fixed Lease Enabled",
                 options=["Yes", "No"],
-                index=0 if fin.get('fixed_lease_switch', 0) else 1,
+                index=0 if fin.get('fixed_lease_switch', 1) else 1,
                 key="fixed_lease_sw",
+                help="D13: ON (Excel `Solar&BESS Inputs!F172` = 1)",
             )
             fixed_lease_acres = st.number_input(
                 "Land Area (acres)",
                 min_value=0.0, max_value=5000.0,
-                value=float(fin.get('fixed_lease_acres', 200.0)),
-                step=10.0,
+                value=float(fin.get('fixed_lease_acres', 205.0)),
+                step=5.0,
+                help="D13 = 205 acres (Burton Leonard)",
             )
             fixed_lease_price = st.number_input(
                 "Lease Price (GBP/Acre/Yr)",
                 min_value=0.0, max_value=5000.0,
-                value=float(fin.get('fixed_lease_price', 800.0)),
+                value=float(fin.get('fixed_lease_price', 700.0)),
                 step=50.0,
+                help="Excel default 700 GBP/acre/yr",
             )
 
             st.subheader("Revenue-Dependent Lease")
             rev_dep_lease_switch = st.selectbox(
                 "Revenue-Dependent Lease Enabled",
                 options=["Yes", "No"],
-                index=0 if fin.get('rev_dep_lease_switch', 0) else 1,
+                index=0 if fin.get('rev_dep_lease_switch', 1) else 1,
                 key="rev_dep_lease_sw",
+                help="D13: ON (Excel `Solar&BESS Inputs!F177` = 1)",
             )
             rev_share_yr1_10 = st.number_input(
                 "Revenue Share Yrs 1-10 (%)",
                 min_value=0.0, max_value=30.0,
                 value=float(fin.get('rev_share_yr1_10', 5.0)),
                 step=0.5,
+                help="D13: 5% (Excel `Solar&BESS Inputs!F178`)",
             )
             rev_share_yr11_35 = st.number_input(
                 "Revenue Share Yrs 11-35 (%)",
                 min_value=0.0, max_value=30.0,
-                value=float(fin.get('rev_share_yr11_35', 7.5)),
+                value=float(fin.get('rev_share_yr11_35', 5.0)),
                 step=0.5,
+                help="D13: 5% (Excel `Solar&BESS Inputs!F179`)",
             )
 
         with land_col2:
@@ -961,6 +1041,71 @@ def main():
             """)
 
     # =========================================================================
+    # SECTION 8b: ADVANCED — SHL + Depreciation method (Excel methodology)
+    # =========================================================================
+    st.header("8b. Advanced — Tax Shield Methodology")
+
+    with st.expander(
+        "Shareholder Loan + Depreciation Method (Excel defaults)",
+        expanded=False,
+    ):
+        st.markdown(
+            "These inputs mirror Excel's tax-shield mechanics "
+            "(`Solar&BESS Inputs!F553/F556`, `D&T!r163-r165/r197/r210-r212`). "
+            "Defaults are locked to the values used in the master workbook — "
+            "change only if you know what you're doing."
+        )
+
+        adv_col1, adv_col2 = st.columns(2)
+        with adv_col1:
+            st.subheader("Shareholder Loan (SHL)")
+            shl_switch_yn = st.selectbox(
+                "SHL Enabled",
+                options=["Yes", "No"],
+                index=0 if fin.get("shl_switch", 1) else 1,
+                help="Excel models a Shareholder Loan covering the unfunded "
+                "(non-senior-debt) portion of capex. SHL interest is "
+                "tax-deductible up to the UK CIR cap.",
+            )
+            shl_pct_of_unfunded = st.number_input(
+                "SHL % of Unfunded Amount",
+                min_value=0.0, max_value=100.0,
+                value=float(fin.get("shl_pct_of_unfunded", 99.0)),
+                step=1.0, format="%.1f",
+                help="Excel `Solar&BESS Inputs!F556` (default 99%).",
+            )
+            shl_rate = st.number_input(
+                "SHL Interest Rate (% p.a.)",
+                min_value=0.0, max_value=30.0,
+                value=float(fin.get("shl_rate", 15.0)),
+                step=0.5, format="%.2f",
+                help="Excel `Solar&BESS Inputs!F553` (default 15% p.a.).",
+            )
+
+        with adv_col2:
+            st.subheader("Tax Depreciation")
+            depreciation_method = st.selectbox(
+                "Method",
+                options=["RB", "SLM"],
+                index=["RB", "SLM"].index(fin.get("depreciation_method", "RB")),
+                help="Excel `D&T!E165` Applied method. Default RB (Reducing "
+                "Balance with SLM crossover).",
+            )
+            depreciation_rate = st.number_input(
+                "Annual Depreciation Rate (%)",
+                min_value=0.0, max_value=20.0,
+                value=float(fin.get("depreciation_rate", 100.0 * 2.0 / 36.0)),
+                step=0.5, format="%.3f",
+                help="Excel `D&T!E164` RB rate (default 5.556%/yr = 2/36, "
+                "double-declining over a 36-year nominal life).",
+            )
+            st.caption(
+                "UK CIR cap (30% × EBITDA, £2m de minimis) is applied "
+                "automatically. Senior debt interest is deducted first; "
+                "SHL interest fills any remaining headroom."
+            )
+
+    # =========================================================================
     # SECTION 9: WORKING CAPITAL & FINANCIAL
     # =========================================================================
     st.header("9. Working Capital & Discount Rate")
@@ -972,23 +1117,24 @@ def main():
             wc_debtors_days = st.number_input(
                 "Debtors (days)",
                 min_value=0, max_value=180,
-                value=int(fin.get('wc_debtors_days', 45)),
-                help="Average days to collect receivables",
+                value=int(fin.get('wc_debtors_days', 30)),
+                help="Excel `Solar&BESS Inputs!F327` = 30 days",
             )
             wc_creditors_days = st.number_input(
                 "Creditors (days)",
                 min_value=0, max_value=180,
                 value=int(fin.get('wc_creditors_days', 30)),
-                help="Average days to pay suppliers",
+                help="Excel `Solar&BESS Inputs!F328` = 30 days",
             )
 
         with wc_col2:
             project_discount_rate = st.number_input(
                 "Project Discount Rate / WACC (%)",
                 min_value=0.0, max_value=25.0,
-                value=float(fin.get('project_discount_rate', 8.0)),
+                value=float(fin.get('project_discount_rate', 6.5)),
                 step=0.25, format="%.2f",
-                help="Discount rate for XNPV calculation",
+                help="Excel `Solar&BESS Inputs!F590` = 6.5%. "
+                "Used for XNPV reporting only; does NOT affect IRR.",
             )
             cost_of_capital = st.number_input(
                 "Cost of Capital (%)",
@@ -1121,6 +1267,12 @@ def main():
             'wc_creditors_days': wc_creditors_days,
             'project_discount_rate': project_discount_rate,
             'cost_of_capital': cost_of_capital,
+            # Advanced — SHL + depreciation method (Excel methodology)
+            'shl_switch': 1 if shl_switch_yn == "Yes" else 0,
+            'shl_pct_of_unfunded': shl_pct_of_unfunded,
+            'shl_rate': shl_rate,
+            'depreciation_method': depreciation_method,
+            'depreciation_rate': depreciation_rate,
         }
 
         save_financial_inputs(financial_data)
@@ -1152,24 +1304,51 @@ def main():
         else:
             with st.spinner("Running dispatch + financial model..."):
                 try:
-                    from pathlib import Path
-                    from src.config import SOLAR_PROFILE_PATH
+                    from src.data_loader import get_active_solar_profile
                     from src.dispatch_energy import (
-                        load_solar_profile,
                         run_hourly_dispatch,
                         aggregate_to_monthly,
                     )
 
-                    # 1. Load + scale solar profile
-                    profile_path = (Path(__file__).parent.parent
-                                    / SOLAR_PROFILE_PATH)
-                    raw_profile = load_solar_profile(profile_path)
+                    # 1. Load solar profile from Step 1's canonical wizard
+                    # state (per decisions log A27 — Step 1 is single source
+                    # of profile truth). Pre-A27 Step 7 loaded a fixed
+                    # `SOLAR_PROFILE_PATH` config constant, ignoring the
+                    # user's Step 1 selection entirely.
+                    setup_state = get_wizard_state().get('setup', {})
+                    raw_profile = get_active_solar_profile(setup_state)
+                    if raw_profile is None:
+                        st.error(
+                            "No solar profile loaded. Complete Step 1 "
+                            "(select a solar profile) before running the "
+                            "financial analysis."
+                        )
+                        st.stop()
+
+                    # Per spec D8: profile is AC + grid-capped, used as-is.
+                    # Default `ref_mwp` to declared DC MWp → scaling = 1.0.
+                    # See decisions log A25.
                     target_mwp = float(fin_state.get('solar_capacity_mwp', 82.0))
-                    ref_mwp = float(fin_state.get(
-                        'profile_reference_mwp', raw_profile.max()))
+                    ref_mwp = float(
+                        fin_state.get('profile_reference_mwp')
+                        or target_mwp
+                        or raw_profile.max()
+                    )
                     if ref_mwp <= 0:
                         ref_mwp = float(raw_profile.max())
                     solar_mw = raw_profile * (target_mwp / ref_mwp)
+
+                    profile_peak = float(raw_profile.max())
+                    if target_mwp > 0:
+                        ratio = profile_peak / target_mwp
+                        if ratio < 0.5 or ratio > 1.1:
+                            st.warning(
+                                f"Solar profile peak ({profile_peak:.1f} MW) "
+                                f"is {ratio*100:.0f}% of declared DC "
+                                f"({target_mwp:.0f} MWp). Expected 50–110 %. "
+                                "If the profile is per-unit, set "
+                                "`profile_reference_mwp` in financial inputs."
+                            )
 
                     # 2. Hourly dispatch — load from Step 1 setup, not hardcoded
                     setup_state = get_wizard_state().get('setup', {})

@@ -39,6 +39,153 @@ DEFAULT_ESCALATION_RATES = {
     "PPA Indexation": 0.0,    # PPA indexed at tariff_escalation, set on input
     "BESS Indexation": 0.020,
     "Land Lease RPI": 0.030,
+    "Flat 0%": 0.0,
+    # "O&M - Year 3 Onwards" is non-geometric — handled specially in
+    # _esc_factor: factor = 1.0 for ops_year < 3, then 1.02^(ops_year-2)
+    # from year 3 onwards. Excel `Solar&BESS Inputs!r267` = PV O&M escalation.
+    "O&M - Year 3 Onwards": 0.020,
+}
+
+
+# Excel-evaluated merchant curve from `Solar&BESS Operation!r66`, averaged per
+# year. This is the Burton Leonard locked default — the curve `Solar&BESS
+# Operation!r66 = LOOKUP(date, 'Curves and D&T'!J29:TZ29, J30:TZ30)` evaluates
+# to (after correcting for the multi-scenario column structure; see decisions
+# log A22-era commit a001fd3). Without these defaults, the wizard-state
+# adapter falls back to a flat fallback price, which under/over-states
+# merchant revenue across the 2027-2066 lifetime.
+#
+# Tests/fixtures/d13_inputs.py keeps its own copy (so the fixture remains a
+# frozen snapshot independent of engine defaults) — both should stay in sync
+# until the merchant curve is plumbed through wizard state proper.
+_DEFAULT_MERCHANT_PRICES_NOMINAL = {
+    2027: 62.18, 2028: 65.53, 2029: 69.39, 2030: 74.19, 2031: 72.71,
+    2032: 69.56, 2033: 69.26, 2034: 70.22, 2035: 73.83, 2036: 77.23,
+    2037: 79.91, 2038: 80.91, 2039: 82.58, 2040: 79.10, 2041: 80.43,
+    2042: 80.31, 2043: 83.28, 2044: 85.92, 2045: 87.42, 2046: 87.26,
+    2047: 89.21, 2048: 89.19, 2049: 92.76, 2050: 92.95, 2051: 96.73,
+    2052: 97.27, 2053: 99.56, 2054: 101.15, 2055: 103.96, 2056: 106.05,
+    2057: 107.49, 2058: 108.14, 2059: 107.48, 2060: 106.45, 2061: 107.59,
+    2062: 109.74, 2063: 111.94, 2064: 114.17, 2065: 116.46, 2066: 118.79,
+}
+
+
+# A30 (2026-05-14): post-PPA monthly merchant price curve £/MWh. Excel
+# `Solar&BESS Operation!r66` is quarterly seasonal (Q1 winter peak, Q2 spring
+# trough). Yearly average over-states realised merchant revenue by ~7% (solar
+# concentrates in Q2-Q3 low-price quarters). Burton-Leonard-locked default —
+# wizard state can override; non-D13 sites need their own monthly curve.
+# Kept in sync with `tests/fixtures/d13_inputs.D13_MERCHANT_PRICES_MONTHLY`.
+_DEFAULT_MERCHANT_PRICES_MONTHLY = {
+    (2027, 7): 59.0593, (2027, 8): 59.0593, (2027, 9): 59.0593, (2027, 10): 65.3077, (2027, 11): 65.3077, (2027, 12): 65.3077,
+    (2028, 1): 77.4835, (2028, 2): 77.4835, (2028, 3): 77.4835, (2028, 4): 54.6514, (2028, 5): 54.6514, (2028, 6): 54.6514, (2028, 7): 60.2819, (2028, 8): 60.2819, (2028, 9): 60.2819, (2028, 10): 69.703, (2028, 11): 69.703, (2028, 12): 69.703,
+    (2029, 1): 83.7941, (2029, 2): 83.7941, (2029, 3): 83.7941, (2029, 4): 57.4067, (2029, 5): 57.4067, (2029, 6): 57.4067, (2029, 7): 63.4751, (2029, 8): 63.4751, (2029, 9): 63.4751, (2029, 10): 72.8955, (2029, 11): 72.8955, (2029, 12): 72.8955,
+    (2030, 1): 90.0864, (2030, 2): 90.0864, (2030, 3): 90.0864, (2030, 4): 62.4008, (2030, 5): 62.4008, (2030, 6): 62.4008, (2030, 7): 68.3249, (2030, 8): 68.3249, (2030, 9): 68.3249, (2030, 10): 75.9283, (2030, 11): 75.9283, (2030, 12): 75.9283,
+    (2031, 1): 91.7475, (2031, 2): 91.7475, (2031, 3): 91.7475, (2031, 4): 59.0969, (2031, 5): 59.0969, (2031, 6): 59.0969, (2031, 7): 66.3316, (2031, 8): 66.3316, (2031, 9): 66.3316, (2031, 10): 73.6547, (2031, 11): 73.6547, (2031, 12): 73.6547,
+    (2032, 1): 89.828, (2032, 2): 89.828, (2032, 3): 89.828, (2032, 4): 55.5533, (2032, 5): 55.5533, (2032, 6): 55.5533, (2032, 7): 63.9778, (2032, 8): 63.9778, (2032, 9): 63.9778, (2032, 10): 68.8662, (2032, 11): 68.8662, (2032, 12): 68.8662,
+    (2033, 1): 90.3505, (2033, 2): 90.3505, (2033, 3): 90.3505, (2033, 4): 54.3674, (2033, 5): 54.3674, (2033, 6): 54.3674, (2033, 7): 64.2924, (2033, 8): 64.2924, (2033, 9): 64.2924, (2033, 10): 68.0378, (2033, 11): 68.0378, (2033, 12): 68.0378,
+    (2034, 1): 93.5069, (2034, 2): 93.5069, (2034, 3): 93.5069, (2034, 4): 53.4171, (2034, 5): 53.4171, (2034, 6): 53.4171, (2034, 7): 65.7401, (2034, 8): 65.7401, (2034, 9): 65.7401, (2034, 10): 68.2228, (2034, 11): 68.2228, (2034, 12): 68.2228,
+    (2035, 1): 98.081, (2035, 2): 98.081, (2035, 3): 98.081, (2035, 4): 57.4715, (2035, 5): 57.4715, (2035, 6): 57.4715, (2035, 7): 68.7625, (2035, 8): 68.7625, (2035, 9): 68.7625, (2035, 10): 70.997, (2035, 11): 70.997, (2035, 12): 70.997,
+    (2036, 1): 104.3026, (2036, 2): 104.3026, (2036, 3): 104.3026, (2036, 4): 58.0672, (2036, 5): 58.0672, (2036, 6): 58.0672, (2036, 7): 71.8675, (2036, 8): 71.8675, (2036, 9): 71.8675, (2036, 10): 74.7019, (2036, 11): 74.7019, (2036, 12): 74.7019,
+    (2037, 1): 109.0422, (2037, 2): 109.0422, (2037, 3): 109.0422, (2037, 4): 60.3262, (2037, 5): 60.3262, (2037, 6): 60.3262, (2037, 7): 74.4492, (2037, 8): 74.4492, (2037, 9): 74.4492, (2037, 10): 75.8142, (2037, 11): 75.8142, (2037, 12): 75.8142,
+    (2038, 1): 110.9358, (2038, 2): 110.9358, (2038, 3): 110.9358, (2038, 4): 60.8358, (2038, 5): 60.8358, (2038, 6): 60.8358, (2038, 7): 74.946, (2038, 8): 74.946, (2038, 9): 74.946, (2038, 10): 76.9169, (2038, 11): 76.9169, (2038, 12): 76.9169,
+    (2039, 1): 114.3762, (2039, 2): 114.3762, (2039, 3): 114.3762, (2039, 4): 61.0125, (2039, 5): 61.0125, (2039, 6): 61.0125, (2039, 7): 75.7591, (2039, 8): 75.7591, (2039, 9): 75.7591, (2039, 10): 79.1727, (2039, 11): 79.1727, (2039, 12): 79.1727,
+    (2040, 1): 111.6062, (2040, 2): 111.6062, (2040, 3): 111.6062, (2040, 4): 56.3761, (2040, 5): 56.3761, (2040, 6): 56.3761, (2040, 7): 72.2371, (2040, 8): 72.2371, (2040, 9): 72.2371, (2040, 10): 76.1644, (2040, 11): 76.1644, (2040, 12): 76.1644,
+    (2041, 1): 117.5664, (2041, 2): 117.5664, (2041, 3): 117.5664, (2041, 4): 55.7576, (2041, 5): 55.7576, (2041, 6): 55.7576, (2041, 7): 72.3701, (2041, 8): 72.3701, (2041, 9): 72.3701, (2041, 10): 76.0062, (2041, 11): 76.0062, (2041, 12): 76.0062,
+    (2042, 1): 117.5581, (2042, 2): 117.5581, (2042, 3): 117.5581, (2042, 4): 54.8924, (2042, 5): 54.8924, (2042, 6): 54.8924, (2042, 7): 71.9841, (2042, 8): 71.9841, (2042, 9): 71.9841, (2042, 10): 76.8217, (2042, 11): 76.8217, (2042, 12): 76.8217,
+    (2043, 1): 125.2632, (2043, 2): 125.2632, (2043, 3): 125.2632, (2043, 4): 56.0758, (2043, 5): 56.0758, (2043, 6): 56.0758, (2043, 7): 73.1522, (2043, 8): 73.1522, (2043, 9): 73.1522, (2043, 10): 78.6138, (2043, 11): 78.6138, (2043, 12): 78.6138,
+    (2044, 1): 131.7266, (2044, 2): 131.7266, (2044, 3): 131.7266, (2044, 4): 57.178, (2044, 5): 57.178, (2044, 6): 57.178, (2044, 7): 73.9867, (2044, 8): 73.9867, (2044, 9): 73.9867, (2044, 10): 80.776, (2044, 11): 80.776, (2044, 12): 80.776,
+    (2045, 1): 135.2217, (2045, 2): 135.2217, (2045, 3): 135.2217, (2045, 4): 55.4912, (2045, 5): 55.4912, (2045, 6): 55.4912, (2045, 7): 74.5137, (2045, 8): 74.5137, (2045, 9): 74.5137, (2045, 10): 84.4534, (2045, 11): 84.4534, (2045, 12): 84.4534,
+    (2046, 1): 137.9664, (2046, 2): 137.9664, (2046, 3): 137.9664, (2046, 4): 54.9327, (2046, 5): 54.9327, (2046, 6): 54.9327, (2046, 7): 72.143, (2046, 8): 72.143, (2046, 9): 72.143, (2046, 10): 83.9924, (2046, 11): 83.9924, (2046, 12): 83.9924,
+    (2047, 1): 142.6422, (2047, 2): 142.6422, (2047, 3): 142.6422, (2047, 4): 55.2654, (2047, 5): 55.2654, (2047, 6): 55.2654, (2047, 7): 72.7303, (2047, 8): 72.7303, (2047, 9): 72.7303, (2047, 10): 86.2003, (2047, 11): 86.2003, (2047, 12): 86.2003,
+    (2048, 1): 142.7074, (2048, 2): 142.7074, (2048, 3): 142.7074, (2048, 4): 54.9244, (2048, 5): 54.9244, (2048, 6): 54.9244, (2048, 7): 72.3853, (2048, 8): 72.3853, (2048, 9): 72.3853, (2048, 10): 86.7441, (2048, 11): 86.7441, (2048, 12): 86.7441,
+    (2049, 1): 151.2051, (2049, 2): 151.2051, (2049, 3): 151.2051, (2049, 4): 57.8262, (2049, 5): 57.8262, (2049, 6): 57.8262, (2049, 7): 72.8914, (2049, 8): 72.8914, (2049, 9): 72.8914, (2049, 10): 89.1344, (2049, 11): 89.1344, (2049, 12): 89.1344,
+    (2050, 1): 152.9343, (2050, 2): 152.9343, (2050, 3): 152.9343, (2050, 4): 57.1948, (2050, 5): 57.1948, (2050, 6): 57.1948, (2050, 7): 71.3269, (2050, 8): 71.3269, (2050, 9): 71.3269, (2050, 10): 90.3496, (2050, 11): 90.3496, (2050, 12): 90.3496,
+    (2051, 1): 159.459, (2051, 2): 159.459, (2051, 3): 159.459, (2051, 4): 58.4248, (2051, 5): 58.4248, (2051, 6): 58.4248, (2051, 7): 73.7659, (2051, 8): 73.7659, (2051, 9): 73.7659, (2051, 10): 95.2627, (2051, 11): 95.2627, (2051, 12): 95.2627,
+    (2052, 1): 160.5916, (2052, 2): 160.5916, (2052, 3): 160.5916, (2052, 4): 58.6052, (2052, 5): 58.6052, (2052, 6): 58.6052, (2052, 7): 73.7523, (2052, 8): 73.7523, (2052, 9): 73.7523, (2052, 10): 96.112, (2052, 11): 96.112, (2052, 12): 96.112,
+    (2053, 1): 164.0513, (2053, 2): 164.0513, (2053, 3): 164.0513, (2053, 4): 59.2873, (2053, 5): 59.2873, (2053, 6): 59.2873, (2053, 7): 75.0002, (2053, 8): 75.0002, (2053, 9): 75.0002, (2053, 10): 99.9013, (2053, 11): 99.9013, (2053, 12): 99.9013,
+    (2054, 1): 167.7956, (2054, 2): 167.7956, (2054, 3): 167.7956, (2054, 4): 61.6371, (2054, 5): 61.6371, (2054, 6): 61.6371, (2054, 7): 75.6173, (2054, 8): 75.6173, (2054, 9): 75.6173, (2054, 10): 99.5657, (2054, 11): 99.5657, (2054, 12): 99.5657,
+    (2055, 1): 173.1969, (2055, 2): 173.1969, (2055, 3): 173.1969, (2055, 4): 64.7808, (2055, 5): 64.7808, (2055, 6): 64.7808, (2055, 7): 76.3203, (2055, 8): 76.3203, (2055, 9): 76.3203, (2055, 10): 101.5434, (2055, 11): 101.5434, (2055, 12): 101.5434,
+    (2056, 1): 174.8351, (2056, 2): 174.8351, (2056, 3): 174.8351, (2056, 4): 64.7547, (2056, 5): 64.7547, (2056, 6): 64.7547, (2056, 7): 77.7278, (2056, 8): 77.7278, (2056, 9): 77.7278, (2056, 10): 106.8763, (2056, 11): 106.8763, (2056, 12): 106.8763,
+    (2057, 1): 177.8431, (2057, 2): 177.8431, (2057, 3): 177.8431, (2057, 4): 66.5043, (2057, 5): 66.5043, (2057, 6): 66.5043, (2057, 7): 76.8511, (2057, 8): 76.8511, (2057, 9): 76.8511, (2057, 10): 108.7727, (2057, 11): 108.7727, (2057, 12): 108.7727,
+    (2058, 1): 179.5994, (2058, 2): 179.5994, (2058, 3): 179.5994, (2058, 4): 66.3181, (2058, 5): 66.3181, (2058, 6): 66.3181, (2058, 7): 77.9497, (2058, 8): 77.9497, (2058, 9): 77.9497, (2058, 10): 108.7075, (2058, 11): 108.7075, (2058, 12): 108.7075,
+    (2059, 1): 174.6715, (2059, 2): 174.6715, (2059, 3): 174.6715, (2059, 4): 66.0696, (2059, 5): 66.0696, (2059, 6): 66.0696, (2059, 7): 79.1455, (2059, 8): 79.1455, (2059, 9): 79.1455, (2059, 10): 110.0484, (2059, 11): 110.0484, (2059, 12): 110.0484,
+    (2060, 1): 174.9151, (2060, 2): 174.9151, (2060, 3): 174.9151, (2060, 4): 66.2875, (2060, 5): 66.2875, (2060, 6): 66.2875, (2060, 7): 77.4612, (2060, 8): 77.4612, (2060, 9): 77.4612, (2060, 10): 107.1496, (2060, 11): 107.1496, (2060, 12): 107.1496,
+    (2061, 1): 172.8417, (2061, 2): 172.8417, (2061, 3): 172.8417, (2061, 4): 71.6513, (2061, 5): 71.6513, (2061, 6): 71.6513, (2061, 7): 76.6663, (2061, 8): 76.6663, (2061, 9): 76.6663, (2061, 10): 109.1947, (2061, 11): 109.1947, (2061, 12): 109.1947,
+    (2062, 1): 176.2985, (2062, 2): 176.2985, (2062, 3): 176.2985, (2062, 4): 73.0843, (2062, 5): 73.0843, (2062, 6): 73.0843, (2062, 7): 78.1996, (2062, 8): 78.1996, (2062, 9): 78.1996, (2062, 10): 111.3786, (2062, 11): 111.3786, (2062, 12): 111.3786,
+    (2063, 1): 179.8245, (2063, 2): 179.8245, (2063, 3): 179.8245, (2063, 4): 74.546, (2063, 5): 74.546, (2063, 6): 74.546, (2063, 7): 79.7636, (2063, 8): 79.7636, (2063, 9): 79.7636, (2063, 10): 113.6061, (2063, 11): 113.6061, (2063, 12): 113.6061,
+    (2064, 1): 183.4209, (2064, 2): 183.4209, (2064, 3): 183.4209, (2064, 4): 76.0369, (2064, 5): 76.0369, (2064, 6): 76.0369, (2064, 7): 81.3589, (2064, 8): 81.3589, (2064, 9): 81.3589, (2064, 10): 115.8783, (2064, 11): 115.8783, (2064, 12): 115.8783,
+    (2065, 1): 187.0894, (2065, 2): 187.0894, (2065, 3): 187.0894, (2065, 4): 77.5576, (2065, 5): 77.5576, (2065, 6): 77.5576, (2065, 7): 82.9861, (2065, 8): 82.9861, (2065, 9): 82.9861, (2065, 10): 118.1958, (2065, 11): 118.1958, (2065, 12): 118.1958,
+    (2066, 1): 190.8312, (2066, 2): 190.8312, (2066, 3): 190.8312, (2066, 4): 79.1088, (2066, 5): 79.1088, (2066, 6): 79.1088, (2066, 7): 84.6458, (2066, 8): 84.6458, (2066, 9): 84.6458, (2066, 10): 120.5597, (2066, 11): 120.5597, (2066, 12): 120.5597,
+}
+
+
+# A35 (2026-05-15): per-month capex phasing curves. Excel deploys capex
+# non-uniformly across an 18-month window (Jan 2026-Jun 2027) — 9 months of
+# development phase (mostly gas, pre-construction) plus 9 months of
+# S-curve construction. Engine had been using uniform 9-month distribution
+# Oct 2026-Jun 2027 (no development phase). Extracted from Excel
+# `Consol Cash Flows!r5` (Solar+BESS FCFF) and `r6` (Gas FCFF) by summing
+# negative pre-COD values, divided by per-stream construction total.
+#
+# Burton-Leonard-locked defaults. Non-D13 sites would need their own curves
+# (gap analysis §3.12). Empty dict in PirrInputs → falls back to uniform
+# 9-month distribution within construction window.
+
+# A36 (2026-05-15): Gas major equipment maintenance discrete-event schedule.
+# Excel `Cash Flows-Gas!r44` shows 8 lumpy events concentrated in years 1, 3,
+# 4, 6, 7, 9, 12, 15. Year 15 alone is £7,928k (47% of lifetime). Engine had
+# been using level-annual £685/yr × 20yr × 2% inflation. Totals match
+# (£16,650k) but timing differs dramatically — drove the 2042 FCFF anomaly
+# identified in the year-by-year diagnostic.
+#
+# Values are NOMINAL (already inflated). Engine applies directly without
+# additional escalation when schedule is populated.
+_DEFAULT_GAS_MAJOR_MAINT_SCHEDULE = {
+    1:  283.16,    # 2029 (calendar via dates near year-end)
+    3:  2_265.26,  # 2030
+    4:  679.58,    # 2032
+    6:  2_265.26,  # 2033
+    7:  283.16,    # 2035
+    9:  2_661.68,  # 2036
+    12: 283.16,    # 2039
+    15: 7_928.42,  # 2042 — single biggest event, drives the FCFF anomaly
+}
+
+
+_DEFAULT_CAPEX_PHASING_SB_BY_MONTH = {
+    (2026, 6): 0.018203,  (2026, 7): 0.004077,
+    (2026, 9): 0.021500,  (2026, 10): 0.151948,
+    (2026, 11): 0.019920, (2026, 12): 0.089909,
+    (2027, 1): 0.002019,  (2027, 2): 0.181777,
+    (2027, 3): 0.227198,  (2027, 4): 0.091608,
+    (2027, 5): 0.070391,  (2027, 6): 0.121451,
+}
+
+_DEFAULT_CAPEX_PHASING_GAS_BY_MONTH = {
+    (2026, 1): 0.334589,  (2026, 2): 0.000956,
+    (2026, 3): 0.001064,  (2026, 4): 0.001035,
+    (2026, 5): 0.001076,  (2026, 6): 0.128509,
+    (2026, 7): 0.129281,  (2026, 8): 0.130022,
+    (2026, 9): 0.003199,  (2026, 10): 0.003324,
+    (2026, 11): 0.003235, (2026, 12): 0.003361,
+    (2027, 1): 0.003380,  (2027, 2): 0.003071,
+    (2027, 3): 0.003417,  (2027, 4): 0.082990,
+    (2027, 5): 0.083577,  (2027, 6): 0.083914,
+}
+
+
+# A32 (2026-05-15): post-PPA merchant balancing rate £/MWh by engine ops_year.
+# Derived from Excel Op r142 (monthly opex GBPk) / Op r52 (net gen MWh). The
+# underlying source is the `Baringa and Aurora` curve referenced by `Solar&BESS
+# Inputs!F283`. Burton-Leonard-locked default; non-D13 sites will need their
+# own curve plumbed via wizard state.
+_DEFAULT_MERCHANT_BALANCING_BY_OPS_YEAR = {
+    10: 1.3496, 11: 1.4107, 12: 1.4798, 13: 1.5433, 14: 1.5946,
+    15: 1.6490, 16: 1.7197, 17: 1.7824, 18: 1.8505, 19: 1.9431,
+    20: 2.0281, 21: 2.1374, 22: 2.2336, 23: 2.3140, 24: 2.3736,
+    25: 2.4133, 26: 2.4716, 27: 2.5189, 28: 2.5610, 29: 2.5910,
+    30: 2.5931, 31: 2.5854, 32: 2.5877, 33: 2.6212, 34: 2.6736,
 }
 
 
@@ -48,7 +195,18 @@ def _esc_factor(rates: dict, case: str, ops_year: int) -> float:
     Year 0 = 1.0, year y = (1+rate)^y. Matches Excel convention where
     indexation is applied at the start of each operating year, so the year-1
     cash flows carry no escalation.
+
+    Special cases:
+      "O&M - Year 3 Onwards" — non-geometric. Excel applies escalation only
+      from operating year 3 onwards; ops_years 0-2 stay at base. PV O&M is
+      the only D13 line using this case. Verified against Excel Op r117
+      year-by-year totals (A34, 2026-05-15).
     """
+    if case == "O&M - Year 3 Onwards":
+        if ops_year < 3:
+            return 1.0
+        rate = rates.get(case, 0.020)
+        return (1.0 + rate) ** (ops_year - 2)
     return (1.0 + rates.get(case, 0.0)) ** ops_year
 
 
@@ -109,8 +267,28 @@ class PirrInputs:
     ppa_escalation_rate: float = 0.0    # writes into rates dict if non-zero
 
     # --- Solar merchant (post-PPA) ---
-    merchant_prices: dict = field(default_factory=dict)   # {year: GBP/MWh}
-    merchant_price_default: float = 67.0
+    # Default is the Excel-evaluated Burton Leonard curve (`Solar&BESS
+    # Operation!r66`, averaged per year). Used unless overridden by an
+    # explicit fixture or wizard state. See `_DEFAULT_MERCHANT_PRICES_NOMINAL`.
+    merchant_prices: dict = field(
+        default_factory=lambda: dict(_DEFAULT_MERCHANT_PRICES_NOMINAL)
+    )
+    # Out-of-curve fallback. Excel uses 0 for years outside the curve range;
+    # this matches that. (Was 67.0 — pre-A24 default that the wizard-state
+    # adapter accidentally locked in because it didn't pass the curve through.)
+    merchant_price_default: float = 0.0
+    # Optional monthly resolution — dict[(year, month), price]. When present,
+    # takes precedence over the yearly `merchant_prices` dict. Excel's curve
+    # is quarterly (3 months/value, 4 distinct values per year) with Q1 winter
+    # peak + Q2 spring trough. Solar generates in Q2-Q3 (low) so yearly avg
+    # over-states by ~7% over post-PPA — see A30. Populate this dict from
+    # `Solar&BESS Operation!r66` to match Excel exactly.
+    # Defaults to the Burton-Leonard monthly curve (A30 fix). Empty dict
+    # would fall back to yearly arithmetic average which over-states
+    # realised revenue by ~7% post-PPA.
+    merchant_prices_monthly: dict = field(
+        default_factory=lambda: dict(_DEFAULT_MERCHANT_PRICES_MONTHLY)
+    )
 
     # --- REGOs ---
     rego_switch: int = 1
@@ -175,9 +353,23 @@ class PirrInputs:
     opex_corrective_maint: float = 3.2
     opex_tech_am: float = 0.3
     opex_solar_fixed_indexation: str = "CPI"
+    # A34 (2026-05-15): PV O&M uses its OWN escalation case in Excel —
+    # "O&M - Year 3 Onwards" (Solar&BESS Inputs!r267). The other 8 solar
+    # fixed lines use the bundled `opex_solar_fixed_indexation`.
+    opex_pv_om_indexation: str = "O&M - Year 3 Onwards"
 
-    opex_balancing_cfd: float = 2.75    # GBP/MWh of generation
-    opex_solar_var_indexation: str = "CPI"
+    opex_balancing_cfd: float = 2.75    # GBP/MWh of generation, PPA period
+    opex_solar_var_indexation: str = "NIL"  # Excel F287 (active branch) — flat CfD
+    # Merchant-period balancing rate by ops_year (engine 0-indexed).
+    # Per Excel `Solar&BESS Inputs!F283` note: "calculated differently in the
+    # Baringa & Aurora tab" — the merchant rate is a time-varying £/MWh curve
+    # looked up per period from `Baringa and Aurora!F` (Op r142 = rate × gen).
+    # Engine: applies this rate only when ops_year >= ppa_tenor_years.
+    # Defaults to the Burton-Leonard curve; wizard/fixture can override.
+    # See decisions log A32 (2026-05-15).
+    merchant_balancing_rate_by_ops_year: dict = field(
+        default_factory=lambda: dict(_DEFAULT_MERCHANT_BALANCING_BY_OPS_YEAR)
+    )
 
     # Corrective maintenance — Excel models as an 8-event step pattern across
     # the project life (FS r39, £525k lifetime, 8 active months). We mirror as
@@ -217,7 +409,15 @@ class PirrInputs:
     # Major equipment maintenance — Excel uses a step-function flag, we
     # approximate as a level base × gas inflation. Base sized so that
     # base × Σ(1.02^i for i=0..19) = £16,650k → base = £685k/yr.
+    # Legacy fallback; superseded by `gas_major_maint_schedule` (A36) when
+    # the latter is populated.
     gas_opex_major_maint_annual: float = 685.0
+    # A36: discrete event schedule from Excel `Cash Flows-Gas!r44`.
+    # dict[ops_year, GBPk nominal]. Defaults to Burton-Leonard curve;
+    # spreads each yearly amount across 12 months evenly.
+    gas_major_maint_schedule: dict = field(
+        default_factory=lambda: dict(_DEFAULT_GAS_MAJOR_MAINT_SCHEDULE)
+    )
     gas_fuel_price_gbp_mwh: float = 32.51
     gas_net_efficiency: float = 0.385
     gas_co2_kg_per_mwh: float = 185.0
@@ -271,6 +471,24 @@ class PirrInputs:
     capex_financing_fees_gbpk: float = 0.0
     capex_dsra_gbpk: float = 0.0
 
+    # A35 (2026-05-15): per-month capex phasing curves. Each dict maps
+    # (year, month) → fraction of that stream's total capex. Should sum to 1.0.
+    # Empty dict → engine falls back to uniform 9-month distribution within
+    # construction window (legacy behavior). When populated, engine extends
+    # the timeline backward to cover any pre-construction-start months.
+    # S+B capex includes solar + BESS (combined stream).
+    #
+    # Defaults to EMPTY ({}) until paired Excel mechanisms (depreciation
+    # starting at construction-month-1 per `D&T!r68` + NOL carry-forward
+    # for pre-COD losses) are implemented. In isolation, the phasing change
+    # regresses the audit by ~11 bps (gas capex shifted ~10 months earlier
+    # without compensating tax shield). Burton-Leonard curves available as
+    # `_DEFAULT_CAPEX_PHASING_SB_BY_MONTH` / `_DEFAULT_CAPEX_PHASING_GAS_BY_MONTH`
+    # for opt-in via fixture or wizard state when caller knows the full
+    # mechanism is implemented.
+    capex_phasing_sb: dict = field(default_factory=dict)
+    capex_phasing_gas: dict = field(default_factory=dict)
+
     # --- Tax ---
     corp_tax_rate: float = 0.25
     taxation_month: int = 12
@@ -284,6 +502,33 @@ class PirrInputs:
     interest_rate: float = 0.04
     debt_tenor_years: int = 19
     grace_period_months: int = 36
+
+    # --- Shareholder Loan (SHL) — Excel Solar&BESS Inputs F553/F556 ---
+    # SHL is the equity-side debt instrument used to fund the unfunded portion
+    # of capex. Excel treats SHL interest as tax-deductible (D&T r197), capped
+    # by UK CIR (max(£2m, 30% × EBITDA) annually). For v1 we model SHL as a
+    # simple interest-only loan over the project life; CIR cap is implemented
+    # as an EBITDA-proportional ceiling (matches Excel D&T r210-r212).
+    #
+    # Per Solar&BESS Inputs F556: SHL = 99% × (1 − senior_gearing) × total_capex
+    # Per Solar&BESS Inputs F553: SHL rate = 15% p.a.
+    # Excel lifetime SHL interest (cash, r109) = £189.5k; tax-deductible (r197,
+    # post-CIR cap) = £96.6k. Without modelling distributable-cash gating,
+    # accrued SHL interest converges on the higher figure; CIR cap brings the
+    # deductible portion down to Excel's £96.6k.
+    shl_switch: int = 1
+    shl_pct_of_unfunded: float = 0.99
+    shl_rate: float = 0.15
+    shl_cir_threshold_gbpk: float = 2000.0    # de minimis £2m
+    shl_cir_ebitda_cap_pct: float = 0.30      # 30% EBITDA
+
+    # --- Depreciation method (D&T r163-165: SLM 1/36, RB 2/36, Applied=RB) ---
+    # Excel uses Reducing Balance with annual rate = 2/36 = 5.555% (double-
+    # declining over a nominal 36-year life). Final-month true-up writes off
+    # the residual book value, ensuring lifetime depreciation = total capex
+    # (matches Excel r194 total = -£81.8k vs capex £82k = 99.8%).
+    depreciation_method: str = "RB"     # "RB" or "SLM"
+    depreciation_rate: float = 2.0 / 36.0   # annual rate for RB
 
     # --- Discount rate (for NPV reporting) ---
     discount_rate: float = 0.065
@@ -355,11 +600,28 @@ def _add_months(d: date, n: int) -> date:
 
 
 def _build_timeline(inp: PirrInputs):
-    """Returns (dates, is_construction, is_operations, ops_month_idx)."""
-    total_months = _months_between(inp.construction_start, inp.cod_date) \
+    """Returns (dates, is_construction, is_operations, ops_month_idx).
+
+    A35: timeline may extend backwards before `construction_start` when a
+    capex phasing dict contains earlier months (development phase). The
+    `is_construction` flag still covers only the construction window
+    (`construction_start` → `cod_date`); pre-construction months show
+    `is_construction=False` and `is_operations=False`.
+    """
+    # Find earliest month referenced anywhere (capex phasing dicts may
+    # specify development-phase months before construction_start).
+    timeline_start = inp.construction_start
+    for d in (inp.capex_phasing_sb, inp.capex_phasing_gas):
+        if d:
+            ym = min(d.keys())
+            phase_start = date(ym[0], ym[1], 1)
+            if phase_start < timeline_start:
+                timeline_start = phase_start
+
+    total_months = _months_between(timeline_start, inp.cod_date) \
                    + inp.project_life_years * 12
 
-    dates = np.array([_add_months(inp.construction_start, i)
+    dates = np.array([_add_months(timeline_start, i)
                       for i in range(total_months)])
     is_construction = np.array([
         inp.construction_start <= d < inp.cod_date for d in dates
@@ -404,16 +666,36 @@ def _calc_capex(inp: PirrInputs, dates: np.ndarray,
     # Gas — provided as total GBPk
     gas_capex = inp.gas_capex_total_gbpk
 
-    base = solar_capex + bess_capex + gas_capex
+    sb_base = solar_capex + bess_capex
+    sb_with_contingency = sb_base * (1.0 + inp.capex_contingency_pct)
+    # IDC / financing fees / DSRA are S+B financial overlays per D3 — attach
+    # to the S+B stream so they phase with construction not gas-development.
+    sb_total = (sb_with_contingency + inp.capex_idc_gbpk
+                + inp.capex_financing_fees_gbpk + inp.capex_dsra_gbpk)
+    gas_total = gas_capex
+    total = sb_total + gas_total
 
-    with_contingency = base * (1.0 + inp.capex_contingency_pct)
-    total = (with_contingency + inp.capex_idc_gbpk
-             + inp.capex_financing_fees_gbpk + inp.capex_dsra_gbpk)
+    # A35: per-stream monthly phasing curves. Falls back to uniform 9-month
+    # distribution within construction window if curves not provided.
+    use_phasing = bool(inp.capex_phasing_sb) and bool(inp.capex_phasing_gas)
 
-    # Phase evenly over construction months
-    cm = int(is_construction.sum())
-    if cm > 0:
-        capex[is_construction] = -total / cm
+    if use_phasing:
+        # Build (year, month) → index lookup
+        ym_to_idx = {(d.year, d.month): i for i, d in enumerate(dates)}
+        for ym, pct in inp.capex_phasing_sb.items():
+            idx = ym_to_idx.get(ym)
+            if idx is not None:
+                capex[idx] -= sb_total * pct
+        for ym, pct in inp.capex_phasing_gas.items():
+            idx = ym_to_idx.get(ym)
+            if idx is not None:
+                capex[idx] -= gas_total * pct
+    else:
+        # Legacy: uniform across construction months
+        cm = int(is_construction.sum())
+        if cm > 0:
+            capex[is_construction] = -total / cm
+
     return capex, total
 
 
@@ -468,12 +750,16 @@ def _calc_revenue(inp: PirrInputs, rates: dict, dates: np.ndarray,
             # Solar surplus during PPA → merchant
             surplus = inp.monthly_solar_surplus[m] * solar_degrad
             mp = _merchant_price(inp.merchant_prices, d.year,
-                                 inp.merchant_price_default)
+                                 inp.merchant_price_default,
+                                 month=d.month,
+                                 monthly_prices=inp.merchant_prices_monthly)
             out["solar_merchant"][i] = surplus * mp / 1000
         else:
             # Post-PPA: ALL generation merchant (no PPA, no DC delivery split)
             mp = _merchant_price(inp.merchant_prices, d.year,
-                                 inp.merchant_price_default)
+                                 inp.merchant_price_default,
+                                 month=d.month,
+                                 monthly_prices=inp.merchant_prices_monthly)
             out["solar_merchant"][i] = monthly_gen * mp / 1000
 
         # ---- REGO ----
@@ -533,11 +819,30 @@ def _calc_revenue(inp: PirrInputs, rates: dict, dates: np.ndarray,
     return out
 
 
-def _merchant_price(prices: dict, year: int, default: float) -> float:
-    """Look up annual merchant price. Zero in the dict means *deliberately
-    zero* (Excel uses 0 for years before the curve starts) — return as-is,
-    don't fall back to default.
+def _merchant_price(prices: dict, year: int, default: float,
+                    month: int | None = None,
+                    monthly_prices: dict | None = None) -> float:
+    """Look up merchant price for a given year (and month, if provided).
+
+    Excel's `Solar&BESS Operation!r66` carries a *quarterly* price pattern —
+    3 months at the same value, 4 distinct values per year, with Q1 winter
+    peak and Q2 spring trough. Solar generation concentrates in Q2-Q3 (low
+    price), so a yearly arithmetic average over-states the volume-weighted
+    realised merchant revenue by ~7% over the post-PPA period — driving the
+    A30-era D13 Combined PIRR gap.
+
+    Resolution order:
+      1. monthly_prices[(year, month)] if both provided and key exists
+      2. yearly prices[year]
+      3. linear interpolation between bracketing years in `prices`
+      4. `default` (Excel uses 0 for years outside the curve range)
+
+    Zero in either dict means *deliberately zero* — don't fall back.
     """
+    # Prefer monthly resolution when available
+    if monthly_prices and month is not None and (year, month) in monthly_prices:
+        return monthly_prices[(year, month)]
+
     if not prices:
         return default
     if year in prices:
@@ -569,14 +874,23 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
     n = len(dates)
     opex = np.zeros(n)
 
+    # Annual accumulators for the A33 land-lease top-up (applied at year-end)
+    from collections import defaultdict
+    _annual_fixed_lease = defaultdict(float)
+    _annual_rev_lease = defaultdict(float)
+    _last_month_idx_of_year: dict = {}
+
     # Solar fixed opex — excludes corrective maintenance (handled separately
     # as a level annual charge sized to Excel's 8-event step pattern).
-    solar_fixed_per_kwp = (
-        inp.opex_pv_om + inp.opex_grid_conn + inp.opex_greenkeeping
+    # PV O&M is also separated (A34): Excel applies "O&M - Year 3 Onwards"
+    # escalation specifically to PV O&M, distinct from CPI on the other 8.
+    solar_fixed_excl_pv_per_kwp = (
+        inp.opex_grid_conn + inp.opex_greenkeeping
         + inp.opex_community + inp.opex_real_estate_tax + inp.opex_non_tech_am
         + inp.opex_subsidy_loss + inp.opex_insurance + inp.opex_tech_am
     )
-    monthly_solar_fixed = solar_fixed_per_kwp * inp.solar_dc_mwp / 12
+    monthly_solar_fixed = solar_fixed_excl_pv_per_kwp * inp.solar_dc_mwp / 12
+    monthly_pv_om = inp.opex_pv_om * inp.solar_dc_mwp / 12
     monthly_corrective = inp.opex_corrective_maint_annual_gbpk / 12
 
     bess_fixed_per_mw = (
@@ -617,22 +931,38 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
         m = d.month - 1
         season = inp.seasonality[m] if len(inp.seasonality) == 12 else 1.0/12
 
-        # Solar fixed (escalates CPI)
+        # Solar fixed (excl. PV O&M): bundled CPI escalation per Excel
+        # `Inputs!r268-r277` (most lines use CPI in the active branch).
         opex[i] -= monthly_solar_fixed * \
             _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year)
+
+        # PV O&M — own indexation case ("O&M - Year 3 Onwards") per A34.
+        opex[i] -= monthly_pv_om * \
+            _esc_factor(rates, inp.opex_pv_om_indexation, ops_year)
 
         # Corrective maintenance (CPI-escalated, level annual to match Excel)
         opex[i] -= monthly_corrective * \
             _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year)
 
-        # Solar variable (balancing CfD £/MWh × generation × CPI)
-        if inp.opex_balancing_cfd > 0:
-            solar_degrad = max(1.0 - inp.solar_degradation_pct * ops_year, 0.0) \
-                           if ops_year > 0 else 1.0
-            monthly_gen = base_annual_gen_mwh * season * solar_degrad
-            opex[i] -= (monthly_gen * inp.opex_balancing_cfd
-                        * _esc_factor(rates, inp.opex_solar_var_indexation,
-                                      ops_year) / 1000)
+        # Solar variable (balancing services £/MWh × generation).
+        # A32 (2026-05-15): split CfD vs Merchant per Excel FS r42/r43.
+        # CfD (`Solar&BESS Inputs!F282 = 2.75`) applies during PPA tenor only,
+        # NIL indexation (Excel F287 active branch). Post-PPA, Excel switches
+        # to a time-varying merchant rate looked up from `Baringa and Aurora`
+        # (see `Solar&BESS Inputs!F283` cell note). Engine consumes that
+        # curve via `merchant_balancing_rate_by_ops_year`.
+        solar_degrad = max(1.0 - inp.solar_degradation_pct * ops_year, 0.0) \
+                       if ops_year > 0 else 1.0
+        monthly_gen = base_annual_gen_mwh * season * solar_degrad
+        if ops_year < inp.ppa_tenor_years:
+            if inp.opex_balancing_cfd > 0:
+                opex[i] -= (monthly_gen * inp.opex_balancing_cfd
+                            * _esc_factor(rates, inp.opex_solar_var_indexation,
+                                          ops_year) / 1000)
+        else:
+            mrch_rate = inp.merchant_balancing_rate_by_ops_year.get(ops_year, 0.0)
+            if mrch_rate > 0:
+                opex[i] -= monthly_gen * mrch_rate / 1000
 
         # BESS fixed + step (LTSA / PCS Warranty / Augmentation) — both
         # capped at BESS operating life
@@ -646,8 +976,19 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
             gas_esc = (1.0 + inp.gas_opex_inflation) ** ops_year
             opex[i] -= monthly_gas_fixed * gas_esc
 
-            # Major equipment maintenance (escalates with gas inflation)
-            opex[i] -= monthly_gas_major_maint * gas_esc
+            # Major equipment maintenance — A36: discrete-event schedule
+            # takes precedence over level-annual when populated. Excel
+            # `Cash Flows-Gas!r44` shows lumpy events concentrated in
+            # years 1, 3, 4, 6, 7, 9, 12, 15. Engine's prior level-annual
+            # approximation totalled correctly but mis-distributed timing
+            # (drove the 2042 FCFF anomaly).
+            if inp.gas_major_maint_schedule:
+                event_gbpk = inp.gas_major_maint_schedule.get(ops_year, 0.0)
+                # Spread the yearly amount evenly across 12 months;
+                # values are nominal (already inflated) — do NOT apply gas_esc.
+                opex[i] -= event_gbpk / 12
+            else:
+                opex[i] -= monthly_gas_major_maint * gas_esc
 
             # Gas energy this month: dispatch-derived during PPA, capacity-based
             # post-PPA (matches parked gas_model and the revenue side above)
@@ -666,8 +1007,13 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
                 * inp.gas_fuel_price_gbp_mwh * fuel_esc / 1000
             opex[i] -= fuel_cost_gbpk
 
-            # UKETS (CO2 cost)
-            ukets_gbpk = (gas_mwh * inp.gas_co2_kg_per_mwh
+            # UKETS (CO2 cost on FUEL CONSUMED — thermal MWh, not electric).
+            # Excel Cash Flows-Gas r38 sums on thermal basis: CO2 emissions
+            # are generated per unit of gas burned, not per unit of power
+            # delivered. Halved-line check: Excel r38/2 ≈ £78k vs electric
+            # MWh basis £29k. Thermal basis matches Excel.
+            thermal_mwh = gas_mwh / max(inp.gas_net_efficiency, 0.001)
+            ukets_gbpk = (thermal_mwh * inp.gas_co2_kg_per_mwh
                           * inp.gas_ukets_cost_gbp_per_kg / 1000)
             opex[i] -= ukets_gbpk
 
@@ -675,18 +1021,16 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
             days = _days_in_month(d)
             opex[i] -= inp.gas_fixed_cost_gbp_day * days * gas_esc / 1000
 
-        # Land lease — Excel uses GREATER of fixed or rev-dependent, not sum.
-        # Annual mechanism per Anchal 2026-05-11 (decisions log A18):
-        #   Final lease = Fixed lease (monthly) + July adjustment
-        #                 where adjustment = max(annual_rev_lease - annual_fixed, 0)
-        # Net: when rev_lease > fixed every month, equivalent to monthly max().
-        #
-        # Note 2026-05-12 (A20): the 2x multiplier I added in A18 (replicating
-        # Excel Op r98 doubling) was reverted. Per Anchal's Q4 reply, Excel
-        # applies 5% to actual revenue; the 2x observed in Solar&BESS Operation
-        # r98 is a workbook artifact (label row summing both base+applied
-        # versions of each stream), not a real multiplier. Reverting improved
-        # S+B PIRR uniformly by ~0.8 pp across all 4 matrix rows.
+        # Land lease — fixed (monthly) is always paid; the revenue-dependent
+        # top-up is applied ANNUALLY. Anchal Q3 (decisions log A18):
+        #   Final lease = Σ fixed (monthly) + max(0, annual_rev - annual_fixed)
+        #   where annual_rev = 5% of annual operating revenue.
+        # The previous engine took max(fixed_m, rev_m) per month — equivalent
+        # to the annual formula only when rev_m > fixed_m in EVERY month, which
+        # is false for D13 (seasonal revenue dips below fixed in winter). The
+        # monthly-max over-charges land lease by ~£1.0M lifetime. A33 fixes
+        # this by accumulating annual totals in the loop and applying the
+        # annual top-up post-loop.
         fixed_lease_m = 0.0
         if inp.fixed_lease_switch:
             fixed_lease_m = (
@@ -698,23 +1042,70 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
             share = inp.rev_share_yr1_10 if ops_year < 10 \
                 else inp.rev_share_yr11_35
             rev_lease_m = revenue[i] * share
-        opex[i] -= max(fixed_lease_m, rev_lease_m)
+        opex[i] -= fixed_lease_m
+        _annual_fixed_lease[ops_year] += fixed_lease_m
+        _annual_rev_lease[ops_year] += rev_lease_m
+        _last_month_idx_of_year[ops_year] = i  # track for top-up placement
+
+    # Apply the annual revenue-dependent top-up: extra cost paid only when
+    # annual_rev > annual_fixed. Placed at the LAST operating month of each
+    # ops_year (Excel structures it as a July adjustment — last month of
+    # the ops year roll; for COD 2027-07-01 the ops year runs Jul-Jun, so
+    # last_month_idx_of_year[ops_year] is June of the calendar year after
+    # COD-year-shift). IRR effect of within-year placement is negligible
+    # versus single-shot at year boundary.
+    for oy, idx in _last_month_idx_of_year.items():
+        topup = max(0.0, _annual_rev_lease[oy] - _annual_fixed_lease[oy])
+        if topup > 0:
+            opex[idx] -= topup
 
     return opex
 
 
 # =============================================================================
-# DEPRECIATION (SLM single account over project life)
+# DEPRECIATION (D&T r163-165: SLM or Reducing Balance; Excel uses RB)
 # =============================================================================
 
-def _calc_depreciation(total_capex: float, project_life_years: int,
+def _calc_depreciation(inp: "PirrInputs", total_capex: float,
                         is_operations: np.ndarray) -> np.ndarray:
+    """Compute monthly tax depreciation matching Excel D&T r194.
+
+    Two methods supported (D&T r163/r164/r165):
+    - SLM: constant monthly = total_capex / (life × 12)
+    - RB:  book × (annual_rate / 12) per month; final operations month gets
+           a true-up write-off so lifetime sum equals total_capex (mirrors
+           Excel r194 lifetime = £81.8k ≈ capex £82k).
+    """
     n = len(is_operations)
     depr = np.zeros(n)
     if total_capex <= 0:
         return depr
-    monthly = total_capex / (project_life_years * 12)
-    depr[is_operations] = monthly
+
+    ops_indices = np.where(is_operations)[0]
+    if len(ops_indices) == 0:
+        return depr
+
+    if inp.depreciation_method.upper() == "SLM":
+        monthly = total_capex / (inp.project_life_years * 12)
+        depr[is_operations] = monthly
+        return depr
+
+    # Reducing Balance with SLM crossover (MACRS convention). Each month take
+    # max(RB amount, SLM amount on remaining book over remaining life). RB
+    # dominates early; SLM takes over once RB falls below SLM-on-remaining.
+    # Ensures lifetime depreciation = total_capex with a smooth taper (matches
+    # Excel D&T r194 smooth profile, no end-of-life spike).
+    monthly_rate = inp.depreciation_rate / 12.0
+    book = total_capex
+    total_ops = len(ops_indices)
+    for k, i in enumerate(ops_indices):
+        remaining = total_ops - k
+        rb_amount = book * monthly_rate
+        slm_amount = book / remaining
+        d = max(rb_amount, slm_amount)
+        d = min(d, book)
+        depr[i] = d
+        book -= d
     return depr
 
 
@@ -761,36 +1152,99 @@ def _calc_interest(inp: PirrInputs, total_capex: float,
 
 
 # =============================================================================
+# SHL INTEREST (Excel Solar&BESS Inputs F553 + F556; D&T r197)
+# =============================================================================
+
+def _calc_shl_interest(inp: PirrInputs, total_capex: float,
+                       is_operations: np.ndarray) -> np.ndarray:
+    """SHL interest expense per month — feeds tax shield only (ungeared FCFF
+    doesn't include SHL principal or interest as cash). Interest-only on the
+    initial SHL principal at the SHL rate, held constant across operations.
+
+    SHL applies to **solar+BESS capex only** — gas plant has its own separate
+    financing chain in Excel (`Cash Flows-Gas`), with no SHL. To mirror this,
+    we subtract gas capex from the SHL base.
+    """
+    n = len(is_operations)
+    shl_int = np.zeros(n)
+    if not inp.shl_switch or total_capex <= 0:
+        return shl_int
+
+    # Exclude gas portion — Excel's SHL is on solar+BESS capex only.
+    sb_capex_base = max(total_capex - inp.gas_capex_total_gbpk, 0.0)
+    if sb_capex_base <= 0:
+        return shl_int
+
+    unfunded = sb_capex_base * (1.0 - inp.gearing)
+    principal = unfunded * inp.shl_pct_of_unfunded
+    monthly_rate = inp.shl_rate / 12.0
+    shl_int[is_operations] = principal * monthly_rate
+    return shl_int
+
+
+# =============================================================================
 # TAX (D2: max(0, (EBIT − Interest) × rate); annual loss carry-forward)
+# UK CIR cap applied to SHL portion: deductible SHL ≤ max(£2m, 30% × EBITDA)
 # =============================================================================
 
 def _calc_tax(inp: PirrInputs, dates: np.ndarray,
               is_operations: np.ndarray,
               ebitda: np.ndarray, depreciation: np.ndarray,
-              interest: np.ndarray) -> np.ndarray:
+              interest_senior: np.ndarray,
+              interest_shl: np.ndarray) -> np.ndarray:
+    """Annual taxable income chain matching Excel D&T r193-r200 + r210-r212.
+
+    Per-year mechanics:
+      EBITDA_y − Depr_y − DeductibleInterest_y = Taxable_y
+      Tax_y = max(0, Taxable_y × rate) with annual loss carry-forward.
+
+    UK CIR cap (D&T r210-r212): total deductible interest (senior + SHL) is
+    capped at max(£2m, 30% × EBITDA_y). Senior interest is prioritised
+    (always deducted up to the cap); SHL fills any remaining headroom.
+    Excess interest is non-deductible. This matches Excel's r212 "Maximum
+    Interest Deductible" line.
+    """
     n = len(dates)
     tax = np.zeros(n)
-    monthly_taxable = ebitda - depreciation - interest
 
-    annual_accum = 0.0
+    annual_ebitda = 0.0
+    annual_depr = 0.0
+    annual_senior = 0.0
+    annual_shl = 0.0
     loss_pool = 0.0
 
     for i in range(n):
         if not is_operations[i]:
             continue
-        annual_accum += monthly_taxable[i]
+        annual_ebitda += ebitda[i]
+        annual_depr += depreciation[i]
+        annual_senior += interest_senior[i]
+        annual_shl += interest_shl[i]
+
         if dates[i].month == inp.taxation_month:
-            if annual_accum < 0:
-                loss_pool += -annual_accum
-                annual_accum = 0.0
+            cap = max(inp.shl_cir_threshold_gbpk,
+                      inp.shl_cir_ebitda_cap_pct * max(annual_ebitda, 0.0))
+            deductible_senior = min(annual_senior, cap)
+            remaining_cap = max(cap - deductible_senior, 0.0)
+            deductible_shl = min(annual_shl, remaining_cap)
+
+            taxable = (annual_ebitda - annual_depr
+                       - deductible_senior - deductible_shl)
+            if taxable < 0:
+                loss_pool += -taxable
+                taxable = 0.0
             else:
                 if loss_pool > 0:
-                    used = min(loss_pool, annual_accum)
-                    annual_accum -= used
+                    used = min(loss_pool, taxable)
+                    taxable -= used
                     loss_pool -= used
-                if annual_accum > 0:
-                    tax[i] = -annual_accum * inp.corp_tax_rate
-            annual_accum = 0.0
+            if taxable > 0:
+                tax[i] = -taxable * inp.corp_tax_rate
+
+            annual_ebitda = 0.0
+            annual_depr = 0.0
+            annual_senior = 0.0
+            annual_shl = 0.0
     return tax
 
 
@@ -982,13 +1436,16 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
     ebitda = revenue + opex
     res.ebitda = ebitda
 
-    depr = _calc_depreciation(total_capex, inp.project_life_years, is_operations)
+    depr = _calc_depreciation(inp, total_capex, is_operations)
     res.depreciation = depr
 
     interest = _calc_interest(inp, total_capex, is_operations)
     res.interest = interest
 
-    tax = _calc_tax(inp, dates, is_operations, ebitda, depr, interest)
+    shl_interest = _calc_shl_interest(inp, total_capex, is_operations)
+
+    tax = _calc_tax(inp, dates, is_operations, ebitda, depr,
+                    interest, shl_interest)
     res.tax = tax
     res.total_tax_lifetime = float(-tax.sum())
 
@@ -1112,6 +1569,13 @@ def pirr_inputs_from_wizard_state(
         opex_corrective_maint=f("opex_corrective_maint", 3.2),
         opex_tech_am=f("opex_tech_am", 0.3),
         opex_balancing_cfd=f("opex_balancing_cfd", 2.75),
+        # A32: post-PPA merchant balancing rate curve (£/MWh by ops_year).
+        # Wizard state can supply a dict here; otherwise fall back to the
+        # Burton-Leonard locked default so the wizard-state path produces
+        # the same answer as the audit fixture.
+        merchant_balancing_rate_by_ops_year=fin.get(
+            "merchant_balancing_rate_by_ops_year"
+        ) or dict(_DEFAULT_MERCHANT_BALANCING_BY_OPS_YEAR),
 
         # --- BESS OPEX (GBPk/MW/yr) ---
         bess_opex_om=f("bess_opex_om", 7.063),
@@ -1152,12 +1616,24 @@ def pirr_inputs_from_wizard_state(
         capex_contingency_pct=f("capex_contingency_pct", 1.0) / 100.0,
 
         # --- Tax ---
-        corp_tax_rate=f("corp_tax_rate_low", 25.0) / 100.0,
+        # UK has two corporate tax rates (small profits 19% / main rate 25%).
+        # Excel D13 / Curves and D&T E108 = 25% (the main rate). Projects in
+        # this engine's scope are well above the £250k profit threshold, so
+        # the main rate is the binding one. Pre-A28 this read
+        # `corp_tax_rate_low` and silently applied 19% — see decisions log A28.
+        corp_tax_rate=f("corp_tax_rate_high", 25.0) / 100.0,
         taxation_month=i("taxation_month", 12),
 
         # --- Working capital ---
         debtor_days=i("wc_debtors_days", 30),
         creditor_days=i("wc_creditors_days", 30),
+
+        # --- SHL + Depreciation method (Step 7 Advanced expander) ---
+        shl_switch=i("shl_switch", 1),
+        shl_pct_of_unfunded=f("shl_pct_of_unfunded", 99.0) / 100.0,
+        shl_rate=f("shl_rate", 15.0) / 100.0,
+        depreciation_method=str(fin.get("depreciation_method", "RB")),
+        depreciation_rate=f("depreciation_rate", 5.555) / 100.0,
 
         # --- Discount (for NPV reporting) ---
         discount_rate=f("project_discount_rate", 6.5) / 100.0,

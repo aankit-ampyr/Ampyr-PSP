@@ -3,6 +3,7 @@
 ## How to Use This Document
 
 This document contains slide-by-slide content for creating a PowerPoint presentation. Each section represents one slide with:
+
 - **Title**: The slide heading
 - **Content**: Key points and visuals (represented as ASCII diagrams)
 - **Speaker Notes**: Talking points for the presenter
@@ -30,6 +31,7 @@ This document contains slide-by-slide content for creating a PowerPoint presenta
 ```
 
 ### Speaker Notes
+
 - Welcome everyone to the AmpyrOS platform presentation
 - This presentation covers our vision for a unified enterprise platform
 - We'll discuss architecture, modules, timeline, and next steps
@@ -59,6 +61,7 @@ AGENDA
 ```
 
 ### Speaker Notes
+
 - Quick overview of what we'll cover today
 - Feel free to ask questions at any point
 - We'll have dedicated Q&A time at the end
@@ -88,6 +91,7 @@ Current State:
 ```
 
 ### Speaker Notes
+
 - Currently we have multiple standalone tools
 - Each requires separate authentication
 - No central place to manage who has access to what
@@ -124,6 +128,7 @@ KEY BENEFITS:
 ```
 
 ### Speaker Notes
+
 - AmpyrOS is our solution - a unified platform
 - One login provides access to all authorized tools
 - Central place for admins to manage users and permissions
@@ -158,6 +163,7 @@ KEY BENEFITS:
 ```
 
 ### Speaker Notes
+
 - Our vision: One platform that houses all Ampyr tools
 - Starting with BESS Sizing (already built)
 - Adding RAG, Asset Dashboard, Bid Forecasting, Ampyr Intelligence
@@ -193,6 +199,7 @@ PLATFORM ARCHITECTURE
 ```
 
 ### Speaker Notes
+
 - Three-layer architecture for clean separation
 - Shell: What users see - module launcher, navigation
 - Services: Auth, access control, module management
@@ -229,6 +236,7 @@ FEATURES:
 ```
 
 ### Speaker Notes
+
 - SSO means users log in with their existing corporate accounts
 - We support Microsoft and Google identity providers
 - No need to create or manage new passwords
@@ -263,6 +271,7 @@ MODULE LEVEL (Example: BESS Sizing):
 ```
 
 ### Speaker Notes
+
 - Two-level permission system
 - Platform level: Admin vs regular users
 - Module level: Each module defines its own roles
@@ -299,6 +308,7 @@ MODULE LAUNCHER (Dashboard)
 ```
 
 ### Speaker Notes
+
 - This is what users see after logging in
 - Clean, simple interface showing available modules
 - Only shows modules the user has access to
@@ -331,6 +341,7 @@ PRESERVED FEATURES:            ENHANCEMENTS:
 ```
 
 ### Speaker Notes
+
 - BESS Sizing is our first module to integrate
 - Currently standalone - all your work is lost when you close it
 - After integration: save projects, share with team, track history
@@ -374,6 +385,7 @@ Week    1    2    3    4    5    6    7    8+
 ```
 
 ### Speaker Notes
+
 - 7-week implementation timeline
 - Weeks 1-2: Build the foundation (database, authentication)
 - Week 3: Core services (access control, module registry)
@@ -412,6 +424,7 @@ AUTHENTICATION
 ```
 
 ### Speaker Notes
+
 - Modern, proven technology stack
 - Frontend: Next.js for fast, SEO-friendly UI
 - Backend: FastAPI (Python) - matches our existing BESS code
@@ -455,6 +468,7 @@ FOR ORGANIZATION
 ```
 
 ### Speaker Notes
+
 - Benefits for everyone in the organization
 - Users: Simpler experience, save their work
 - Admins: Control and visibility
@@ -498,6 +512,7 @@ DECISIONS NEEDED:
 ```
 
 ### Speaker Notes
+
 - Clear next steps with specific milestones
 - Need decision on SSO provider this week
 - Development starts immediately after
@@ -529,6 +544,7 @@ DECISIONS NEEDED:
 ```
 
 ### Speaker Notes
+
 - Open floor for questions
 - Topics to address if not asked:
   - Timeline flexibility
@@ -578,6 +594,7 @@ PHASE 5: Deployment (Week 7)
 ```
 
 ### Speaker Notes
+
 - Detailed breakdown for those who want more specifics
 - Each phase has clear deliverables
 - We can adjust timeline based on priorities
@@ -588,26 +605,31 @@ PHASE 5: Deployment (Week 7)
 ## Design Recommendations for PowerPoint
 
 ### Color Scheme
+
 - Primary: Use Ampyr brand colors
 - Secondary: Neutral grays
 - Accent: Green for success, Blue for information
 
 ### Fonts
+
 - Headings: Inter Bold or Roboto Bold
 - Body: Inter Regular or Roboto Regular
 - Monospace: JetBrains Mono (for code/technical content)
 
 ### Icons
+
 - Use consistent icon set (Lucide, Heroicons, or Font Awesome)
 - Module icons should be distinctive and memorable
 
 ### Layout Tips
+
 - Keep slides clean with plenty of white space
 - Use animations sparingly (fade in for bullet points)
 - Include slide numbers
 - Add Ampyr logo in footer
 
 ### Diagrams
+
 - Recreate ASCII diagrams as proper graphics
 - Use consistent colors and styling
 - Add subtle shadows and gradients for depth
@@ -617,22 +639,29 @@ PHASE 5: Deployment (Week 7)
 ## Anticipated Questions
 
 ### Q: "How long until we can use it?"
+
 **A:** BESS Sizing module will be available within AmpyrOS by Week 6-7. Other modules will follow based on priority.
 
 ### Q: "What about our existing BESS Sizing work?"
+
 **A:** Current work is in session state, so it would need to be recreated. We can help migrate any critical configurations.
 
 ### Q: "Can we add more modules later?"
+
 **A:** Yes, the architecture is specifically designed for easy module addition. Each new module follows the same integration pattern.
 
 ### Q: "What about mobile access?"
+
 **A:** The platform is responsive and works on tablets. A dedicated mobile app could be added in the future if needed.
 
 ### Q: "Who will maintain this?"
+
 **A:** The platform will be maintained by the internal development team, with documentation for operations.
 
 ### Q: "What happens if SSO is down?"
+
 **A:** SSO providers (Microsoft, Google) have 99.99% uptime SLAs. We can add fallback authentication if required.
 
 ### Q: "How is data secured?"
+
 **A:** All data is encrypted at rest and in transit. Access is controlled via RBAC. Full audit logging tracks all actions.

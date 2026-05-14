@@ -529,6 +529,48 @@ if active_solar_profile is not None and len(active_solar_profile) > 0:
     # Store the active solar profile for use in simulation
     if solar_source == 'inputs':
         update_wizard_state('setup', 'solar_csv_data', None)  # Clear uploaded data when using Inputs folder
+
+    # =========================================================================
+    # CANONICAL PROFILE STORAGE — Step 1 is the single source of profile truth.
+    # See decisions log A27. All downstream consumers (Step 3, Step 3a, Step 4,
+    # Step 7) read `wizard['setup']['solar_profile_array']` directly rather
+    # than re-loading from disk per-page. Eliminates loader/extension/length
+    # drift surfaced repeatedly by the Step 3a smoke test loop.
+    # =========================================================================
+    active_array = np.asarray(active_solar_profile, dtype=float)
+
+    # Pad to 8760 if needed (defensive — Option B fix makes data_loader return
+    # 8760 already; this is a safety net for future uploads).
+    if len(active_array) == 8759:
+        active_array = np.concatenate([active_array, [active_array[-1]]])
+    if len(active_array) >= 8760:
+        active_array = active_array[:8760]
+
+    # Profile-change signature → invalidates downstream caches on change.
+    source_id = selected_file if solar_source == 'inputs' else 'upload'
+    new_signature = (
+        solar_source,
+        source_id,
+        round(float(active_array.max()), 4),
+        round(float(active_array.sum()), 1),
+    )
+    old_signature = setup.get('solar_profile_signature')
+    if old_signature != new_signature:
+        # Clear all downstream caches that depend on the solar profile (spec §8
+        # cache invalidation rules). Any cache derived from this profile is
+        # now stale; force re-computation on next visit.
+        for cache_key in (
+            'sizing_results',
+            'sizing_monthly_aggregates',
+            'financial_results',
+            'dispatch_monthly',
+            'multiyear_monthly',
+        ):
+            st.session_state.pop(cache_key, None)
+        update_wizard_state('setup', 'solar_profile_signature', new_signature)
+
+    # Store the canonical 8760-element array for downstream consumers.
+    update_wizard_state('setup', 'solar_profile_array', active_array.tolist())
 else:
     st.warning("⚠️ No valid solar profile available. Simulation requires a solar profile.")
 

@@ -2016,7 +2016,7 @@ class ComparisonRow:
 ## Appendix A: Quick Reference - Template Differences
 
 | Template | DG Trigger | Time Restriction | BESS Assist | Cycle Enforce |
-|----------|------------|------------------|-------------|---------------|
+| ---------- | ------------ | ------------------ | ------------- | --------------- |
 | 0 | N/A (no DG) | None | N/A | User choice |
 | 1 | Load deficit | None | No | User choice |
 | 2 | Proactive (night) | Night only | No | User choice |
@@ -2030,7 +2030,7 @@ class ComparisonRow:
 ## Appendix B: Duration Class Reference
 
 | Duration | C-Rate | Power Formula | Typical Use Case |
-|----------|--------|---------------|------------------|
+| ---------- | -------- | --------------- | ------------------ |
 | 1 hour | 1C | capacity ÷ 1 | Frequency response |
 | 2 hours | 0.5C | capacity ÷ 2 | Most common utility |
 | 3 hours | 0.33C | capacity ÷ 3 | Transitional |

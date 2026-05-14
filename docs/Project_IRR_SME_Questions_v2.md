@@ -42,12 +42,12 @@ One sentence is enough. If `max()` is wrong I'll port the full logic; if it's fi
 
 I've now run the engine against all four rows of your May 7 matrix. Current state:
 
-| Case             | Engine | Your target | Delta      |
-|------------------|--------|-------------|------------|
-| 82 MWp / £170    | 10.28% | 8.9%        | +1.38 pp   |
-| 82 MWp / £160    | 9.73%  | 7.4%        | +2.33 pp   |
-| 115 MWp / £170   | 9.97%  | 9.8%        | +0.17 pp   |
-| 115 MWp / £160   | 9.41%  | 8.5%        | +0.91 pp   |
+| Case | Engine | Your target | Delta |
+| --- | --- | --- | --- |
+| 82 MWp / £170 | 10.28% | 8.9% | +1.38 pp |
+| 82 MWp / £160 | 9.73% | 7.4% | +2.33 pp |
+| 115 MWp / £170 | 9.97% | 9.8% | +0.17 pp |
+| 115 MWp / £160 | 9.41% | 8.5% | +0.91 pp |
 
 When PPA drops £170 → £160, my engine drops by ~0.55 pp on both solar sizes. Your matrix drops by ~1.5 pp. About 3x more sensitive in Excel.
 

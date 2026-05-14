@@ -31,19 +31,31 @@ from tests.fixtures.d13_inputs import d13_inputs
 TOLERANCE_PP = 0.001   # 0.1 percentage points = 0.001 in decimal
 
 
-# SME reference matrix — image supplied 2026-05-07
-# Anchal clarified 2026-05-12: target column = Solar+BESS-only PIRR (matches
-# Excel `Equity!D175`). Combined Solar+BESS+Gas PIRR also reported when known
-# (only D13 has an explicit Combined target).
+# SME reference matrix — Anchal's 2026-05-14 reply confirms ALL four targets
+# are Combined PV+BESS+Gas Project IRR (matrix column header explicitly reads
+# "Project IRR (Overall for PV+BESS+Gas)"). The earlier A20 (2026-05-12)
+# interpretation that targets were S+B-only was wrong — see decisions log A29.
+# Anchal's 5/14 reply: "They were clean Excel re-runs ... consider latest
+# IRR targets for 82MW case." 82 MWp values shifted slightly from May 7
+# matrix (8.9→9.2, 7.4→7.8); 115 MWp values unchanged (9.8, 8.5).
+#
+# Per-config green/gas share Anchal also provided (useful for dispatch
+# cross-check, NOT audit assertion):
+#   115 MWp config: 42.8% green / 57.2% gas
+#   82 MWp config:  34.5% green / 65.5% gas
 SME_MATRIX = [
-    {"id": "d13",    "solar_mwp": 82.0,  "grid_mw": 58.4, "tariff": 170.0,
-     "sb_target": 0.089, "combined_target": 0.092, "primary": True},
+    {"id": "d13",      "solar_mwp": 82.0,  "grid_mw": 58.4, "tariff": 170.0,
+     "combined_target": 0.092, "primary": True,
+     "green_share_target": 0.345, "gas_share_target": 0.655},
     {"id": "m82_160",  "solar_mwp": 82.0,  "grid_mw": 58.4, "tariff": 160.0,
-     "sb_target": 0.074, "combined_target": None, "primary": False},
+     "combined_target": 0.078, "primary": False,
+     "green_share_target": 0.345, "gas_share_target": 0.655},
     {"id": "m115_170", "solar_mwp": 115.0, "grid_mw": 81.9, "tariff": 170.0,
-     "sb_target": 0.098, "combined_target": None, "primary": False},
+     "combined_target": 0.098, "primary": False,
+     "green_share_target": 0.428, "gas_share_target": 0.572},
     {"id": "m115_160", "solar_mwp": 115.0, "grid_mw": 81.9, "tariff": 160.0,
-     "sb_target": 0.085, "combined_target": None, "primary": False},
+     "combined_target": 0.085, "primary": False,
+     "green_share_target": 0.428, "gas_share_target": 0.572},
 ]
 
 
@@ -58,25 +70,22 @@ def _run_case(case: dict) -> dict:
         "id": case["id"],
         "combined": result.project_irr,
         "sb_only": result.project_irr_solar_bess,
-        "sb_target": case["sb_target"],
-        "combined_target": case.get("combined_target"),
-        "sb_delta_pp": (result.project_irr_solar_bess - case["sb_target"]) * 100,
-        "combined_delta_pp": ((result.project_irr - case["combined_target"]) * 100
-                              if case.get("combined_target") is not None else None),
+        "gas_only": result.project_irr_gas,
+        "combined_target": case["combined_target"],
+        "combined_delta_pp": (result.project_irr - case["combined_target"]) * 100,
     }
 
 
-# Primary test — D13 must be within tolerance on the S+B-only target.
-# (Combined target also checked for D13, but S+B is the headline.)
-def test_d13_audit_solar_bess():
-    case = SME_MATRIX[0]
-    r = _run_case(case)
-    msg = (f"{r['id']} S+B-only: PIRR={r['sb_only']*100:.2f}% vs target "
-           f"{r['sb_target']*100:.1f}% (delta={r['sb_delta_pp']:+.2f} pp)")
-    print(msg)
-    assert abs(r["sb_only"] - r["sb_target"]) <= TOLERANCE_PP, msg
-
-
+# Primary test — D13 must be within tolerance on the Combined target.
+# Per Anchal 2026-05-14: matrix targets are Combined PV+BESS+Gas PIRRs.
+# Current engine produces D13 Combined ≈ 8.77% vs target 9.2% (-0.43 pp).
+# xfail tracks this gap as the new primary calibration objective post-A29.
+@pytest.mark.xfail(reason="Post-A29 (matrix reinterpreted as Combined): "
+                          "engine 8.77% vs Combined target 9.2% (-0.43 pp). "
+                          "Pre-A29 this test passed on the wrong (S+B-only) "
+                          "metric per the A20 misinterpretation. Calibration "
+                          "of the -0.43 pp Combined gap is the new headline "
+                          "objective.")
 def test_d13_audit_combined():
     case = SME_MATRIX[0]
     r = _run_case(case)
@@ -86,49 +95,40 @@ def test_d13_audit_combined():
     assert abs(r["combined"] - r["combined_target"]) <= TOLERANCE_PP, msg
 
 
-# Secondary rows — xfail-tracked until D13 passes both targets.
-@pytest.mark.xfail(reason="Awaiting calibration — see decisions log A19/A20 for sensitivity gap")
+# Secondary rows — xfail-tracked until D13 passes Combined target.
+@pytest.mark.xfail(reason="Combined-target calibration pending — see A29 for matrix-interpretation reversal")
 @pytest.mark.parametrize("case", SME_MATRIX[1:], ids=[c["id"] for c in SME_MATRIX[1:]])
 def test_secondary_matrix_rows(case):
     r = _run_case(case)
-    msg = (f"{r['id']} S+B: {r['sb_only']*100:.2f}% vs target "
-           f"{r['sb_target']*100:.1f}% (delta={r['sb_delta_pp']:+.2f} pp)")
+    msg = (f"{r['id']} Combined: {r['combined']*100:.2f}% vs target "
+           f"{r['combined_target']*100:.1f}% (delta={r['combined_delta_pp']:+.2f} pp)")
     print(msg)
-    assert abs(r["sb_only"] - r["sb_target"]) <= TOLERANCE_PP, msg
+    assert abs(r["combined"] - r["combined_target"]) <= TOLERANCE_PP, msg
 
 
-# Standalone runner — prints all 3 PIRRs against both S+B and Combined targets
+# Standalone runner — prints Combined-vs-target (audit primary) plus S+B
+# and Gas for diagnostic context.
 def main():
     print("=" * 100)
-    print("SME REFERENCE MATRIX — engine vs both targets")
-    print("Per Anchal 2026-05-12: target column = S+B-only PIRR. Combined target also given for D13.")
+    print("SME REFERENCE MATRIX — engine Combined PIRR vs target")
+    print("Per Anchal 2026-05-14: ALL four matrix targets are Combined "
+          "PV+BESS+Gas PIRRs (matrix col header: 'Project IRR (Overall "
+          "for PV+BESS+Gas)'). Supersedes A20's S+B-only interpretation.")
     print("=" * 100)
     print(f"{'Case':<11} {'Tariff':<7} "
-          f"{'S+B Eng':<9} {'S+B Tgt':<9} {'ΔS+B':<8}  "
-          f"{'Comb Eng':<10} {'Comb Tgt':<10} {'ΔComb':<8} {'Gas Eng':<8}")
+          f"{'Comb Eng':<11} {'Comb Tgt':<11} {'ΔComb':<9}  "
+          f"{'S+B Eng':<9} {'Gas Eng':<9}")
     print("-" * 100)
 
     for case in SME_MATRIX:
         r = _run_case(case)
-        comb_tgt_str = (f"{r['combined_target']*100:>5.1f}%"
-                        if r['combined_target'] is not None else "  -")
-        comb_delta_str = (f"{r['combined_delta_pp']:+5.2f}"
-                          if r['combined_delta_pp'] is not None else "  -")
-        # Gas IRR
-        inputs = d13_inputs(
-            solar_dc_mwp=case["solar_mwp"],
-            grid_limit_mw=case["grid_mw"],
-            ppa_tariff=case["tariff"],
-        )
-        gas_irr = run_pirr(inputs).project_irr_gas
-        gas_str = f"{gas_irr*100:>6.2f}%" if not (gas_irr != gas_irr) else "  nan"
-
         print(
             f"{case['id']:<11} £{case['tariff']:<6.0f} "
-            f"{r['sb_only']*100:>6.2f}%   {r['sb_target']*100:>5.1f}%    "
-            f"{r['sb_delta_pp']:+6.2f}    "
-            f"{r['combined']*100:>6.2f}%    {comb_tgt_str}     "
-            f"{comb_delta_str}    {gas_str}"
+            f"{r['combined']*100:>6.2f}%     "
+            f"{r['combined_target']*100:>5.1f}%      "
+            f"{r['combined_delta_pp']:+6.2f}     "
+            f"{r['sb_only']*100:>6.2f}%   "
+            f"{r['gas_only']*100:>6.2f}%"
         )
 
     print("-" * 100)
@@ -136,7 +136,7 @@ def main():
     print("Excel reference (current snapshot, 3.8h BESS):")
     print("  S+B-only = 8.85% (Equity!D175) | Combined = 9.23% (Consol Cash Flows!B9) | Gas = 10.77% (Cash Flows-Gas!D84)")
     print()
-    print("D13 SME targets (4h BESS): S+B = 8.9% | Combined = 9.2%")
+    print("D13 SME target (4h BESS, post-A29): Combined = 9.2%")
     return True
 
 

@@ -16,7 +16,11 @@ from src.wizard_state import (
 from src.dispatch_engine import (
     SimulationParams, run_simulation, HourlyResult, calculate_metrics
 )
-from src.data_loader import load_solar_profile, load_solar_profile_by_name
+from src.data_loader import (
+    get_active_solar_profile,
+    load_solar_profile,
+    load_solar_profile_by_name,
+)
 from src.load_builder import build_load_profile
 
 
@@ -74,36 +78,14 @@ CONTAINER_SPECS = {
 # =============================================================================
 
 def get_solar_profile(setup):
-    """Get solar profile from setup configuration - matches Step 3 exactly."""
-    solar_source = setup.get('solar_source', 'inputs')
+    """Return the canonical solar profile from wizard state as a list of MW values.
 
-    # Handle uploaded CSV data
-    if solar_source == 'upload' and setup.get('solar_csv_data') is not None:
-        solar_data = setup['solar_csv_data']
-        if isinstance(solar_data, list):
-            return solar_data[:8760] if len(solar_data) >= 8760 else solar_data
-        return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-
-    # Handle selection from Inputs folder
-    if solar_source in ('inputs', 'default'):
-        selected_file = setup.get('solar_selected_file')
-        if selected_file:
-            try:
-                solar_data = load_solar_profile_by_name(selected_file)
-                if solar_data is not None and len(solar_data) > 0:
-                    return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-            except Exception:
-                pass
-
-    # Fallback: load default profile
-    try:
-        solar_data = load_solar_profile()
-        if solar_data is not None and len(solar_data) > 0:
-            return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-    except Exception:
-        pass
-
-    return None
+    Step 1 owns profile loading + validation. See decisions log A27.
+    """
+    arr = get_active_solar_profile(setup)
+    if arr is None:
+        return None
+    return arr.tolist()
 
 
 def get_solar_peak(setup):
