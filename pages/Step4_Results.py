@@ -472,7 +472,7 @@ with col2:
     run_button = st.button(
         "See Results" if cached else "Run Simulation",
         type="primary",
-        use_container_width=True,
+        width='stretch',
         key='run_analysis_btn'
     )
 
@@ -601,7 +601,7 @@ if st.session_state.analysis_results is not None:
 
     st.dataframe(
         monthly_df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             'Delivery %': st.column_config.ProgressColumn(
@@ -734,7 +734,7 @@ if st.session_state.analysis_results is not None:
 
         # Dispatch graph
         fig = create_dispatch_graph(filtered_df, load_mw, bess_capacity, soc_on, soc_off)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         st.caption("""
         **Orange**: Solar | **Red**: DG Output | **Blue**: BESS Power (negative=charging) | **Purple**: Delivery
@@ -770,7 +770,7 @@ if st.session_state.analysis_results is not None:
         ]
 
         styled_df = display_df[display_cols].style.apply(style_hourly_row, axis=1)
-        st.dataframe(styled_df, use_container_width=True, height=400)
+        st.dataframe(styled_df, width='stretch', height=400)
 
         st.markdown("""
         **Row Colors:** 🟢 Green = Charging | 🟣 Lavender = Discharging | 🟡 Yellow = DG Running | 🔴 Pink = Unmet Load
@@ -796,7 +796,7 @@ if st.session_state.analysis_results is not None:
                 data=csv_data,
                 file_name=f"hourly_{bess_capacity}mwh_{start_date}_to_{end_date}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
         with col2:
@@ -813,7 +813,7 @@ if st.session_state.analysis_results is not None:
                 data=full_year_csv,
                 file_name=f"hourly_{bess_capacity}mwh_full_year.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
         with col3:
@@ -824,7 +824,7 @@ if st.session_state.analysis_results is not None:
                 data=monthly_csv,
                 file_name=f"monthly_summary_{bess_capacity}mwh.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
 else:
@@ -836,13 +836,13 @@ st.divider()
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Sizing", use_container_width=True):
+    if st.button("← Back to Sizing", width='stretch'):
         st.switch_page("pages/Step3_Sizing.py")
 
 with col3:
     has_results = st.session_state.analysis_results is not None
     if st.button("Next → Multi-Year", type="primary" if has_results else "secondary",
-                 disabled=not has_results, use_container_width=True):
+                 disabled=not has_results, width='stretch'):
         st.switch_page("pages/Step5_MultiYear.py")
 
 # Sidebar summary

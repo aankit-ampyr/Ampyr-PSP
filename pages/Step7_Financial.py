@@ -1148,7 +1148,7 @@ def main():
     # =========================================================================
     st.divider()
 
-    if st.button("Save Financial Inputs", type="primary", use_container_width=True):
+    if st.button("Save Financial Inputs", type="primary", width='stretch'):
         financial_data = {
             'enabled': True,
             # Timing
@@ -1294,7 +1294,7 @@ def main():
     run_dispatch = st.button(
         "Run Financial Analysis",
         type="primary",
-        use_container_width=True,
+        width='stretch',
     )
 
     if run_dispatch:
@@ -1372,7 +1372,10 @@ def main():
                         fin_state, setup_state, monthly)
                     results = run_pirr(pi)
 
-                    st.session_state['financial_results'] = results
+                    # Per Spec §8: `financial_results` is the Step 3a sweep DataFrame.
+                    # Step 7's single-config PirrResults lives at a distinct key
+                    # to avoid AttributeError when both pages populate state.
+                    st.session_state['step7_pirr_result'] = results
                     st.session_state['dispatch_monthly'] = monthly
 
                     total_demand = target_load_mw * 8760
@@ -1393,8 +1396,8 @@ def main():
                     st.code(traceback.format_exc())
 
     # Display results if available
-    if 'financial_results' in st.session_state:
-        results: PirrResults = st.session_state['financial_results']
+    if 'step7_pirr_result' in st.session_state:
+        results: PirrResults = st.session_state['step7_pirr_result']
 
         # --- Primary metric: Combined Project IRR ---
         st.subheader("Summary")
@@ -1494,7 +1497,7 @@ def main():
             fig.update_yaxes(title_text="GBPm", row=1, col=1)
             fig.update_yaxes(title_text="GBPm", row=2, col=1)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         # --- Cumulative FCFF ---
         st.subheader("Cumulative FCFF")
@@ -1518,7 +1521,7 @@ def main():
                 yaxis_title="Cumulative FCFF (GBPm)",
                 xaxis_title="Year",
             )
-            st.plotly_chart(fig_cum, use_container_width=True)
+            st.plotly_chart(fig_cum, width='stretch')
 
         # --- Data table ---
         with st.expander("Detailed Annual Data"):
@@ -1532,7 +1535,7 @@ def main():
                     'FCFF (GBPk)': [annual_data[y]['fcff'] for y in years],
                 })
                 annual_df = annual_df.round(1)
-                st.dataframe(annual_df, use_container_width=True, hide_index=True)
+                st.dataframe(annual_df, width='stretch', hide_index=True)
 
                 csv = annual_df.to_csv(index=False)
                 st.download_button(

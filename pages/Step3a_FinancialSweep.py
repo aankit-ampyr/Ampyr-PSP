@@ -263,7 +263,7 @@ def main():
         )
 
     run = st.button(
-        "Run Financial Sweep", type="primary", use_container_width=True
+        "Run Financial Sweep", type="primary", width='stretch'
     )
 
     # -------------------------------------------------------------------------
@@ -433,7 +433,7 @@ def main():
 
         st.dataframe(
             view[ordered],
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config={
                 "Combined PIRR (%)": st.column_config.NumberColumn(format="%.2f"),
@@ -479,14 +479,14 @@ def main():
     st.divider()
     n1, n2, n3 = st.columns(3)
     with n1:
-        if st.button("← Back to Step 3", use_container_width=True):
+        if st.button("← Back to Step 3", width='stretch'):
             st.switch_page("pages/Step3_Sizing.py")
     with n2:
-        if st.button("Open single-config Step 7 →", use_container_width=True):
+        if st.button("Open single-config Step 7 →", width='stretch'):
             st.switch_page("pages/Step7_Financial.py")
     with n3:
         if st.button("Next → Step 4 Results", type="primary",
-                     use_container_width=True):
+                     width='stretch'):
             mark_step_completed(3)
             st.switch_page("pages/Step4_Results.py")
 

@@ -394,7 +394,7 @@ st.caption(f"Estimated runtime: {est_time}")
 
 st.divider()
 
-if st.button("🚀 Run Sizing Simulation", type="primary", use_container_width=True):
+if st.button("🚀 Run Sizing Simulation", type="primary", width='stretch'):
 
     # Progress tracking
     progress_bar = st.progress(0)
@@ -471,7 +471,7 @@ if 'sizing_results' in st.session_state and st.session_state.sizing_results is n
     # Display
     st.dataframe(
         filtered_df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             'Delivery %': st.column_config.ProgressColumn(
@@ -526,20 +526,20 @@ st.divider()
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Rules", use_container_width=True):
+    if st.button("← Back to Rules", width='stretch'):
         st.switch_page("pages/Step2_Rules.py")
 
 with col2:
     has_results = 'sizing_results' in st.session_state and st.session_state.sizing_results is not None
     if st.button("£ Add Financial Analysis", disabled=not has_results,
-                 use_container_width=True,
+                 width='stretch',
                  help="Optional: rank configs by Project IRR alongside operational metrics (Step 3a)."):
         st.switch_page("pages/Step3a_FinancialSweep.py")
 
 with col3:
     has_results = 'sizing_results' in st.session_state and st.session_state.sizing_results is not None
     if st.button("Next → Results", type="primary" if has_results else "secondary",
-                 disabled=not has_results, use_container_width=True):
+                 disabled=not has_results, width='stretch'):
         mark_step_completed(3)
         st.switch_page("pages/Step4_Results.py")
 

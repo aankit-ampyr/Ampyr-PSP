@@ -360,7 +360,7 @@ with tab1:
             "RTE_pct": "RTE (%)",
             "Warranty_years": "Warranty (yrs)"
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
 
@@ -376,7 +376,7 @@ with tab1:
         labels={"Capacity_MWh": "Capacity (MWh)", "Product": ""}
     )
     fig.update_layout(height=500, showlegend=True)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # Cycle life vs RTE scatter
     col1, col2 = st.columns(2)
@@ -392,7 +392,7 @@ with tab1:
             labels={"Cycle_Life": "Cycle Life", "RTE_pct": "RTE (%)"}
         )
         fig2.update_layout(height=400)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width='stretch')
 
     with col2:
         # Chemistry distribution pie chart
@@ -403,7 +403,7 @@ with tab1:
             title="Chemistry Distribution"
         )
         fig3.update_layout(height=400)
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, width='stretch')
 
 # -----------------------------------------------------------------------------
 # TAB 2: Container Sizes
@@ -419,7 +419,7 @@ with tab2:
             "Power_Range": "Power Range",
             "Use_Case": "Use Case"
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
 
@@ -464,7 +464,7 @@ with tab3:
         df_duration.rename(columns={
             "Typical_Revenue": "Revenue Profile"
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
 
@@ -498,7 +498,7 @@ with tab3:
         yaxis_title="Suitability Score (%)",
         height=400
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     st.success("""
     **Recommendation for Solar+BESS:**
@@ -521,7 +521,7 @@ with tab4:
             "Solar_MW": "Solar (MW)",
             "Use_Case": "Use Case"
         }),
-        use_container_width=True,
+        width='stretch',
         hide_index=True
     )
 
@@ -577,7 +577,7 @@ with tab4:
         yaxis_title="Total Cost (€ Million)",
         height=400
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 # -----------------------------------------------------------------------------
 # TAB 5: Pricing
@@ -586,7 +586,7 @@ with tab5:
     st.subheader("Market Pricing (2025)")
 
     df_pricing = pd.DataFrame(PRICING_DATA)
-    st.dataframe(df_pricing, use_container_width=True, hide_index=True)
+    st.dataframe(df_pricing, width='stretch', hide_index=True)
 
     st.markdown("---")
     st.subheader("Cost Breakdown")
@@ -604,7 +604,7 @@ with tab5:
             title="Typical CAPEX Breakdown",
             hole=0.4
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     with col2:
         # Price trend
@@ -617,7 +617,7 @@ with tab5:
             labels={"x": "Year", "y": "Price ($/kWh)"}
         )
         fig.update_traces(mode='lines+markers', line=dict(width=3))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
     st.markdown("---")
     st.subheader("Cost Estimation Calculator")

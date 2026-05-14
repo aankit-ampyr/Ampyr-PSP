@@ -407,11 +407,11 @@ if errors:
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Setup", use_container_width=True):
+    if st.button("← Back to Setup", width='stretch'):
         st.switch_page("pages/Step1_Setup.py")
 
 with col3:
-    if st.button("Next → Sizing", type="primary", disabled=not is_valid, use_container_width=True):
+    if st.button("Next → Sizing", type="primary", disabled=not is_valid, width='stretch'):
         mark_step_completed(2)
         st.switch_page("pages/Step3_Sizing.py")
 

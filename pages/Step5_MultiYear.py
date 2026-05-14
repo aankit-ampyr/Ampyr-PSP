@@ -403,7 +403,7 @@ st.divider()
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    run_projection = st.button("🚀 Run 20-Year Projection", type="primary", use_container_width=True)
+    run_projection = st.button("🚀 Run 20-Year Projection", type="primary", width='stretch')
 
 if run_projection:
     # Get profiles
@@ -593,7 +593,7 @@ if 'multiyear_yearly' in st.session_state:
 
     st.dataframe(
         ten_year_df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             'Year': st.column_config.NumberColumn('Year', format='%d'),
@@ -646,7 +646,7 @@ if 'multiyear_yearly' in st.session_state:
 
     st.dataframe(
         yearly_df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             'Year': st.column_config.NumberColumn('Year', format='%d'),
@@ -787,7 +787,7 @@ if 'multiyear_yearly' in st.session_state:
     }
 
     summary_table_df = pd.DataFrame(summary_table_data)
-    st.dataframe(summary_table_df, use_container_width=True, hide_index=True)
+    st.dataframe(summary_table_df, width='stretch', hide_index=True)
 
     # Energy balance verification
     if abs(balance_difference) < 100:
@@ -817,7 +817,7 @@ st.divider()
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Results", use_container_width=True):
+    if st.button("← Back to Results", width='stretch'):
         st.switch_page("pages/Step4_Results.py")
 
 # Sidebar

@@ -330,7 +330,7 @@ def main():
     # ===========================
     # SECTION 6: Run Optimization
     # ===========================
-    if st.button("Run Green Energy Analysis", type="primary", use_container_width=True):
+    if st.button("Run Green Energy Analysis", type="primary", width='stretch'):
         # Load data
         with st.spinner("Loading solar and load profiles..."):
             # Load solar profile
@@ -651,7 +651,7 @@ def main():
         # Display table with formatting
         st.dataframe(
             display_df,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config={
                 'Delivery %': st.column_config.ProgressColumn(
@@ -958,7 +958,7 @@ def main():
 
             # Preview
             with st.expander("Preview Hourly Data (first 48 hours)", expanded=False):
-                st.dataframe(hourly_df.head(48), use_container_width=True, hide_index=True)
+                st.dataframe(hourly_df.head(48), width='stretch', hide_index=True)
 
             # Download button
             csv_hourly = hourly_df.to_csv(index=False)
@@ -1048,7 +1048,7 @@ def main():
 
             st.dataframe(
                 monthly_summary_df,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 column_config={
                     'Delivery %': st.column_config.ProgressColumn(
