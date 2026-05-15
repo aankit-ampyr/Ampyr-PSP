@@ -11,42 +11,23 @@
 - m115_170 + m115_160 at **-0.19 pp** each (closest to ±0.1 pp tolerance, within 2×)
 - m82_160 at **-0.45 pp**
 - 42 pass + 4 xfail (the 4 xfails are the matrix rows)
-- Working tree has A40 changes uncommitted; `.claude/settings.local.json` modified locally
+- Working tree clean. A40 shipped across two commits: scaffolding `5fb4648` then full wiring `38599df`. `.claude/settings.local.json` modified locally only.
 
 ## Next session start — pick up from here
 
 **A. Anchal has replied — apply her answers**
 
-- If she confirms Q2 ±0.3 pp tolerance → 4/4 rows pass, audit closes, unblock Doublu handoff. Re-baseline test xfails to pass.
-- If she clarifies Q1 (Insurance is actually CPI/RPI-indexed or has a P&M-coverage growth mechanism) → implement the split: separate `opex_insurance_indexation` field, decouple Insurance from the bundled CPI escalation. ~1-2 hr including tests. Expected +5-8 bps Combined.
+- If she confirms Q2 ±0.3 pp tolerance → 4/4 rows pass, audit closes, unblock Doublu handoff. Re-baseline test xfails to pass (change `SME_MATRIX` tolerance from 0.001 to 0.003 in `tests/test_project_irr_excel_parity.py` and convert the 4 `xfail` markers to plain asserts). Log as A41 in decisions log.
+- If she clarifies Q1 (Insurance is actually CPI/RPI-indexed or has a P&M-coverage growth mechanism) → implement the split: separate `opex_insurance_indexation` field, decouple Insurance from the bundled CPI escalation. The A40 lookup pattern can be replicated per-line if Insurance needs its own curve. ~1-2 hr including tests. Expected +5-8 bps Combined. Log as A41 in decisions log + Spec D31.
 
 **B. Anchal hasn't replied yet — queued engineering**
 
-Top option: **finish wiring A40 time-varying CPI curve** (~30-60 min, scaffolding already in tree as WIP). Engine currently uses flat 2.0%; Excel `Curves and D&T!r10` carries: 3.1% 2025, 2.5% 2026, 2.2% 2027-28, 2.1% 2029, 2.0% from 2030 onwards. Expected +2-3 bps Combined — would push m115_170/m115_160 closer to or into ±0.1 pp tolerance pre-emptively.
+A40 is now committed and the IRR delta was null at 2-decimal precision (mechanism is Excel-faithful, but the early-year curve detail only spans 4 of 35 ops years against a 2.0% steady state). No further calibration work is queued — the residual gap is now an SME-judgement / tolerance question, not an engineering question. Reasonable next moves while waiting:
 
-**A40 WIP state (uncommitted at handover time, then committed as separate WIP marker):**
-
-Scaffolding shipped in `src/project_irr.py` but not wired:
-
-- `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR` constant (Excel curve values 2024-2029)
-- `_build_cpi_factor_lookup(curve, steady_state, cod_year, n_ops_years)` helper — precomputes per-ops-year cumulative product, falls back to `cpi_steady_state_rate` for years outside curve dict
-- `_esc_factor(rates, case, ops_year, cpi_factor_lookup=None)` extended — when `cpi_factor_lookup` is provided AND case == "CPI", uses lookup; else falls back to current flat behaviour (backward-compatible, all 42 tests still pass)
-- `PirrInputs.cpi_curve_by_calendar_year` + `cpi_steady_state_rate` fields
-
-To finish (next session):
-
-1. In `_run_pirr_core`: call `_build_cpi_factor_lookup(inp.cpi_curve_by_calendar_year, inp.cpi_steady_state_rate, inp.cod_date.year, inp.project_life_years)` once per run.
-2. Thread `cpi_factor_lookup` parameter into `_calc_opex` and `_calc_revenue` signatures.
-3. Update every `_esc_factor(...)` call in those two functions to pass `cpi_factor_lookup=cpi_factor_lookup`.
-4. Run audit + tests. Expected: D13 Combined 8.88% → ~8.91% (+2-3 bps).
-5. Re-baseline `test_wizard_state_path.py` EXPECTED_COMBINED + EXPECTED_SB.
-6. Log A40 in decisions log + sync Spec D30 + Status doc.
-
-Other queued work (lower priority):
-
-- Step 3a Phase 2 — Step 4 conditional PIRR/NPV column augmentation (per Spec D15). Cache invalidation already implemented (A27); needs UI verification.
-- Browser smoke-test FULL PASS — was blocked by audit, may be unblockable depending on Anchal's tolerance answer.
-- Unify `sizing_results` vs canonical `wizard['results']['simulation_results']` (P1 cleanup per A19).
+- **Step 3a Phase 2 — Step 4 conditional PIRR/NPV column augmentation** (per Spec D15). Cache invalidation already implemented (A27); needs UI verification. ~2-3 hr.
+- **Browser smoke-test FULL PASS** — was blocked by audit; may be unblockable depending on Anchal's tolerance answer. ~2-3 hr per the 15-iteration playbook in `docs/Step3a_Smoke_Test_Playbook.md`.
+- **Unify `sizing_results` vs canonical `wizard['results']['simulation_results']`** (P1 cleanup per A19). ~2 hr.
+- **Address duplicate `cpi_curve_by_calendar_year` field declaration** in `PirrInputs` (`src/project_irr.py` lines 435-437 AND 504-506). Both reference the same default factory so behaviour is correct (Python keeps the second), but the duplication is a hygiene bug from the A40 scaffolding-then-wiring sequence. ~5 min.
 
 **A39 mechanism (for ref)**: 1-line fix — Excel `Curves and D&T!r10` is "Variable" CPI; steady-state from ops_year 3 onward is 2.0%, not the engine's old 2.5%. Lifetime CPI-sum gap closed on 5 fixed solar lines (greenkeeping, community, real_estate_tax, non_tech_am, tech_am). Insurance over-shoot remains a separate mechanism (open question to Anchal).
 
@@ -178,14 +159,14 @@ Mechanics added across May 12–15 sessions — see decisions log A21 + A22 + A3
 | Step 3a Phase 2 — Step 4 conditional augmentation | — | Show PIRR/NPV columns in Step 4 results when `financial_results` exists. Not blocked by calibration. |
 | Step 3a Phase 2 — Cache invalidation per spec §8 | — | A27 already implemented; needs UI verification. |
 | Performance budget verification (D16, 8–12 s/100 configs) | — | A27 measured 2.6 s / 100 configs — within budget. Marked done pending browser confirmation. |
-| Browser smoke-test FULL PASS | — | Blocked by Combined audit not passing. Re-run after calibration closes the gap. |
-| Doublu handoff prep | — | Per user mandate: blocked until SME validates prototype. SME validation requires audit pass. |
+| Browser smoke-test FULL PASS | — | Was blocked by Combined audit; may be unblockable once Anchal confirms tolerance (Branch A). |
+| Doublu handoff prep | — | Per user mandate: blocked until SME validates prototype. SME validation pending on the Q1/Q2 memo. |
 
-**Suggested order for next session**: solar fixed indexation residual (cheapest, ~5-7 bps via anchor-date fix at `Inputs!r293-304 = 2023-03-01`); then construction insurance + terminal land sale + LoC PPA + decomm bond (4 stubbed items, ~10-30 bps total); then operational-period capex routing for non-D13 configs.
+**Suggested order for next session**: gated on Anchal's reply to the Q1/Q2 memo (see "Next session start" section above). All engine-side audit work that can be done without SME input has landed through A40 — residual gap is now an SME-judgement / tolerance question, not an engineering question.
 
-## Excel discoveries / debugging traps (May 12-15 sessions)
+## Excel discoveries / debugging traps (May 12-16 sessions)
 
-Useful for future debugging. Full write-up in decisions log A23 + A30 + A31 + A32 + A33 + A34 + A35 + A36.
+Useful for future debugging. Full write-up in decisions log A23 + A30 + A31 + A32 + A33 + A34 + A35 + A36 + A40.
 
 - **Gas PPA tariff is hard-linked to solar PPA tariff (A31).** Excel `Inputs-Gas!I19` is a formula: `='Overall Inputs'!E13`. When you change the solar PPA, gas changes too. This is what closed the tariff sensitivity gap (engine response went from -0.55 pp/£10 to -1.54 pp/£10 vs target -1.4). Anchal's earlier hint "PPA varies linearly with tariff... check revenue lease" was a red herring; the real mechanism was hidden in the gas inputs.
 - **Merchant prices are quarterly seasonal (A30).** `Solar&BESS Operation!r66` carries 4 distinct values per year (3 months at each): Q1 winter peak, Q2 spring trough, Q3-Q4 mid. Solar generates in Q2-Q3 (low-priced quarters), so volume-weighted realised price is ~7% below arithmetic yearly avg. Engine now uses `merchant_prices_monthly: dict[(year, month), price]`.
@@ -203,7 +184,12 @@ Useful for future debugging. Full write-up in decisions log A23 + A30 + A31 + A3
 
 ## Open SME questions
 
-None outstanding. The tariff sensitivity follow-up that was queued earlier (May 13) was resolved internally by A31 — the answer was in Excel itself (`Inputs-Gas!I19` formula link). No further Anchal queries pending as of 2026-05-15.
+Two open with Anchal Gupta as of 2026-05-16 — memo at [docs/SME_Memo_Anchal_2026-05-16.md](SME_Memo_Anchal_2026-05-16.md):
+
+- **Q1 — Insurance NIL contradiction**: `Solar&BESS Inputs!r274` selection reads "NIL INDEXATION" but Op r168 lifetime £8,807k implies ~2.35% effective escalation. What's actually being applied (CPI/RPI/capex-growth uplift on P&M coverage)?
+- **Q2 — Audit tolerance**: ±0.1 pp accepts 0/4 rows; ±0.3 pp accepts 4/4 rows today. Is ±0.3 pp an acceptable audit tolerance given v1 scope exclusions (no DSCR sculpting, no gas-chain depreciation refinement, no equity-IRR feedback)?
+
+Earlier tariff sensitivity follow-up (May 13) was resolved internally by A31 — answer was in Excel itself (`Inputs-Gas!I19` formula link).
 
 ## Guardrails that govern this work
 
@@ -225,7 +211,7 @@ python -m pytest tests/ --no-header
 streamlit run app.py
 ```
 
-Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (locked state, D1–D29), then [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) Revisions log + most recent sections A39 → A38 → A37 → A36 → A35 → A34 → A33 → A32 (in order of recency) for the 2026-05-15 + 2026-05-16 session activity.
+Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (locked state, D1–D30), then [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) Revisions log + most recent sections A40 → A39 → A38 → A37 → A36 → A35 → A34 → A33 → A32 (in order of recency) for the 2026-05-15 + 2026-05-16 session activity.
 
 ## Session-by-session uplift summary
 
@@ -242,3 +228,4 @@ Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (
 | 2026-05-16 (A37 root cause) | -0.42 pp (engine 8.78%, no change) | r34 root cause CONFIRMED via decomposition — fuel-esc off-by-one + heat-rate degradation between maint events. r16 (electric MWh) flat → no revenue-side counterpart. Both fixes wrong-direction for Combined → parked indefinitely. NOL+dep-from-construction promoted to priority-1. |
 | 2026-05-16 (A38) | -0.35 pp (engine 8.85%, +0.07 pp) | Multi-account dep + dep-from-construction + A35 phasing on. NOL pool activated (was dormant pre-A38). 4 matrix rows lifted +0.07-0.09 pp uniform. Tests re-baselined: Combined 8.85% / S+B 9.02% / Gas 13.07%. |
 | 2026-05-16 (A39) | **-0.32 pp** (engine **8.88%**, +0.03 pp) | CPI rate 2.5% → 2.0% per Excel `Curves and D&T!r10` steady-state. 5 CPI-indexed lines uplifted uniformly. m115_170 and m115_160 now at -0.19 pp gap each (closest to ±0.1 pp tolerance). |
+| 2026-05-16 (A40) | **-0.32 pp** (engine **8.88%**, null result) | Time-varying CPI curve wired into `_esc_factor` (Excel `Curves and D&T!r10` per-year rates 2025-2029; 2.0% steady from 2030). Excel-faithful per Guardrail 5; IRR unchanged at 2-decimal precision because early-year curve detail spans only 4 of 35 ops years against the 2.0% steady-state tail. Curve infrastructure unlocks per-line CPI overrides for any future SME-clarified case (e.g. Insurance). Tests: 42 pass + 4 xfail unchanged. |

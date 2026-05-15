@@ -254,6 +254,57 @@ Standard solar PV finance convention. Made explicit because the SME flagged it d
 
 Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case label. Both files moved from `Inputs/Answers/` (originals deleted, folder removed). Test/ folder duplicates flagged for cleanup during audit work — see A9.
 
+### A40. Time-varying CPI curve wired into `_esc_factor` — Excel-faithful, null-result for IRR (NEW 2026-05-16)
+
+**Status doc priority option** (Branch C): finish wiring the variable CPI curve as the structurally correct replacement for A39's flat 2.0% rate. Delivered: null-result on the 4-row audit at 2-decimal precision (early-year curve detail is small against the 35-yr steady-state tail), but the mechanism is now Excel-faithful and the curve infrastructure is in place for future per-line overrides (e.g. if Anchal confirms a different curve for Insurance per the Q1 memo).
+
+**Excel mechanism**: `Curves and D&T!r10` carries a year-by-year "Variable" CPI series, not a single rate. The values used by the workbook for Burton Leonard:
+
+| Calendar year | Excel rate |
+| ---: | ---: |
+| 2025 | 3.1% |
+| 2026 | 2.5% |
+| 2027 | 2.2% |
+| 2028 | 2.2% |
+| 2029 | 2.1% |
+| 2030+ | 2.0% (steady state) |
+
+A39 collapsed the engine to the steady-state value (2.0%) because the audit period (ops_year 0 = 2027) is dominated by steady-state years. A40 lifts that simplification.
+
+**Engine convention**: `factor(ops_year=0) = 1.0` (no escalation at COD, matches Excel start-of-year convention). `factor(y) = factor(y-1) × (1 + curve[cod_year + y])`. Years not present in the curve fall back to `cpi_steady_state_rate`.
+
+**Code changes** ([src/project_irr.py](../src/project_irr.py)):
+
+1. New module constant `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR` (calendar-year keyed dict; 2025-2029 explicit, post-2029 falls back to steady state).
+2. New helper `_build_cpi_factor_lookup(curve, steady_state, cod_year, n_ops_years)` precomputes a per-ops-year cumulative-product list. Built once per run in `_run_pirr_core`.
+3. `_esc_factor` extended with optional `cpi_factor_lookup` parameter. When the case is `"CPI"` AND a lookup is provided, returns `lookup[ops_year]`; if `ops_year` exceeds the lookup length, extends with the steady-state rate. Otherwise falls back to the original flat `(1 + rate)^ops_year` behaviour — backward-compatible for every non-CPI case and for callers that don't thread the lookup.
+4. New `PirrInputs.cpi_curve_by_calendar_year: dict` field defaulting to `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR`. New `PirrInputs.cpi_steady_state_rate: float = 0.020`.
+5. `_calc_opex` and `_calc_revenue` accept a `cpi_factor_lookup` keyword argument and thread it through every `_esc_factor(...)` call site that uses the `"CPI"` case (11 sites: REGO, embedded benefits, CM T-1, CM T-4, BESS floor, solar fixed (bundled), PV O&M, corrective maintenance, balancing CfD, BESS opex bundle, fixed lease). Other escalation cases (gas inflation, BESS Indexation, NIL, O&M-Year-3-Onwards) are unaffected.
+6. `_run_pirr_core` builds the lookup once and passes it into both calc functions.
+
+**Result** — audit unchanged at 2-decimal precision:
+
+| Case | Pre-A40 Combined | Post-A40 Combined | Δ |
+| --- | ---: | ---: | ---: |
+| d13 (82/170) | 8.88% | **8.88%** | sub-bp |
+| m82_160 (82/160) | 7.35% | **7.35%** | sub-bp |
+| m115_170 (115/170) | 9.61% | **9.61%** | sub-bp |
+| m115_160 (115/160) | 8.31% | **8.31%** | sub-bp |
+
+Tests: 42 pass + 4 xfail unchanged. No re-baselining of `test_wizard_state_path.py` EXPECTED_* needed.
+
+**Why the null result is expected (not a bug)**: the variable curve sits ~0.1-0.2 pp above the flat 2.0% rate only in ops_years 0-3 (cumulative factor uplift ~0.3% by ops_year 4). Steady-state (2030+) covers 31 of 35 ops years and uses the same 2.0% as A39. The lifetime CPI factor sum is within ~0.3% of the flat-rate sum — not enough to register at 2-decimal IRR precision.
+
+**Why ship despite null result**:
+
+- **Guardrail 5 — replicate Excel mechanism, never use a fudge factor.** The engine's CPI behaviour is now structurally identical to Excel's, not just numerically close in this configuration.
+- **Curve infrastructure unlocks future configs**: if Anchal's Q1 reply confirms Insurance follows its own CPI variant (or any other line needs a separate escalation curve), the lookup pattern can be replicated per-line by adding a `cpi_curve_by_calendar_year_<line>` field and threading a second lookup through `_calc_opex`. Cost of doing so now is zero; cost of doing so without A40 in place would be re-architecting `_esc_factor`.
+- **Insurance NIL contradiction may resolve here**: if Anchal confirms the £8,807k figure implies CPI-equivalent escalation despite the NIL flag, A40 makes the fix mechanical.
+
+**Documentation note** — there is a duplicate `cpi_curve_by_calendar_year` field declaration in `PirrInputs` (lines 435-437 AND 504-506). Both reference the same `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR` factory so behaviour is correct (Python uses the second definition), but the duplication is a hygiene bug from the scaffolding-then-wiring sequence. Flagged for follow-up — not fixed in A40 to keep this change docs-only post-commit.
+
+**Commit**: scaffolding shipped in `5fb4648` (PIRR A40 (WIP scaffolding only): time-varying CPI curve); full wiring then landed in `38599df` (PIRR A40: time-varying CPI curve in _esc_factor (Excel-faithful)).
+
 ### A39. CPI rate 2.5% → 2.0% per Excel variable curve steady-state (NEW 2026-05-16)
 
 **Status doc priority-1 was**: "Solar fixed indexation residual (~5-7 bps via anchor-date fix at `Inputs!r293-304 = 2023-03-01`)". Delivered: +0.02-0.04 pp uniform on Combined.
