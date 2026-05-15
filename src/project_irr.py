@@ -498,13 +498,6 @@ class PirrInputs:
         default_factory=lambda: dict(_DEFAULT_GAS_MAJOR_MAINT_SCHEDULE)
     )
 
-    # A40 (2026-05-16): variable CPI curve per Excel `Curves and D&T!r10`.
-    # Calendar-year-indexed (e.g. {2025: 0.031, 2026: 0.025, ...}). Years not
-    # in the dict fall back to `rates["CPI"]` (engine flat steady-state, 2.0%).
-    cpi_curve_by_calendar_year: dict = field(
-        default_factory=lambda: dict(_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR)
-    )
-
     gas_fuel_price_gbp_mwh: float = 32.51
     gas_net_efficiency: float = 0.385
     gas_co2_kg_per_mwh: float = 185.0
