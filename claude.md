@@ -288,6 +288,29 @@ Execute simultaneously when operations:
 - Cache effectiveness for repeated simulations
 - User error patterns for UX improvements
 
+### Streamlit Cloud — known gotchas (logged 2026-05-16)
+
+The PSP app is hosted on the free Streamlit Cloud tier at `psp-pirr.streamlit.app`. Two failure modes hit during the v1 SME-handoff deploy:
+
+**1. `runtime.txt` is canonical, NOT the dashboard "Python version" setting.** Earlier guidance (and an older memory note) said the dashboard overrides — incorrect. Streamlit Cloud reads `runtime.txt` from the repo as the source of truth. If you change the version in the Streamlit Cloud dashboard but `runtime.txt` says something different, the deploy uses `runtime.txt`. To pin the Python version, edit `runtime.txt` in the repo and push.
+
+**2. Python 3.14 is too new for the pinned data-stack wheels (as of 2026-05-16).** `streamlit==1.51.0` pulls in `pyarrow==21.0.0` which has Linux wheels for cpython 3.10–3.13 only. On Python 3.14, pip/uv falls back to building pyarrow from source (sdist) which needs CMake (not in Streamlit Cloud's build env) and fails with `error: command 'cmake' failed: No such file or directory`. Other big C-extension packages (pandas, numpy) will hit the same path eventually. **Pin `runtime.txt` to `python-3.13`** (or 3.12 as a safer fallback) until pyarrow / pandas / numpy publish 3.14 wheels.
+
+**3. `width='stretch'` in `st.button` / `st.dataframe` requires Streamlit ≥ 1.50.** Commit `2a19311` swept `use_container_width=True → width='stretch'` across 9 pages. If `requirements.txt` pins an older Streamlit (e.g. `==1.41.0`), every page that uses `width='stretch'` will TypeError on first interaction. Pin `streamlit>=1.51.0` in `requirements.txt` to match local dev.
+
+**Decision pinning** (do not amend without explicit user approval — these are tested + working):
+
+- `runtime.txt`: **`python-3.13`** (commit `5c478f4`, 2026-05-16). Bumping to 3.14 broke the pyarrow build; reverted.
+- `requirements.txt`: streamlit==**1.51.0** (commit `9064b78`, 2026-05-16); pandas==2.2.3, numpy==2.1.3, plotly==5.24.1, openpyxl==3.1.5 unchanged.
+- `.streamlit/config.toml`: theme + server (headless=true, CORS=true, XSRF=true) + browser.gatherUsageStats=false. Do not modify.
+
+**If a future deploy breaks**, check in this order:
+
+1. Latest Streamlit Cloud build log: look for the failing package name + the Python version line ("Using Python X.Y.Z environment at /home/adminuser/venv").
+2. If `cmake failed: No such file or directory` — you're on a too-new Python that lacks wheels for one of the pinned deps. Bump `runtime.txt` DOWN to a Python version with wheels.
+3. If `TypeError` on a Streamlit API call — `requirements.txt` Streamlit pin is too old for an API the code uses. Bump UP.
+4. If neither — paste the log here.
+
 ## CUSTOM PROJECT INSTRUCTIONS
 
 ### BESS Domain Knowledge
