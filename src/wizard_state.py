@@ -136,27 +136,13 @@ DEFAULT_WIZARD_STATE = {
     },
 
     # Step 4: Results
-    # Note: sizing simulation results live at top-level `st.session_state.sizing_results`
+    # Sizing simulation results live at top-level `st.session_state.sizing_results`
     # per Spec §8 and Step 1's cache-invalidation contract — NOT nested here. See
-    # decisions log A42 (2026-05-16). The remaining keys below are present-but-
-    # unused (helpers in this module reference them, but no page imports those
-    # helpers); flagged for a future broader cleanup, not in scope for A42.
-    'results': {
-        'selected_configs': [],  # List of config indices for comparison (max 3)
-        'sort_column': 'delivery_pct',
-        'sort_ascending': False,
-        'filters': {
-            'full_delivery': False,
-            'zero_dg': False,
-            'low_wastage': False,
-            'hide_dominated': False,
-        },
-        'detail_view_config': None,  # Config index for detail view
-
-        # Ranked recommendations
-        'ranked_recommendations': None,  # Result from calculate_ranked_recommendations()
-        'recommendation_generated': False,
-    },
+    # decisions log A42 (2026-05-16). The previously-present nested keys
+    # (selected_configs, sort_*, filters, detail_view_config,
+    # ranked_recommendations) were removed in A47 (2026-05-16) — they were
+    # never read by any page; the 5 helper functions that referenced them were
+    # removed too.
 
     # Financial Analysis (GBP-based, mirrors Excel model Off-Grid Solution v8.xlsm)
     #
@@ -690,48 +676,12 @@ def build_simulation_params() -> Dict[str, Any]:
     }
 
 
-def add_comparison_config(config_index: int) -> bool:
-    """Add a config to comparison selection. Returns True if added."""
-    init_wizard_state()
-    selected = st.session_state.wizard['results']['selected_configs']
-
-    if config_index in selected:
-        return False
-    if len(selected) >= 3:
-        return False
-
-    selected.append(config_index)
-    return True
-
-
-def remove_comparison_config(config_index: int) -> bool:
-    """Remove a config from comparison selection. Returns True if removed."""
-    init_wizard_state()
-    selected = st.session_state.wizard['results']['selected_configs']
-
-    if config_index not in selected:
-        return False
-
-    selected.remove(config_index)
-    return True
-
-
-def clear_comparison_selection() -> None:
-    """Clear all selected configs for comparison."""
-    init_wizard_state()
-    st.session_state.wizard['results']['selected_configs'] = []
-
-
-def set_results_filter(filter_name: str, value: bool) -> None:
-    """Set a results filter."""
-    init_wizard_state()
-    if filter_name in st.session_state.wizard['results']['filters']:
-        st.session_state.wizard['results']['filters'][filter_name] = value
-
-
-def toggle_results_filter(filter_name: str) -> None:
-    """Toggle a results filter."""
-    init_wizard_state()
-    filters = st.session_state.wizard['results']['filters']
-    if filter_name in filters:
-        filters[filter_name] = not filters[filter_name]
+# A47 (2026-05-16) removed 5 helper functions that operated on the dead
+# `wizard['results']` slot (which itself was removed at A47):
+#   add_comparison_config, remove_comparison_config, clear_comparison_selection,
+#   set_results_filter, toggle_results_filter
+# None of these were imported by any page. They were vestiges of an earlier
+# results-comparison feature that never shipped to the UI. If a future
+# version wants config-comparison UX, re-introduce these in a fresh module
+# alongside the actual UI that needs them — not as orphan functions in
+# wizard_state.py.
