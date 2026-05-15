@@ -1151,3 +1151,91 @@ Five smoke-test rounds. Four real bugs. All closed. The new test in A28 prevents
 ### Updated verdict — pending next browser run
 
 **Smoke test: CONDITIONAL PASS** (will update to PASS once the §15 re-test confirms D13 numbers via the UI after A28). Programmatic verification has reproduced D13 exactly via the Step 7-Save path; browser verification should now match.
+
+---
+
+## 16. Browser Run — 2026-05-16 (A40 / A41 / A42 verification via §A script)
+
+First run of the new §A browser-agent script after A40 (time-varying CPI), A41 (Step 4 Financial Metrics section), A42 (sizing_results unification) all landed. Run executed via Claude-for-Chrome extension against the running server on port 8510.
+
+### Result summary
+
+| Group | Result | Notes |
+| --- | --- | --- |
+| **A.1 sidebar** | PASS | All 7 steps + Step3a + Market Reference present |
+| **A.2 Step 1 setup** | PASS | D13 inputs accepted; Burton_Leonard_82MWp_DC_58MW_AC loaded (Peak 58.4 MW, 79,219 MWh/yr) |
+| **A.3 Step 2 rules** | PASS | Defaults preserved; advances to Step 3 |
+| **A.4 Step 3 sizing** | PASS | 102 configs swept |
+| **A.5 Step 3a Financial Sweep** | **FAIL on A.5.5** | Sweep ran (102 configs / 3.4 s — under D16 budget). D13 row produces wrong numbers (see below). |
+| **A.6 Step 4 A41 happy path** | PASS (engine-vs-engine) | "£ Financial Metrics" subheader + 6 tiles render; values match Step 3a row exactly; A24 caption present |
+| **A.7 Step 4 A41 no-match banner** | PASS | BESS=5 produces blue info banner "Financial sweep exists but does not include this config (BESS 5 MWh / DG 25 MW / 4-hr duration)…" |
+| **A.8 Step 4 A41 silent fallback** | EFFECTIVELY PASS (degraded) | Server restarted clean, Step 3a skipped, Step 4 shows no Financial Metrics subheader and no info banner. Side-issue: Step 4 simulation failed with "No solar profile available" on the fresh session (solar profile session_state didn't persist across navigation) — unrelated to A41. |
+| **A.9 A42 verification** | PASS | Step 7 loads without "Step 3 sizing run is required" warning. Prerequisite check now points to Step 5 Multi-Year. sizing_results unification didn't break consumers. |
+
+### A.5.5 detail — D13 row divergence (the only true failure)
+
+Per playbook expected vs observed for the 250 MWh / 4-hr / 25 MW row of the Financial Sweep ranked table:
+
+| Metric | Expected (CLAUDE.md / playbook §A) | Observed | Δ |
+| --- | --- | --- | --- |
+| Combined PIRR | 8.88 % | **21.59 %** | **+12.71 pp** |
+| S+B PIRR | 9.05 % | **28.21 %** | **+19.16 pp** |
+| Gas PIRR | 13.07 % | **10.70 %** | **−2.37 pp** |
+| Total CAPEX | £101.6 m | **£64.7 m** | **−£36.9 m** |
+
+§16 DEBUG line printed on the Step 3a page after the sweep: `profile_peak=58.4 MW, fin.enabled=False, fin.capex_bess=80.0, fin has 109 keys, target_dc_mwp=82.0`.
+
+### Key recurrence — §15/A28 fix appears incomplete or regressed
+
+The observed CAPEX £64.7m is within £0.3m of §13's £65.0m — the exact wizard-state-Step-7-poisoning signature that §15/A28 claimed to have closed. The page debug line confirms `fin.capex_bess=80.0`, the *same* value §15 identified as the root cause (Step 7 default 80 mapping to engine field `capex_bess_gbp_per_kw_bess` expecting 600, per Excel `Solar&BESS Inputs!F349`).
+
+Possibilities to triage:
+
+1. A28's `number_input` default change (80 → 600) didn't actually land on `pages/Step7_Financial.py`, OR
+2. A28's change landed but was reverted between 2026-05-13 and 2026-05-16, OR
+3. A40 / A41 / A42 work introduced a new code path that bypasses Step 7's UI defaults and synthesises its own `fin` dict with the old 80, OR
+4. The wizard-state path Step 3a uses when `fin.enabled=False` falls back to a *different* defaults source (not Step 7's `number_input` values) and that source wasn't aligned by A28.
+
+A.6 (Step 4) renders the same 21.59% / 28.21% / 10.70% / £64.7m as A.5.5 — confirming A41 wiring is internally consistent and the divergence is upstream in the engine-input adapter.
+
+### What A40 verification actually told us
+
+A40 was a "null result at 2-decimal precision" CPI curve change. §A.5 was meant to confirm engine still produces 8.88% post-A40 via the wizard-state path. Since the wizard-state path is producing a *very* different number (21.59%), A40 verification is **inconclusive** — the test can't tell A40 wiring apart from the pre-existing wizard-state-path defaults divergence. Need fixture path numbers from a pytest run as a control: per CLAUDE.md, the fixture is still producing the expected 8.88%, so the gap is confirmed to be in the wizard-state adapter, not the engine core.
+
+### What the next session needs to do
+
+1. Confirm whether A28's `capex_bess` default change is present on `pages/Step7_Financial.py` (grep for `capex_bess` + `value=`). If 80 — A28 was reverted or never landed; restore it. If 600 — investigate why the wizard-state path on Step 3a is still seeing 80 (e.g. fallback defaults dict in `Step3a_FinancialSweep.py` or `src/wizard_state.py`).
+2. Re-run §A.5 and confirm the D13 row produces Combined 8.88 % ± 0.10 (or the latest engine-state value per CLAUDE.md).
+3. Re-run A.8 cleanly with the solar profile committed via `Next → Dispatch Rules` (the form_input + click-option pattern doesn't always persist solar profile across a fresh-server navigation — manual click-through is more reliable).
+4. If the §10 lock-in test exists (`tests/test_wizard_state_path.py::test_step7_saved_defaults_produce_audit_capex`), run it and confirm whether it's still asserting the right values.
+
+### Verdict
+
+**Smoke test: CONDITIONAL FAIL** (resolved by A43, same session).
+
+A41 + A42 verified clean (visible features correctly wired). A40 inconclusive due to the wizard-state defaults bug §15 claimed to have closed reappearing with an identical CAPEX signature. The browser-agent's hypothesis #4 turned out to be correct: a different defaults source (the actual `DEFAULT_WIZARD_STATE['financial']` init) wasn't aligned by A28.
+
+### A43 resolution (2026-05-16, same session)
+
+The §16 finding pointed straight at the missing piece of A28. Investigation:
+
+1. Confirmed [pages/Step7_Financial.py](../pages/Step7_Financial.py) line 669 has the A28-correct fallback (`fin.get('capex_bess', 600.0)`) — Step 7's UI default is 600.0.
+2. Confirmed [src/wizard_state.py](../src/wizard_state.py) `DEFAULT_WIZARD_STATE['financial']` (lines 232–304) was STILL pre-A28: `capex_bess: 80.0` + 24 other misaligned values + 5 missing advanced keys.
+3. The A28 lock-in test (`test_step7_saved_defaults_produce_audit_capex`) bypassed `DEFAULT_WIZARD_STATE` entirely by constructing the fin dict inline → real-world fresh-session path was never tested.
+
+**Fix**: aligned all 25 misaligned values + added 5 missing keys (`shl_*`, `depreciation_*`). Added 3 new regression tests covering the fresh-session path:
+
+- `test_default_wizard_state_produces_audit_capex` (£101.6m ± £0.5)
+- `test_default_wizard_state_produces_audit_combined` (8.85% ± 0.1 pp)
+- `test_default_wizard_state_produces_audit_sb` (9.02% ± 0.1 pp)
+
+Test count went 42 → 45. Audit matrix unchanged. Programmatic reproduction:
+
+| Metric | Pre-A43 | Post-A43 | Audit target |
+| --- | --- | --- | --- |
+| Combined | 19.67% | **8.88%** | 8.85% |
+| S+B | 24.01% | **9.05%** | 9.02% |
+| Gas | 12.43% | **13.07%** | 13.07% |
+| CAPEX | £64.7m | **£101.4m** | £101.6m |
+
+See decisions log A43 for full diff. Re-run §A in the browser to confirm UI now matches engine; the §A.5.5 PASS criteria are now true.

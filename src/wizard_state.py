@@ -159,6 +159,15 @@ DEFAULT_WIZARD_STATE = {
     },
 
     # Financial Analysis (GBP-based, mirrors Excel model Off-Grid Solution v8.xlsm)
+    #
+    # IMPORTANT (A43, 2026-05-16): All values below are aligned with Step 7's
+    # UI defaults (A28) and the D13 audit fixture. Pre-A43, the wizard state
+    # used a stale pre-A28 defaults baseline — so when a user opened Step 3a
+    # without visiting Step 7 first, the engine got the wrong defaults
+    # (CAPEX £64.7m vs £101.6m audit; Combined PIRR ~19.7% vs 8.88% audit).
+    # The lock-in test is `test_default_wizard_state_produces_audit` in
+    # `tests/test_wizard_state_path.py`. If you change a value here, that
+    # test will tell you whether the engine still reproduces the D13 audit.
     'financial': {
         'enabled': False,
 
@@ -173,7 +182,7 @@ DEFAULT_WIZARD_STATE = {
 
         # --- Solar ---
         'solar_capacity_mwp': 82.0,
-        'generation_selection': 'P90',
+        'generation_selection': 'P50',   # A43: was 'P90', D13 uses P50
         'yield_p50': 967.0,
         'yield_p75': 936.0,
         'yield_p90': 895.0,
@@ -186,7 +195,7 @@ DEFAULT_WIZARD_STATE = {
         'bess_switch': 1,
         'bess_capacity_mw': 62.5,
         'bess_duration_hrs': 4.0,
-        'bess_operating_life': 15,
+        'bess_operating_life': 10,       # A43: was 15, Excel `Solar&BESS Inputs!F112` = 10
         'bess_degradation_pct': 2.5,
         'bess_merchant_switch': 1,
         'bess_scenario': 1,
@@ -204,83 +213,87 @@ DEFAULT_WIZARD_STATE = {
         'merchant_price_default': 67.0,  # GBP/MWh fallback for post-PPA solar
         'profile_reference_mwp': 67.89,  # peak MW of Inputs/Solar Profile.csv
 
-        # --- REGOs ---
+        # --- REGOs (A43: aligned to D13) ---
         'rego_switch': 1,
-        'rego_price': 5.0,
-        'rego_indexation': 'CPI',
-        'rego_tenor_years': 15,
+        'rego_price': 2.5,           # A43: was 5.0
+        'rego_indexation': 'NIL',    # A43: was 'CPI'
+        'rego_tenor_years': 35,      # A43: was 15
 
-        # --- Capacity Market ---
-        'cm_t1_value': 20.0,
-        'cm_t1_derating': 27.15,   # display %
-        'cm_t1_tenor': 1,
+        # --- Capacity Market (A43: D13 has CM OFF) ---
+        'cm_t1_value': 0.0,          # A43: was 20.0
+        'cm_t1_derating': 27.15,     # display %
+        'cm_t1_tenor': 3,            # A43: was 1
         'cm_t4_value': 0.0,
-        'cm_t4_derating': 0.0,
-        'cm_t4_tenor': 0,
+        'cm_t4_derating': 20.94,     # A43: was 0.0
+        'cm_t4_tenor': 15,           # A43: was 0
 
-        # --- Embedded Benefits ---
-        'emb_benefits_switch': 0,
+        # --- Embedded Benefits (A43: D13 has Embedded ON) ---
+        'emb_benefits_switch': 1,    # A43: was 0
         'emb_benefits_tenor': 15,
         'emb_benefits_index': 'CPI',
 
-        # --- BESS Floor ---
-        'bess_floor_switch': 1,
+        # --- BESS Floor (A43: D13 has Floor OFF) ---
+        'bess_floor_switch': 0,      # A43: was 1
         'bess_floor_price': 40.0,
-        'bess_floor_rev_share': 10.0,
+        'bess_floor_rev_share': 9.0, # A43: was 10.0
         'bess_floor_tenor': 10,
 
-        # --- CAPEX (GBP/kWp) ---
+        # --- CAPEX (GBP/kWp) — A43: aligned to engine PirrInputs / Excel ---
         'capex_epc': 400.0,
-        'capex_grid': 30.0,
-        'capex_development': 15.0,
+        'capex_grid': 57.858,        # A43: was 30.0
+        'capex_development': 2.949,  # A43: was 15.0
         'capex_acquisition': 0.0,
-        'capex_dd': 5.0,
-        'capex_discharge': 0.0,
-        'capex_sdlt': 0.0,
-        'capex_land_legal': 2.0,
-        'capex_other_finance': 0.0,
-        'capex_other_legal': 2.0,
+        'capex_dd': 3.775,           # A43: was 5.0
+        'capex_discharge': 0.983,    # A43: was 0.0
+        'capex_sdlt': 0.753,         # A43: was 0.0
+        'capex_land_legal': 3.686,   # A43: was 2.0
+        'capex_other_finance': 5.0,  # A43: was 0.0
+        'capex_other_legal': 0.0,    # A43: was 2.0
         'capex_land_purchase': 0.0,
-        'capex_ampyr_tech': 0.0,
+        'capex_ampyr_tech': 3.236,   # A43: was 0.0
         'capex_success_fee': 0.0,
         'capex_community': 0.0,
-        'capex_bess': 80.0,
-        'capex_landowner_fees': 0.0,
-        'capex_insurance': 3.0,
-        'capex_land_lease_constr': 0.0,
+        # A43: was 80.0. Unit was wrong (labelled GBP/kWp solar; engine field
+        # `capex_bess_gbp_per_kw_bess` expects GBP/kW of BESS power). Excel
+        # `Solar&BESS Inputs!F349` = 600. This was the root cause of the
+        # £64.7m vs £101.6m CAPEX bug in browser smoke test §16.
+        'capex_bess': 600.0,
+        'capex_landowner_fees': 11.597,  # A43: was 0.0
+        'capex_insurance': 6.329,    # A43: was 3.0
+        'capex_land_lease_constr': 2.457,  # A43: was 0.0
         'capex_asset_adoption': 0.0,
         'capex_others': 0.0,
-        'capex_misc': 0.0,
+        'capex_misc': 4.916,         # A43: was 0.0
         'capex_contingency_pct': 1.0,  # display %
 
-        # --- Solar OPEX (GBP/kWp/Yr) ---
+        # --- Solar OPEX (GBP/kWp/Yr) — A43: aligned to engine ---
         'opex_pv_om': 5.48,
-        'opex_grid_conn': 1.5,
-        'opex_greenkeeping': 0.5,
-        'opex_community': 0.0,
-        'opex_real_estate_tax': 1.0,
-        'opex_non_tech_am': 1.0,
+        'opex_grid_conn': 0.003,     # A43: was 1.5
+        'opex_greenkeeping': 1.5,    # A43: was 0.5
+        'opex_community': 0.5,       # A43: was 0.0
+        'opex_real_estate_tax': 1.222,  # A43: was 1.0
+        'opex_non_tech_am': 1.3,     # A43: was 1.0
         'opex_subsidy_loss': 0.0,
-        'opex_insurance': 2.02,
+        'opex_insurance': 2.021,     # A43: was 2.02 (precision)
         'opex_fixed_lease': 0.0,
         'opex_corrective_maint': 3.2,
-        'opex_tech_am': 1.5,
+        'opex_tech_am': 0.3,         # A43: was 1.5
         'opex_social_cost': 0.0,       # GBP/MWh
-        'opex_balancing_cfd': 0.0,     # GBP/MWh
+        'opex_balancing_cfd': 2.75,  # A43: was 0.0, GBP/MWh
 
-        # --- BESS OPEX (GBPk/MW/Yr) ---
-        'bess_opex_om': 7.06,
+        # --- BESS OPEX (GBPk/MW/Yr) — A43: aligned ---
+        'bess_opex_om': 7.063,       # A43: was 7.06 (precision)
         'bess_opex_import': 0.0,
-        'bess_opex_rates': 0.0,
-        'bess_opex_lease': 0.0,
+        'bess_opex_rates': 3.276,    # A43: was 0.0
+        'bess_opex_lease': 1.489,    # A43: was 0.0
 
-        # --- Land ---
-        'fixed_lease_switch': 0,
-        'fixed_lease_acres': 200.0,
-        'fixed_lease_price': 800.0,
-        'rev_dep_lease_switch': 0,
+        # --- Land (A43: D13 has lease ON, 205 acres, £700/acre, 5%/5%) ---
+        'fixed_lease_switch': 1,     # A43: was 0
+        'fixed_lease_acres': 205.0,  # A43: was 200.0
+        'fixed_lease_price': 700.0,  # A43: was 800.0
+        'rev_dep_lease_switch': 1,   # A43: was 0
         'rev_share_yr1_10': 5.0,
-        'rev_share_yr11_35': 7.5,
+        'rev_share_yr11_35': 5.0,    # A43: was 7.5
         'land_purchase_switch': 0,
         'land_purchase_acres': 0.0,
         'land_purchase_price': 10000.0,
@@ -293,11 +306,22 @@ DEFAULT_WIZARD_STATE = {
         'corp_tax_threshold': 250.0,   # GBPk
         'taxation_month': 12,
 
-        # --- Working Capital & Financial ---
-        'wc_debtors_days': 45,
+        # --- Working Capital & Financial (A43: aligned) ---
+        'wc_debtors_days': 30,         # A43: was 45
         'wc_creditors_days': 30,
-        'project_discount_rate': 8.0,  # display %
+        'project_discount_rate': 6.5,  # A43: was 8.0
         'cost_of_capital': 6.0,        # display %
+
+        # --- Advanced (A43: SHL + depreciation, Excel-locked per A21/A28) ---
+        # These keys were missing from DEFAULT_WIZARD_STATE pre-A43 but the
+        # engine adapter `pirr_inputs_from_wizard_state` reads them. Without
+        # them, SHL tax shield + RB depreciation didn't activate on the
+        # fresh-session path (only on the Step 7-Save path).
+        'shl_switch': 1,
+        'shl_pct_of_unfunded': 99.0,     # Excel `Solar&BESS Inputs!F556` = 0.99
+        'shl_rate': 15.0,                # Excel `Solar&BESS Inputs!F553` = 15%
+        'depreciation_method': 'RB',     # Excel `D&T!E165` = "RB"
+        'depreciation_rate': 100.0 * 2.0 / 36.0,  # Excel `D&T!E164` = 2/36 ≈ 5.5556%
 
         # --- Results (cached) ---
         'screening_results': None,

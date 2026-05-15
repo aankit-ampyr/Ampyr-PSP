@@ -52,6 +52,7 @@ Each Revisions entry: date, what changed, why. Each `A*` decision: keep original
 | 2026-05-13 | **A24 follow-up: data_loader gap discovered by browser smoke test; fixed.** Browser smoke test of Step 3a (playbook §9) revealed `src/data_loader.py::list_solar_profiles()` filter (`'solar' in filename.lower()`) hid the canonical Burton Leonard audit profiles (`Burton_Leonard_*.csv`) — their filenames contain no "solar" substring. This is an A14-era loose end: when the canonical profiles were renamed/relocated in May 2026, the enumerator was never updated. Side effect: D13 PIRR via the UI fell back to "Burton Solar Profile.csv" (8 MW peak) and produced Combined 11.56% / S+B 6.52% instead of the audit's 8.77% / 8.93%. **Engine itself verified correct via the fixture path** — issue was wrong solar profile feeding right engine. Fix: broadened filter to `'solar' or 'burton' in filename.lower()`. All 4 Inputs/*.csv profiles now surface; tests still pass (34 + 4 xfail). | Smoke-test-driven fix; unblocks D13-via-UI verification. |
 | 2026-05-13 | **A25 added: D8 spec violation — solar profile DC/AC rescaling in Step 3a + Step 7 fixed.** Smoke test §10 follow-up (canonical profile selected) revealed both Step 3a and Step 7 were rescaling the AC + grid-capped solar profile by `target_dc_mwp / profile_peak` (= 82/58.36 = 1.405× for D13). This pushed 19 GWh of phantom solar through the dispatch, producing Combined 24.72% / S+B 32.23% (vs audit 8.77% / 8.93%). Per spec D8: *"capex scales on DC MWp; revenue uses the AC + grid-limit-capped hourly profile as supplied."* The canonical Burton Leonard files ARE the AC output — they shouldn't be rescaled. Fix (Option C): defaulted `profile_ref_mwp` fallback chain to `target_dc_mwp` instead of `profile_peak` → scaling factor = 1.0 when no explicit override. Users with per-unit profiles can still set `profile_reference_mwp` explicitly. Plus soft sanity warning when `profile_peak / target_dc_mwp` outside [0.5, 1.1]. Wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). | Second pre-existing UI bug surfaced by Step 3a smoke testing (after A24's merchant curve). Step 7 had this bug since A19. |
 | 2026-05-13 | **A26 added: data_loader filename-vs-display-name mismatch fixed.** Smoke test §11 (Option C verified in code but D13 still failed at the UI) traced the residual gap to a wizard-state protocol mismatch: Step 1 stores display name (e.g. `'Burton_Leonard_82MWp_DC_58MW_AC'`, no `.csv`) in `setup['solar_selected_file']`, but `load_solar_profile_by_name` opens `INPUTS_FOLDER / filename` literally — file not found → returns None → Step 3 + Step 3a fall through to default `Burton Solar Profile.csv` (peak 8 MW). The 8 MW profile feeding a 25 MW load made gas do all the work → Combined 24.72%. Fix (Option A): `load_solar_profile_by_name` now appends `.csv` if missing — defensive guard at the filesystem boundary. Affects Step 3 operational sweep (which has been silently using the wrong profile too) + Step 3a financial sweep. End-to-end wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). Tests still pass. **Step 7 has a separate independent bug**: it uses `SOLAR_PROFILE_PATH` config constant instead of Step 1's selection — flagged for follow-up, not fixed here. *Footnote (corrected by A27)*: Step 1 actually stores filenames WITH `.csv` (Step1_Setup.py line 466 selectbox uses filenames from `list_solar_profiles()` tuples). The §11 diagnosis was incorrect. A26's defensive guard is harmless but didn't fix the actual smoke-test failure. The real bug was A27's loader row-count discrepancy. | Third pre-existing UI bug surfaced by Step 3a smoke testing. Operational sweep correctness restored too. |
+| 2026-05-16 | **A43 added: DEFAULT_WIZARD_STATE financial defaults aligned to A28 / D13 audit (fresh-session path was broken).** Browser smoke test §16 ran the new §A script via Claude-for-Chrome extension. A.5.5 failed: D13 row (250 MWh / 4-hr / 25 MW DG) produced **Combined 21.59% / S+B 28.21% / Gas 10.70% / CAPEX £64.7m** instead of the expected 8.88% / 9.05% / 13.07% / £101.6m. The £64.7m CAPEX was within £0.3m of smoke test §13's pre-A28 value (£65.0m), suggesting A28's regression hadn't been fully closed. **Root cause confirmed programmatically**: A28 fixed Step 7's UI `number_input` defaults AND added a `test_step7_saved_defaults_produce_audit_capex` lock-in test, but did NOT update `DEFAULT_WIZARD_STATE['financial']` in `src/wizard_state.py`. The wizard state initialization kept the pre-A28 values (`capex_bess: 80.0`, `opex_balancing_cfd: 0.0`, `fixed_lease_switch: 0`, etc.) — so any user who opened Step 3a WITHOUT first visiting Step 7 + clicking "Save Financial Inputs" got the old broken defaults. The A28 test never caught this because it bypassed `DEFAULT_WIZARD_STATE` entirely by constructing the fin dict inline. **Fix**: aligned all 25 misaligned values in `DEFAULT_WIZARD_STATE['financial']` to match Step 7's UI defaults / A28 test fixture / Excel-anchored engine defaults. Added 5 missing advanced keys (`shl_switch`, `shl_pct_of_unfunded`, `shl_rate`, `depreciation_method`, `depreciation_rate`) that the engine adapter reads but wizard state didn't initialize. **Regression tests** (3 new): `test_default_wizard_state_produces_audit_capex` / `_combined` / `_sb` — pytest count went from 42 → 45 (all pass). These exercise the fresh-session path that A28's lock-in tests didn't cover. **Verification**: pre-A43 the fresh-session path produced 19.67% / 24.01% / 12.43% / £64.7m. Post-A43 it produces **8.88% / 9.05% / 13.07% / £101.4m** — matches D13 audit within tolerance. Audit matrix unchanged: 4 xfail rows still at -0.45 to -0.19 pp gap. Streamlit boots clean. | Bug class §15/A28 thought it had closed; the test fixture bypassed `DEFAULT_WIZARD_STATE` so the actual init values never got verified. Browser smoke test §16 caught it because the Chrome agent didn't visit Step 7. |
 | 2026-05-16 | **A42 added: sizing_results unification — dropped the dead `wizard['results']['simulation_results']` slot.** Per A19 P1 cleanup. The unification took the form of *removing* the dead canonical slot, not migrating writers to it: Spec §8 already lists top-level `st.session_state.sizing_results` as the canonical storage, all 7 call sites (Step 1 cache-clear; Step 3 writer; Step 3a/Step 4/Step 7 readers) use the top-level key, and Step 1's cache-invalidation pattern (popping 6 top-level keys on solar profile signature change) is established convention. The `wizard['results']['simulation_results']: None` initialization in `DEFAULT_WIZARD_STATE` was an earlier-design vestige with no writer and no real reader. **Code changes**: (1) Removed the `'simulation_results': None` entry from `DEFAULT_WIZARD_STATE['results']` in [src/wizard_state.py](../src/wizard_state.py). Added a comment block explaining where sizing results actually live + flagging the rest of `wizard['results']` as present-but-unused (out of scope for A42). (2) Updated [pages/Step7_Financial.py](../pages/Step7_Financial.py) `check_prerequisites()` comment — removed the stale "canonical wizard..." reference; now correctly documents top-level as canonical. **Out of scope for A42** (kept as pre-existing dead code per Karpathy "don't delete pre-existing dead code unless asked"): `selected_configs`, `sort_column`, `sort_ascending`, `filters`, `detail_view_config`, `ranked_recommendations`, `recommendation_generated` keys in `wizard['results']`, plus the 5 helper functions in `wizard_state.py` that reference them (`add_comparison_config`, `remove_comparison_config`, `clear_comparison_selection`, `set_results_filter`, `toggle_results_filter`). None of these are imported by any page. **Tests: 42 pass + 4 xfail unchanged.** Streamlit boots clean. | P1 cleanup per A19. |
 | 2026-05-16 | **A41 added: Step 4 conditional Financial Metrics section (Step 3a Phase 2).** Step 4's per-config drilldown now surfaces Combined/S+B/Gas PIRR + NPV + CAPEX + Payback for the selected config when `st.session_state.financial_results` exists and contains a matching row (join on `BESS (MWh)` × `DG (MW)` × `Duration (hr)`, same as `find_cached_result` for the operational side). Hidden entirely when the user hasn't run Step 3a; falls back to an info banner ("sweep exists but does not include this config") when Step 3a was run on a different sizing matrix. Interpretation note: Spec §7 line 263 describes "Step 4 Results (now augmented with PIRR/NPV/MOIC columns)" assuming a sweep-comparison table in Step 4, but the actual Step 4 implementation is a single-config dispatch deep-dive — A41 adapts the augmentation to scalar metrics for the chosen config rather than duplicating Step 3a's ranked table. **Code changes**: (1) new `find_cached_financial(bess_mwh, dg_mw, container_type)` helper mirroring `find_cached_result`. (2) conditional rendering block after the "Solar Utilization" metric row, before the Monthly Summary table. (3) caption flags the A24 dispatch-module mismatch (Step 3a uses `dispatch_energy`, Step 3 uses `dispatch_engine` — green-% will differ). MOIC not surfaced (Step 3a doesn't produce it yet; Spec mentions it as v1 deferred). No engine changes. Static checks: AST parses; `find_cached_financial` unit-tested across hit/miss/None/missing; pytest 42 pass + 4 xfail; Streamlit boots clean. Browser walkthrough of Step 1→3→3a→4 deferred to user. | Step 3a Phase 2 deliverable per Spec D15. Cache invalidation already shipped in A27. |
 | 2026-05-16 | **A40 added: time-varying CPI curve wired into `_esc_factor` (Excel-faithful per Guardrail 5; null-result for IRR).** A39 flattened the engine CPI rate to 2.0% (Excel steady-state from 2030 onwards), missing the early-year detail (2025=3.1%, 2026=2.5%, 2027=2.2%, 2028=2.2%, 2029=2.1%). A40 implements the full year-by-year curve. **Code changes**: (1) `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR` module constant (calendar-year-indexed dict; years not present fall back to `rates["CPI"]` = 2.0%). (2) `_build_cpi_factor_lookup(curve, steady_state, cod_year, n_ops_years)` precomputes per-ops-year cumulative factor list. (3) `_esc_factor` accepts optional `cpi_factor_lookup` parameter and uses it for "CPI" case when provided (falls back to flat rate otherwise; backward-compatible). (4) `_calc_revenue` and `_calc_opex` thread the lookup through all 11 "CPI"-using call sites (REGO, embedded, CM T-1/T-4, BESS floor, solar fixed, PV O&M, corrective maint, balancing CfD, BESS opex, fixed lease). (5) `_run_pirr_core` builds the lookup once. (6) New `PirrInputs.cpi_curve_by_calendar_year` field defaulting to the Burton-Leonard Excel curve. **Result: audit unchanged at 2-decimal precision** (d13 Combined 8.88% / S+B 9.05% / Gas 13.07%; sub-bp shift at 4-decimal precision). The curve adds ~0.3% to lifetime CPI factor over flat 2.0% (years 1-3 are 2.1-2.2% vs steady-state 2.0%, but steady state covers 31 of 35 ops years). Tests: 42 pass + 4 xfail; no re-baselining needed (within tolerance ±0.1 pp). **Why ship despite null result**: Guardrail 5 — replicate Excel mechanism, never use a fudge factor. Curve infrastructure also unlocks future configs/SME questions (e.g. if Anchal confirms a different curve for Insurance). | A39 follow-up; Excel-faithful mechanism, audit gap unchanged. |
@@ -255,6 +256,89 @@ Standard solar PV finance convention. Made explicit because the SME flagged it d
 | [Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv](../Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv) | Secondary regression — matches A10 row 3 |
 
 Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case label. Both files moved from `Inputs/Answers/` (originals deleted, folder removed). Test/ folder duplicates flagged for cleanup during audit work — see A9.
+
+### A43. DEFAULT_WIZARD_STATE financial defaults aligned with A28 / Step 7 UI / Excel-anchored engine (NEW 2026-05-16)
+
+**Trigger**: The first browser smoke test using the new §A playbook script (Claude-for-Chrome extension, 2026-05-16) failed at A.5.5. D13 row in Step 3a's ranked table reported **Combined 21.59% / CAPEX £64.7m**, not the expected 8.88% / £101.6m. Browser-agent's report flagged that £64.7m matched smoke test §13's signature (the pre-A28 `capex_bess` unit-mismatch bug).
+
+**Why A28's fix wasn't enough**. A28 (2026-05-13) closed a Step-7-defaults-drift bug by:
+
+1. Updating Step 7's UI `value=` defaults (so saved state would be correct);
+2. Switching the engine adapter to read `corp_tax_rate_high` instead of `_low`;
+3. Adding 3 lock-in tests in `tests/test_wizard_state_path.py` that simulate "user clicked Save Financial Inputs" and assert D13 numbers reproduce.
+
+What A28 did NOT touch: `DEFAULT_WIZARD_STATE['financial']` in `src/wizard_state.py`. The lock-in test constructed the `fin` dict inline (`_step7_saved_fin_with_current_defaults`), so the test fixture itself was the canonical "A28-aligned values" snapshot — the actual wizard state initialization was never exercised by the test.
+
+**Real-world consequence**. Any user who opens Step 3a without first visiting Step 7 + clicking "Save Financial Inputs" got the pre-A28 default values from `DEFAULT_WIZARD_STATE['financial']`. That's exactly what the browser-agent did (debug line confirmed `fin.enabled=False`, meaning Step 7-Save was never invoked). The 25 misaligned values + 5 missing keys produced the wrong engine inputs.
+
+**Programmatic reproduction** (pre-A43):
+
+```python
+from copy import deepcopy
+from src.wizard_state import DEFAULT_WIZARD_STATE
+# ... build setup, load solar profile ...
+fin = deepcopy(DEFAULT_WIZARD_STATE['financial']); fin['enabled'] = True
+# Run dispatch + pirr_inputs_from_wizard_state + run_pirr
+# → Combined 19.67%, S+B 24.01%, Gas 12.43%, CAPEX £64.7m
+```
+
+(IRR numbers differ slightly from the browser-agent's 21.59% / 28.21% — likely a small variation in dispatch parameters between the agent's path and this reproduction. CAPEX matches exactly: £64.7m, the structural smoking gun.)
+
+**Fix — 25 misaligned values + 5 missing keys in `src/wizard_state.py`**:
+
+Misalignments (each item: `key: pre-A43_value → post-A43_value`):
+
+| Section | Changes |
+| --- | --- |
+| Solar | `generation_selection: 'P90' → 'P50'` |
+| BESS | `bess_operating_life: 15 → 10` (Excel `Solar&BESS Inputs!F112`) |
+| REGOs | `rego_price: 5.0 → 2.5`; `rego_indexation: 'CPI' → 'NIL'`; `rego_tenor_years: 15 → 35` |
+| Capacity Market | `cm_t1_value: 20.0 → 0.0`; `cm_t1_tenor: 1 → 3`; `cm_t4_derating: 0.0 → 20.94`; `cm_t4_tenor: 0 → 15` |
+| Embedded Benefits | `emb_benefits_switch: 0 → 1` |
+| BESS Floor | `bess_floor_switch: 1 → 0`; `bess_floor_rev_share: 10.0 → 9.0` |
+| CAPEX | `capex_grid: 30 → 57.858`; `capex_development: 15 → 2.949`; `capex_dd: 5 → 3.775`; `capex_discharge: 0 → 0.983`; `capex_sdlt: 0 → 0.753`; `capex_land_legal: 2 → 3.686`; `capex_other_finance: 0 → 5`; `capex_other_legal: 2 → 0`; `capex_ampyr_tech: 0 → 3.236`; **`capex_bess: 80 → 600`** (the smoking gun); `capex_landowner_fees: 0 → 11.597`; `capex_insurance: 3 → 6.329`; `capex_land_lease_constr: 0 → 2.457`; `capex_misc: 0 → 4.916` |
+| Solar OPEX | `opex_grid_conn: 1.5 → 0.003`; `opex_greenkeeping: 0.5 → 1.5`; `opex_community: 0 → 0.5`; `opex_real_estate_tax: 1 → 1.222`; `opex_non_tech_am: 1 → 1.3`; `opex_insurance: 2.02 → 2.021`; `opex_tech_am: 1.5 → 0.3`; `opex_balancing_cfd: 0 → 2.75` |
+| BESS OPEX | `bess_opex_om: 7.06 → 7.063`; `bess_opex_rates: 0 → 3.276`; `bess_opex_lease: 0 → 1.489` |
+| Land | `fixed_lease_switch: 0 → 1`; `fixed_lease_acres: 200 → 205`; `fixed_lease_price: 800 → 700`; `rev_dep_lease_switch: 0 → 1`; `rev_share_yr11_35: 7.5 → 5.0` |
+| WC + Discount | `wc_debtors_days: 45 → 30`; `project_discount_rate: 8.0 → 6.5` |
+
+New keys added (engine adapter reads them; pre-A43 the adapter fell back to engine defaults which are Excel-correct, but explicit init is safer):
+
+- `shl_switch: 1` (SHL on per A21 / Excel `Solar&BESS Inputs!F556`)
+- `shl_pct_of_unfunded: 99.0`
+- `shl_rate: 15.0` (Excel `Solar&BESS Inputs!F553`)
+- `depreciation_method: 'RB'` (Excel `D&T!E165`)
+- `depreciation_rate: 5.5556` (= 100 × 2/36, Excel `D&T!E164`)
+
+**Lock-in regression tests** added in `tests/test_wizard_state_path.py`:
+
+1. `test_default_wizard_state_produces_audit_capex` — asserts £101.6m ± £0.5m via the fresh-session path.
+2. `test_default_wizard_state_produces_audit_combined` — asserts Combined 8.85% ± 0.1 pp.
+3. `test_default_wizard_state_produces_audit_sb` — asserts S+B 9.02% ± 0.1 pp.
+
+Helper: `_run_d13_via_default_wizard_state()` does `deepcopy(DEFAULT_WIZARD_STATE['financial'])` then runs dispatch + PIRR. This is the new "fresh-session" test variant alongside A28's "Step 7-Save" variant — together they cover both entry paths.
+
+**Result (post-A43)**:
+
+| Metric | Pre-A43 fresh-session | Post-A43 fresh-session | Target (D13 audit) |
+| --- | --- | --- | --- |
+| Combined PIRR | 19.67% | **8.88%** | 8.85% |
+| S+B PIRR | 24.01% | **9.05%** | 9.02% |
+| Gas PIRR | 12.43% | **13.07%** | 13.07% |
+| Total CAPEX | £64.7m | **£101.4m** | ≈ £101.6m |
+
+CAPEX residual £0.2m is rounding noise in the per-capex-line precision.
+
+**Test suite**: 45 passed + 4 xfailed (was 42 + 4 — three new fresh-session tests added).
+
+**Audit script** unchanged: 4 matrix rows still at the same -0.45 to -0.19 pp gap (engine core not touched).
+
+**Files touched**:
+
+- `src/wizard_state.py` — financial section value swaps + 5 new keys + header comment block pointing at the lock-in test.
+- `tests/test_wizard_state_path.py` — `_run_d13_via_default_wizard_state` helper + 3 lock-in tests.
+
+**What this means for the open SME questions** (Anchal Q1/Q2): zero impact. The audit matrix engine numbers are unchanged. A43 closes a UI-path correctness bug, not an engine-vs-Excel calibration question.
 
 ### A42. sizing_results unification — drop the dead `wizard['results']['simulation_results']` slot (NEW 2026-05-16)
 

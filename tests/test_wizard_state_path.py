@@ -359,6 +359,89 @@ def test_step7_saved_defaults_produce_audit_combined_pirr():
     assert abs(r['combined'] - EXPECTED_COMBINED) <= TOLERANCE_PP, msg
 
 
+def _run_d13_via_default_wizard_state() -> dict:
+    """Fresh-session path: user opens app, walks Step 1 + Step 3, then opens
+    Step 3a without visiting Step 7. The engine adapter receives
+    `state['financial']` as initialized by `DEFAULT_WIZARD_STATE` (no
+    Step-7-Save overrides). Pre-A43, this path produced CAPEX £64.7m and
+    Combined PIRR ~19.7% because `DEFAULT_WIZARD_STATE['financial']` carried
+    pre-A28 defaults (capex_bess=80, opex_balancing_cfd=0, etc.). Post-A43,
+    those defaults are aligned with Step 7's UI defaults and the engine's
+    Excel-anchored D13 values.
+    """
+    from copy import deepcopy
+    from src.wizard_state import DEFAULT_WIZARD_STATE
+
+    setup, _ = _build_d13_wizard_state()
+    # Take the financial section EXACTLY as DEFAULT_WIZARD_STATE provides it,
+    # then flip 'enabled' on (Step 1 typically does this when the user starts
+    # walking the wizard, but the adapter doesn't gate on it).
+    fin = deepcopy(DEFAULT_WIZARD_STATE['financial'])
+    fin['enabled'] = True
+
+    raw = get_active_solar_profile(setup)
+    target_dc_mwp = float(fin['solar_capacity_mwp'])
+    solar_mw = raw * (target_dc_mwp / target_dc_mwp)
+
+    hourly = run_hourly_dispatch(
+        solar_mw,
+        load_mw=float(setup['load_mw']),
+        bess_mwh=250.0, bess_mw=62.5, rte=0.87,
+    )
+    monthly = aggregate_to_monthly(hourly, solar_mw)
+
+    pi = pirr_inputs_from_wizard_state(fin, setup, monthly)
+    pi.solar_dc_mwp = 82.0
+    pi.bess_mwh = 250.0
+    pi.bess_mw = 62.5
+
+    res = run_pirr(pi)
+    return {
+        'combined': res.project_irr,
+        'sb': res.project_irr_solar_bess,
+        'gas': res.project_irr_gas,
+        'capex_gbpm': res.total_capex / 1000.0,
+    }
+
+
+def test_default_wizard_state_produces_audit_capex():
+    """Fresh-session path (no Step 7 visit) produces D13 audit CAPEX.
+
+    Locks the A43 fix: DEFAULT_WIZARD_STATE['financial'] must stay aligned
+    with Step 7's UI defaults and the engine's Excel-anchored values. If
+    someone reverts a value in `src/wizard_state.py` financial section, this
+    test catches it. Pre-A43 the path gave £64.7m (browser smoke test §16).
+    """
+    r = _run_d13_via_default_wizard_state()
+    msg = (f"Fresh-session CAPEX: £{r['capex_gbpm']:.2f}m vs expected ~£101.6m. "
+           "If this fails, DEFAULT_WIZARD_STATE['financial'] drifted from "
+           "Step 7's UI defaults — re-align via the diff in A43.")
+    print(msg)
+    assert abs(r['capex_gbpm'] - 101.6) < 0.5, msg
+
+
+def test_default_wizard_state_produces_audit_combined():
+    """Fresh-session Combined PIRR matches the audit. Same lock-in as the
+    CAPEX test above, but on the IRR side — catches opex / land / tax-shield
+    misalignments that don't show in the CAPEX line."""
+    r = _run_d13_via_default_wizard_state()
+    msg = (f"Fresh-session Combined: {r['combined']*100:.2f}% vs expected "
+           f"{EXPECTED_COMBINED*100:.2f}% "
+           f"(delta {(r['combined']-EXPECTED_COMBINED)*100:+.2f} pp)")
+    print(msg)
+    assert abs(r['combined'] - EXPECTED_COMBINED) <= TOLERANCE_PP, msg
+
+
+def test_default_wizard_state_produces_audit_sb():
+    """Fresh-session S+B PIRR matches the audit."""
+    r = _run_d13_via_default_wizard_state()
+    msg = (f"Fresh-session S+B: {r['sb']*100:.2f}% vs expected "
+           f"{EXPECTED_SB*100:.2f}% "
+           f"(delta {(r['sb']-EXPECTED_SB)*100:+.2f} pp)")
+    print(msg)
+    assert abs(r['sb'] - EXPECTED_SB) <= TOLERANCE_PP, msg
+
+
 if __name__ == "__main__":
     r = _run_d13_via_wizard_state()
     print("D13 via wizard-state path (minimal fin):")
