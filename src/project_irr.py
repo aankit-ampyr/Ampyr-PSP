@@ -246,6 +246,36 @@ _DEFAULT_MERCHANT_BALANCING_BY_OPS_YEAR = {
 }
 
 
+# A44 (2026-05-16, per Anchal Q1 reply): Insurance on Plant & Machinery is
+# NOT a per-kWp × CPI line — it's a discrete year-by-year schedule extracted
+# from Excel `Insurance` sheet + summarised in `Solar&BESS Operation!r168`.
+# Lifetime £8,806.63k matches Anchal's memo. Years 1-2 carry a construction-
+# tail premium (~£280-287k); year 3 drops to ~£205k as a 30% discount kicks
+# in; years 5-10 alternate 0%/5% discount; year 11+ grows at 2%/yr compound
+# from a £206.27k anchor (verified: 206.27 × 1.02^24 = 331.8, matches year 35
+# Excel value 331.76).
+#
+# Index convention: ENGINE 0-INDEXED ops_year. Excel `Solar&BESS Operation!r17`
+# uses 1-indexed (Excel oy=1 starts at COD month — verified by probing
+# r17 transitions: oy=1 first appears at column 66 = 2027-07-01 = COD).
+# So Excel oy=1 → engine ops_year=0, Excel oy=2 → engine ops_year=1, etc.
+# Matches A36 `_DEFAULT_GAS_MAJOR_MAINT_SCHEDULE` convention (engine direct).
+#
+# Reference scaling: schedule was extracted for D13 = 82 MWp DC. For non-D13
+# configs, engine scales linearly by `solar_dc_mwp / reference_mwp` per
+# Anchal Q1 "rough estimate or hardcode yearly nos as per excel" — we
+# combine both options: hardcode the schedule + per-MW scale to other configs.
+_DEFAULT_INSURANCE_SCHEDULE_GBPK = {
+    0: 281.94, 1: 287.58, 2: 205.33, 3: 209.44, 4: 202.94,
+    5: 207.00, 6: 200.59, 7: 204.60, 8: 198.26, 9: 202.22,
+    # engine ops_year 10+ (Excel year 11+) derived via
+    #   _DEFAULT_INSURANCE_YR11_BASE × (1 + growth)^(ops_year - 10)
+}
+_DEFAULT_INSURANCE_YR11_BASE = 206.27   # engine ops_year 10 (= Excel year 11)
+_DEFAULT_INSURANCE_YR11_GROWTH = 0.02
+_DEFAULT_INSURANCE_REFERENCE_MWP = 82.0
+
+
 def _esc_factor(rates: dict, case: str, ops_year: int,
                 cpi_factor_lookup: list[float] | None = None) -> float:
     """Escalation factor for the start of operations year `ops_year`.
@@ -418,7 +448,30 @@ class PirrInputs:
     opex_real_estate_tax: float = 1.222
     opex_non_tech_am: float = 1.3
     opex_subsidy_loss: float = 0.0
+    # A44 (2026-05-16): legacy per-kWp Insurance field, used only when
+    # `opex_insurance_schedule` is empty. Per Anchal Q1 reply
+    # (memo 2026-05-16), Excel does NOT use this £/kWp × CPI mechanism for
+    # Insurance — the actual line is a discrete year-by-year schedule
+    # (construction premium tail years 1-2, post-construction baseline year
+    # 3+ with discount alternation, 2%/yr growth from year 11+). Kept for
+    # backward compatibility / non-D13 sites that haven't extracted their
+    # own schedule yet.
     opex_insurance: float = 2.021
+    # A44 (2026-05-16): explicit per-year Insurance schedule
+    # (Solar&BESS Operation!r168 source). When populated (default), engine
+    # uses schedule[ops_year] / 12 per month, scaled by
+    # `solar_dc_mwp / opex_insurance_reference_mwp`. When empty {}, falls
+    # back to the legacy per-kWp × CPI calc above.
+    # Years 1-10: explicit values; years 11+: derived as
+    #   _DEFAULT_INSURANCE_YR11_BASE * (1 + _DEFAULT_INSURANCE_YR11_GROWTH)^(y-11)
+    # See decisions log A44.
+    opex_insurance_schedule: dict = field(
+        default_factory=lambda: dict(_DEFAULT_INSURANCE_SCHEDULE_GBPK)
+    )
+    opex_insurance_yr11_base_gbpk: float = _DEFAULT_INSURANCE_YR11_BASE
+    opex_insurance_yr11_growth: float = _DEFAULT_INSURANCE_YR11_GROWTH
+    opex_insurance_reference_mwp: float = _DEFAULT_INSURANCE_REFERENCE_MWP
+
     opex_corrective_maint: float = 3.2
     opex_tech_am: float = 0.3
     opex_solar_fixed_indexation: str = "CPI"
@@ -1019,14 +1072,23 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
     # as a level annual charge sized to Excel's 8-event step pattern).
     # PV O&M is also separated (A34): Excel applies "O&M - Year 3 Onwards"
     # escalation specifically to PV O&M, distinct from CPI on the other 8.
-    solar_fixed_excl_pv_per_kwp = (
+    # Insurance is also separated (A44): Excel uses a discrete year-by-year
+    # schedule (Op r168), not per-kWp × CPI.
+    solar_fixed_excl_pv_excl_ins_per_kwp = (
         inp.opex_grid_conn + inp.opex_greenkeeping
         + inp.opex_community + inp.opex_real_estate_tax + inp.opex_non_tech_am
-        + inp.opex_subsidy_loss + inp.opex_insurance + inp.opex_tech_am
+        + inp.opex_subsidy_loss + inp.opex_tech_am
     )
-    monthly_solar_fixed = solar_fixed_excl_pv_per_kwp * inp.solar_dc_mwp / 12
+    monthly_solar_fixed = solar_fixed_excl_pv_excl_ins_per_kwp * inp.solar_dc_mwp / 12
     monthly_pv_om = inp.opex_pv_om * inp.solar_dc_mwp / 12
     monthly_corrective = inp.opex_corrective_maint_annual_gbpk / 12
+
+    # A44: Insurance MW scaling factor — schedule was extracted for D13 = 82 MWp;
+    # other configs scale linearly by solar_dc_mwp / reference.
+    ins_mw_scale = (
+        inp.solar_dc_mwp / inp.opex_insurance_reference_mwp
+        if inp.opex_insurance_reference_mwp > 0 else 1.0
+    )
 
     bess_fixed_per_mw = (
         inp.bess_opex_om + inp.bess_opex_import
@@ -1081,6 +1143,31 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
         opex[i] -= monthly_corrective * \
             _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year,
                         cpi_factor_lookup)
+
+        # Insurance on Plant & Machinery — A44 (per Anchal Q1 reply, memo
+        # 2026-05-16). Excel uses a discrete year-by-year schedule (Op r168
+        # source), not £/kWp × CPI. Construction premium tail in years 0-1
+        # (engine 0-indexed; = Excel years 1-2); -30% discount kicks in at
+        # engine year 2; years 4-9 alternate 0%/5% discount; year 10+ grows
+        # at 2%/yr compound from £206.27k anchor. Per-MW linear scaling for
+        # non-D13 configs (Anchal: "rough estimate"). Schedule values are
+        # NOMINAL (already escalated) — do NOT apply CPI factor here.
+        if inp.opex_insurance_schedule:
+            if ops_year in inp.opex_insurance_schedule:
+                ins_yearly = inp.opex_insurance_schedule[ops_year]
+            elif ops_year >= 10:
+                ins_yearly = inp.opex_insurance_yr11_base_gbpk * (
+                    (1.0 + inp.opex_insurance_yr11_growth) ** (ops_year - 10)
+                )
+            else:
+                ins_yearly = 0.0
+            opex[i] -= (ins_yearly * ins_mw_scale) / 12
+        else:
+            # Legacy fallback: per-kWp × CPI (pre-A44 mechanism). Only used
+            # when caller explicitly empties opex_insurance_schedule.
+            opex[i] -= (inp.opex_insurance * inp.solar_dc_mwp / 12) * \
+                _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year,
+                            cpi_factor_lookup)
 
         # Solar variable (balancing services £/MWh × generation).
         # A32 (2026-05-15): split CfD vs Merchant per Excel FS r42/r43.

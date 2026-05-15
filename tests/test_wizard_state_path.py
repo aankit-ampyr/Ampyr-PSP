@@ -35,15 +35,18 @@ from src.project_irr import pirr_inputs_from_wizard_state, run_pirr
 TOLERANCE_PP = 0.001   # 0.1 percentage points
 
 # D13 expected values via the wizard-state path (must match fixture path).
-# Re-baselined 2026-05-16 after A38 (multi-account dep + dep-from-construction
-# + A35 phasing activated). Phase A (3 accounts: long_term 30 yr RB 2/360 mo,
-# short_term 8 yr RB 2/96 mo, financing 3 yr RB 2/36 mo) + Phase C (dep starts
-# at capex-addition month) + Phase D (capex_phasing_sb/gas dicts populated by
-# default with Burton-Leonard curves). Combined +0.07 pp; S+B +0.20 pp;
-# Gas -1.06 pp (gas capex shifted ~9 mo earlier on average — capex-timing
-# NPV penalty partly offset by NOL pool tax shield in early ops years).
-EXPECTED_COMBINED = 0.0885
-EXPECTED_SB = 0.0902
+# Re-baselined 2026-05-16 after A44 (Insurance discrete schedule per Anchal
+# Q1 reply). Pre-A44: 0.0885 / 0.0902 / 0.1307. Post-A44: 0.0884 / 0.0900 /
+# 0.1307. The schedule replaces the pre-A44 per-kWp × CPI mechanism with the
+# Excel-faithful Op r168 chain (lifetime £8,807k preserved). Audit drops
+# 3-4 bps uniformly because the pre-A44 mechanism had a fortuitous
+# cancellation (under-shot early years, over-shot late years); the schedule
+# front-loads costs into the construction premium years (1-2) where NPV
+# weighting is highest. Per Anchal Q2 ("unless it is happening because of
+# gearing or debt sizing not built currently"), the residual gap is the
+# pre-acknowledged structural carve-out, not a calibration error.
+EXPECTED_COMBINED = 0.0884
+EXPECTED_SB = 0.0900
 EXPECTED_GAS = 0.1307
 
 
