@@ -1,7 +1,9 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-16 (post-A37 root-cause)
-**Headline:** Audit unchanged from 2026-05-15 — d13 Combined 8.78% / S+B 8.82% / Gas 14.13%; 4 matrix rows under target by 0.30-0.57 pp; 42 pass + 4 xfail. A37 ran two diagnostics today: (1) Lumpy-gas-opex hypothesis REJECTED for r45 and r58 (both smooth, match Excel within £3k lifetime). (2) r34 fuel cost root cause CONFIRMED via decomposition: Excel applies fuel-price escalation from year 4 (engine has flat period 1 year too long, off-by-one) AND models heat-rate degradation between major-maintenance events (engine uses fixed design-point efficiency 0.385). **Critical finding**: r16 (electric MWh) is essentially flat in Excel, so heat-rate degradation affects fuel consumption only — NO revenue-side counterpart. **r34 parked indefinitely for Combined audit**: both fixes would widen the -0.42 pp Combined gap. Could be re-considered if Gas-only IRR alignment becomes a separate SME requirement. **No engine changes today.** Priority-2 (NOL + dep-from-construction) is now priority-1.
+**Last updated:** 2026-05-16 (post-A38)
+**Headline:** **A38 landed** — multi-account dep (3 accounts: long_term/short_term/financing) + dep-from-construction + A35 capex phasing activated. d13 Combined 8.78% → **8.85%** (+0.07 pp). All 4 matrix rows lifted +0.07-0.09 pp; gap closed from -0.30/-0.57 to **-0.21/-0.49 pp**. m115_170 closest to target at -0.21 pp. 42 pass + 4 xfail (matrix rows). The NOL pool that A21 added is now actually active (was lying dormant pre-A38 because `_calc_tax` mask was `is_operations` only — construction-period depreciation never fed the pool). Phase A (multi-account) was critical: the Financing account's 5.56%/mo RB rate on £2.2M IDC + Fin Fees generates £1.4M of pre-COD depreciation → £350k tax shield in early ops years, flipping A35 phasing from -0.15 pp regression (Phase C+D alone) to net positive +0.07 pp.
+
+**Prior sessions**: A29-A37 closed the S+B opex over-shoot (£9.4k → £180k), resolved the 2042 FCFF anomaly, and confirmed r34 fuel cost root cause but parked the fix (wrong direction for Combined).
 
 **Prior session (2026-05-15) shipped A32-A36** — five Excel-mechanism fixes that closed the S+B opex over-shoot (£9.4k → £180k) and resolved the 2042 FCFF anomaly. Cumulative uplift A32+A33+A34+A36: ~0.32 pp uniform on Combined PIRR. A35 capex phasing infrastructure shipped default-OFF pending paired NOL + dep-from-construction mechanisms.
 
@@ -104,12 +106,12 @@ Mechanics added across May 12–15 sessions — see decisions log A21 + A22 + A3
 | [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) | Locked spec (D1–D27) |
 | [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) | Running decisions log (A1–A36) |
 
-## What's left, in priority order (post-A37)
+## What's left, in priority order (post-A38)
 
 | Item | Est. impact | Notes |
 | --- | --- | --- |
-| **Close residual 0.30-0.57 pp Combined gap — non-opex sources** | — | Opex side closed (engine S+B £89.4k vs Excel £89.2k = +£180k). Remaining gap must be in tax shield, capex line items, depreciation timing, or revenue-side mismatch. |
-| **NOL pool + depreciation-from-construction (NEW priority-1)** | 10-25 bps | Unlocks A35 capex phasing. Add NOL carry-forward to `_calc_tax`; move depreciation start to capex-addition month per Excel `D&T!r68`. Then flip A35 default to populated. |
+| **Close residual 0.21-0.49 pp Combined gap** | — | A38 closed ~7-9 bps. Bigger remaining levers are revenue/capex side. |
+| **NOL pool + depreciation-from-construction (DONE — A38)** | +0.07-0.09 pp delivered | NOL pool activated by widening `_calc_tax` mask + dep-from-construction + multi-account dep + A35 phasing on. Delivered toward low end of 10-25 bps est. — the financing-account 5.56%/mo RB rate on IDC + Fin Fees was the key unlock; gas chain's NPV penalty from earlier capex partly offsets the SB tax-shield gain. |
 | **r34 fuel cost root cause (DONE — parked)** | 0 bps Combined; would close -3.6 pp Gas-only over-shoot if ever needed | Root cause CONFIRMED: (1) fuel-price escalation off-by-one (engine flat period is 4 years, Excel is 3 years — change `(1.01)^max(0, oy-3)` to `max(0, oy-2)`); (2) heat-rate degradation between major-maintenance events (Excel r29 ramps ~1.5%/yr, resets at maint events; engine uses fixed 0.385). r16 (electric MWh) is flat in Excel — heat-rate degradation affects fuel consumption only, no revenue-side counterpart. Both fixes would widen the Combined gap → **parked indefinitely for Combined audit**. Can be revisited if Gas-only IRR alignment becomes a separate SME requirement. |
 | **A36 follow-up r45/r58 (DONE — null result)** | 0 bps | A37 verified r45 Contract O&M Δ -£3.4k and r58 Insurance Δ -£1.3k both within rounding of Excel. Smooth multiplicative escalation matches engine assumption. No fix needed. |
 | Small solar fixed residual (~£1,100k aggregate) | 5-7 bps | 5 CPI lines uniformly 2.3% over + Insurance 3.4% over. Likely indexation timing/anchor-date mismatch (start from `Inputs!r293-304 = 2023-03-01`). |
@@ -121,7 +123,7 @@ Mechanics added across May 12–15 sessions — see decisions log A21 + A22 + A3
 | Browser smoke-test FULL PASS | — | Blocked by Combined audit not passing. Re-run after calibration closes the gap. |
 | Doublu handoff prep | — | Per user mandate: blocked until SME validates prototype. SME validation requires audit pass. |
 
-**Suggested order for next session**: r34 root-cause diagnostic (cheap, Excel-side only; might surface a gas-degradation mechanism with revenue-side counterpart); then NOL+dep-from-construction (highest-impact Combined fix, unlocks A35); then solar fixed indexation residual.
+**Suggested order for next session**: solar fixed indexation residual (cheapest, ~5-7 bps via anchor-date fix at `Inputs!r293-304 = 2023-03-01`); then construction insurance + terminal land sale + LoC PPA + decomm bond (4 stubbed items, ~10-30 bps total); then operational-period capex routing for non-D13 configs.
 
 ## Excel discoveries / debugging traps (May 12-15 sessions)
 
@@ -165,7 +167,7 @@ python -m pytest tests/ --no-header
 streamlit run app.py
 ```
 
-Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (locked state, D1–D27), then [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) Revisions log + most recent sections A37 → A36 → A35 → A34 → A33 → A32 (in order of recency) for the 2026-05-15 + 2026-05-16 session activity.
+Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (locked state, D1–D29), then [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) Revisions log + most recent sections A38 → A37 → A36 → A35 → A34 → A33 → A32 (in order of recency) for the 2026-05-15 + 2026-05-16 session activity.
 
 ## Session-by-session uplift summary
 
@@ -179,4 +181,5 @@ Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (
 | 2026-05-15 (A35) | infrastructure shipped, default off | Phasing-only would regress by 11 bps; await paired dep/NOL |
 | 2026-05-15 (A36) | -0.42 pp (engine 8.78%) | Gas major maint discrete events; 2042 anomaly resolved |
 | 2026-05-16 (A37) | -0.42 pp (engine 8.78%, no change) | Priority-1 diagnostic — r45/r58 already smooth/matching; r34 has separate 3.8% under-shoot (wrong direction for Combined). No engine changes. |
-| 2026-05-16 (A37 root cause) | **-0.42 pp** (engine **8.78%**, no change) | r34 root cause CONFIRMED via decomposition — fuel-esc off-by-one + heat-rate degradation between maint events. r16 (electric MWh) flat → no revenue-side counterpart. Both fixes wrong-direction for Combined → parked indefinitely. NOL+dep-from-construction promoted to priority-1. |
+| 2026-05-16 (A37 root cause) | -0.42 pp (engine 8.78%, no change) | r34 root cause CONFIRMED via decomposition — fuel-esc off-by-one + heat-rate degradation between maint events. r16 (electric MWh) flat → no revenue-side counterpart. Both fixes wrong-direction for Combined → parked indefinitely. NOL+dep-from-construction promoted to priority-1. |
+| 2026-05-16 (A38) | **-0.35 pp** (engine **8.85%**, +0.07 pp) | Multi-account dep + dep-from-construction + A35 phasing on. NOL pool activated (was dormant pre-A38). 4 matrix rows lifted +0.07-0.09 pp uniform. Tests re-baselined: Combined 8.85% / S+B 9.02% / Gas 13.07%. |

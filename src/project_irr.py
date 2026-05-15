@@ -175,6 +175,25 @@ _DEFAULT_CAPEX_PHASING_GAS_BY_MONTH = {
 }
 
 
+# A38 (2026-05-16, Phase A): per-account depreciation parameters per Excel
+# `D&T!r51-r165`. Each account has its own monthly RB rate, monthly SL rate,
+# and nominal life. Tax depreciation uses RB per `D&T!r146/r165 = "RB"`;
+# accounting depreciation uses SL per `D&T!r69/r88 = "SL"` (engine FCFF uses
+# tax dep, so SL only matters if `depreciation_method = "SLM"` is set).
+#
+# Capex line item → account routing per Excel `Construction!B76:B112` SUMIF
+# tag (per-line "Choice" in `Curves and D&T!r71-r112`):
+#   - 'long_term' (30 yr, RB 2/360 monthly): bulk capex — solar EPC, BESS,
+#     grid, land, insurance, acquisition, dev, DD, etc. (rows 76-96)
+#   - 'short_term' (8 yr, RB 2/96 monthly): no D13 routing
+#   - 'financing'  (3 yr, RB 2/36 monthly): IDC + Financing fees (rows 111-112)
+_DEPRECIATION_ACCOUNTS = {
+    'long_term':  {'monthly_rb': 2.0/360.0, 'monthly_sl': 1.0/360.0, 'life_months': 360},
+    'short_term': {'monthly_rb': 2.0/96.0,  'monthly_sl': 1.0/96.0,  'life_months': 96},
+    'financing':  {'monthly_rb': 2.0/36.0,  'monthly_sl': 1.0/36.0,  'life_months': 36},
+}
+
+
 # A32 (2026-05-15): post-PPA merchant balancing rate £/MWh by engine ops_year.
 # Derived from Excel Op r142 (monthly opex GBPk) / Op r52 (net gen MWh). The
 # underlying source is the `Baringa and Aurora` curve referenced by `Solar&BESS
@@ -478,16 +497,18 @@ class PirrInputs:
     # the timeline backward to cover any pre-construction-start months.
     # S+B capex includes solar + BESS (combined stream).
     #
-    # Defaults to EMPTY ({}) until paired Excel mechanisms (depreciation
-    # starting at construction-month-1 per `D&T!r68` + NOL carry-forward
-    # for pre-COD losses) are implemented. In isolation, the phasing change
-    # regresses the audit by ~11 bps (gas capex shifted ~10 months earlier
-    # without compensating tax shield). Burton-Leonard curves available as
-    # `_DEFAULT_CAPEX_PHASING_SB_BY_MONTH` / `_DEFAULT_CAPEX_PHASING_GAS_BY_MONTH`
-    # for opt-in via fixture or wizard state when caller knows the full
-    # mechanism is implemented.
-    capex_phasing_sb: dict = field(default_factory=dict)
-    capex_phasing_gas: dict = field(default_factory=dict)
+    # A38 (2026-05-16): defaults flipped from empty to the Burton-Leonard
+    # curves now that paired Phase C (dep-from-construction in
+    # `_calc_depreciation` per `D&T!r68`) is in place. Pre-A38 phasing-only
+    # regressed audit by ~11 bps; with Phase C the construction-period
+    # depreciation generates NOL pool entries that absorb against early
+    # ops-year income, flipping the sign positive.
+    capex_phasing_sb: dict = field(
+        default_factory=lambda: dict(_DEFAULT_CAPEX_PHASING_SB_BY_MONTH)
+    )
+    capex_phasing_gas: dict = field(
+        default_factory=lambda: dict(_DEFAULT_CAPEX_PHASING_GAS_BY_MONTH)
+    )
 
     # --- Tax ---
     corp_tax_rate: float = 0.25
@@ -643,9 +664,36 @@ def _build_timeline(inp: PirrInputs):
 # =============================================================================
 
 def _calc_capex(inp: PirrInputs, dates: np.ndarray,
-                is_construction: np.ndarray) -> tuple[np.ndarray, float]:
+                is_construction: np.ndarray
+                ) -> tuple[np.ndarray, float, dict[str, np.ndarray]]:
+    """Compute monthly capex outflows + per-month additions by depreciation
+    account (A38 Phase A multi-account routing per Excel `Construction!B76:B112`).
+
+    Returns:
+        (capex, total_capex, additions_by_account)
+        - capex: monthly cash outflow array (negative, GBPk)
+        - total_capex: lifetime sum (positive, GBPk)
+        - additions_by_account: dict keyed by account name, with monthly
+          positive depreciable-base additions per account.
+
+    Account routing (D13 baseline; same rule for all configs):
+        - 'long_term': solar + BESS + contingency + ALL gas capex
+        - 'financing': IDC + Financing fees only
+        - 'short_term': nothing (zero for all current configs)
+        - NOT depreciated: DSRA (pre-funded cash reserve, returns at EOL)
+
+    Excel routing source: `Construction!B76:B112` SUMIFs against
+    `Curves and D&T!r71-r112` per-line "Choice" tags. All construction
+    line items tagged "1" (Long term) except IDC + Financing fees tagged
+    "3" (Financing).
+    """
     n = len(dates)
     capex = np.zeros(n)
+    additions_by_account: dict[str, np.ndarray] = {
+        'long_term':  np.zeros(n),
+        'short_term': np.zeros(n),
+        'financing':  np.zeros(n),
+    }
 
     # Solar items (linear with DC MWp), GBP/kWp × MWp = GBPk
     solar_items_per_kwp = (
@@ -659,8 +707,7 @@ def _calc_capex(inp: PirrInputs, dates: np.ndarray,
     )
     solar_capex = solar_items_per_kwp * inp.solar_dc_mwp  # GBPk
 
-    # BESS — scales with BESS MW (D5). 600 GBP/kW × 1000 kW/MW × MW / 1000 → GBPk
-    # = 600 GBP/kW × MW (numerically: GBP/kW × MW = GBPk).
+    # BESS — scales with BESS MW (D5).
     bess_capex = inp.capex_bess_gbp_per_kw_bess * inp.bess_mw  # GBPk
 
     # Gas — provided as total GBPk
@@ -668,11 +715,17 @@ def _calc_capex(inp: PirrInputs, dates: np.ndarray,
 
     sb_base = solar_capex + bess_capex
     sb_with_contingency = sb_base * (1.0 + inp.capex_contingency_pct)
-    # IDC / financing fees / DSRA are S+B financial overlays per D3 — attach
-    # to the S+B stream so they phase with construction not gas-development.
-    sb_total = (sb_with_contingency + inp.capex_idc_gbpk
-                + inp.capex_financing_fees_gbpk + inp.capex_dsra_gbpk)
-    gas_total = gas_capex
+
+    # A38 Phase A — split SB stream into depreciable accounts:
+    #   long_term: physical assets (solar + BESS + contingency)
+    #   financing: IDC + Fin Fees (Excel Account 3)
+    #   not depreciated (cash only): DSRA
+    sb_long_term = sb_with_contingency
+    sb_financing = inp.capex_idc_gbpk + inp.capex_financing_fees_gbpk
+    sb_dsra      = inp.capex_dsra_gbpk
+    sb_total = sb_long_term + sb_financing + sb_dsra  # full cash outflow
+
+    gas_total = gas_capex                              # all to long_term
     total = sb_total + gas_total
 
     # A35: per-stream monthly phasing curves. Falls back to uniform 9-month
@@ -680,23 +733,37 @@ def _calc_capex(inp: PirrInputs, dates: np.ndarray,
     use_phasing = bool(inp.capex_phasing_sb) and bool(inp.capex_phasing_gas)
 
     if use_phasing:
-        # Build (year, month) → index lookup
         ym_to_idx = {(d.year, d.month): i for i, d in enumerate(dates)}
         for ym, pct in inp.capex_phasing_sb.items():
             idx = ym_to_idx.get(ym)
-            if idx is not None:
-                capex[idx] -= sb_total * pct
+            if idx is None:
+                continue
+            capex[idx] -= sb_total * pct
+            additions_by_account['long_term'][idx] += sb_long_term * pct
+            additions_by_account['financing'][idx] += sb_financing * pct
+            # DSRA: cash outflow, no depreciation entry
         for ym, pct in inp.capex_phasing_gas.items():
             idx = ym_to_idx.get(ym)
-            if idx is not None:
-                capex[idx] -= gas_total * pct
+            if idx is None:
+                continue
+            capex[idx] -= gas_total * pct
+            additions_by_account['long_term'][idx] += gas_total * pct
     else:
         # Legacy: uniform across construction months
         cm = int(is_construction.sum())
         if cm > 0:
-            capex[is_construction] = -total / cm
+            sb_long_per_mo = sb_long_term / cm
+            sb_fin_per_mo  = sb_financing / cm
+            gas_per_mo     = gas_total / cm
+            total_per_mo   = total / cm
+            cm_indices = np.where(is_construction)[0]
+            for idx in cm_indices:
+                capex[idx] -= total_per_mo
+                additions_by_account['long_term'][idx] += sb_long_per_mo + gas_per_mo
+                additions_by_account['financing'][idx] += sb_fin_per_mo
+                # DSRA: cash only
 
-    return capex, total
+    return capex, total, additions_by_account
 
 
 # =============================================================================
@@ -1066,46 +1133,74 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
 # DEPRECIATION (D&T r163-165: SLM or Reducing Balance; Excel uses RB)
 # =============================================================================
 
-def _calc_depreciation(inp: "PirrInputs", total_capex: float,
-                        is_operations: np.ndarray) -> np.ndarray:
-    """Compute monthly tax depreciation matching Excel D&T r194.
+def _calc_depreciation(inp: "PirrInputs",
+                       additions_by_account: dict[str, np.ndarray],
+                       dates: np.ndarray) -> np.ndarray:
+    """Compute monthly tax depreciation matching Excel `D&T!r194/r216`.
 
-    Two methods supported (D&T r163/r164/r165):
-    - SLM: constant monthly = total_capex / (life × 12)
-    - RB:  book × (annual_rate / 12) per month; final operations month gets
-           a true-up write-off so lifetime sum equals total_capex (mirrors
-           Excel r194 lifetime = £81.8k ≈ capex £82k).
+    A38 (Phase A multi-account + Phase C dep-from-construction):
+
+    - 3 parallel depreciation chains per `_DEPRECIATION_ACCOUNTS`
+      (long_term 30 yr, short_term 8 yr, financing 3 yr). Each account
+      has its own monthly RB rate from Excel `D&T!r68/r87/r106` (and
+      monthly SL rate from `D&T!r67/r86/r105`).
+    - Each month's addition within an account starts its own chain in
+      the addition month and runs forward for that account's `life_months`
+      (or until timeline end). Mirrors Excel `D&T!r62 "Entering
+      depreciation base"` per-month-per-account.
+
+    Within each chain (RB method): book × monthly_rb_rate per month, with
+    SLM-on-remaining crossover so lifetime depreciation = addition base.
+    The crossover kicks in at the addition-specific tail (chain_len ≥
+    life_months when timeline is long enough; for tail additions where
+    chain_len < life_months the crossover ensures full depreciation
+    inside the truncated chain — preserves engine pre-A38 behaviour).
+
+    Args:
+      additions_by_account: keyed by account name; per-month positive
+        depreciable base (GBPk). Comes from `_calc_capex` Phase A routing.
+      dates: timeline. Chain length per addition capped at `n - addition_month`.
     """
-    n = len(is_operations)
+    n = len(dates)
     depr = np.zeros(n)
-    if total_capex <= 0:
+    if not additions_by_account:
         return depr
 
-    ops_indices = np.where(is_operations)[0]
-    if len(ops_indices) == 0:
-        return depr
+    method = inp.depreciation_method.upper()
 
-    if inp.depreciation_method.upper() == "SLM":
-        monthly = total_capex / (inp.project_life_years * 12)
-        depr[is_operations] = monthly
-        return depr
+    for account_name, additions in additions_by_account.items():
+        if account_name not in _DEPRECIATION_ACCOUNTS:
+            continue
+        cfg = _DEPRECIATION_ACCOUNTS[account_name]
+        life_months = cfg['life_months']
+        monthly_rate = cfg['monthly_rb'] if method == "RB" else cfg['monthly_sl']
 
-    # Reducing Balance with SLM crossover (MACRS convention). Each month take
-    # max(RB amount, SLM amount on remaining book over remaining life). RB
-    # dominates early; SLM takes over once RB falls below SLM-on-remaining.
-    # Ensures lifetime depreciation = total_capex with a smooth taper (matches
-    # Excel D&T r194 smooth profile, no end-of-life spike).
-    monthly_rate = inp.depreciation_rate / 12.0
-    book = total_capex
-    total_ops = len(ops_indices)
-    for k, i in enumerate(ops_indices):
-        remaining = total_ops - k
-        rb_amount = book * monthly_rate
-        slm_amount = book / remaining
-        d = max(rb_amount, slm_amount)
-        d = min(d, book)
-        depr[i] = d
-        book -= d
+        for m in range(n):
+            base = float(additions[m])
+            if base <= 0:
+                continue
+            chain_len = min(life_months, n - m)
+
+            if method == "SLM":
+                monthly = base / life_months
+                tail = min(chain_len, life_months)
+                for k in range(tail):
+                    depr[m + k] += monthly
+                continue
+
+            # Reducing Balance with SLM crossover (per addition chain)
+            book = base
+            for k in range(chain_len):
+                remaining = chain_len - k
+                rb_amount = book * monthly_rate
+                slm_amount = book / remaining
+                d = max(rb_amount, slm_amount)
+                d = min(d, book)
+                depr[m + k] += d
+                book -= d
+                if book <= 0:
+                    break
+
     return depr
 
 
@@ -1188,21 +1283,32 @@ def _calc_shl_interest(inp: PirrInputs, total_capex: float,
 # =============================================================================
 
 def _calc_tax(inp: PirrInputs, dates: np.ndarray,
-              is_operations: np.ndarray,
+              is_active: np.ndarray,
               ebitda: np.ndarray, depreciation: np.ndarray,
               interest_senior: np.ndarray,
               interest_shl: np.ndarray) -> np.ndarray:
-    """Annual taxable income chain matching Excel D&T r193-r200 + r210-r212.
+    """Annual taxable income chain matching Excel `D&T!r193-r200, r210-r212,
+    r221-r228`.
 
-    Per-year mechanics:
-      EBITDA_y − Depr_y − DeductibleInterest_y = Taxable_y
-      Tax_y = max(0, Taxable_y × rate) with annual loss carry-forward.
+    Per-year mechanics (taxation month = December):
+      Taxable_y          = EBITDA_y − Depr_y − DeductibleInterest_y
+      tax_loss_generated = max(0, -Taxable_y)
+      tax_loss_utilised  = min(loss_pool_BOP, max(0, Taxable_y))
+      net_taxable_y      = max(0, Taxable_y − tax_loss_utilised)
+      Tax_y              = net_taxable_y × rate
+      loss_pool_EOP      = loss_pool_BOP + generated − utilised
 
-    UK CIR cap (D&T r210-r212): total deductible interest (senior + SHL) is
-    capped at max(£2m, 30% × EBITDA_y). Senior interest is prioritised
+    UK CIR cap (`D&T!r210-r212`): total deductible interest (senior + SHL)
+    is capped at `max(£2m, 30% × EBITDA_y)`. Senior interest is prioritised
     (always deducted up to the cap); SHL fills any remaining headroom.
-    Excess interest is non-deductible. This matches Excel's r212 "Maximum
-    Interest Deductible" line.
+    Excess interest is non-deductible.
+
+    A38 (Phase C — dep-from-construction): `is_active` covers all months
+    from first capex addition forward (pre-A38: `is_operations` only).
+    During construction, EBITDA = 0 + depreciation > 0 + interest = 0
+    (pre-COD interest is in IDC capex, not interest_senior) so
+    Taxable_y < 0 → loss_pool accumulates. When operations start, the
+    accumulated pool reduces early ops-year tax.
     """
     n = len(dates)
     tax = np.zeros(n)
@@ -1214,7 +1320,7 @@ def _calc_tax(inp: PirrInputs, dates: np.ndarray,
     loss_pool = 0.0
 
     for i in range(n):
-        if not is_operations[i]:
+        if not is_active[i]:
             continue
         annual_ebitda += ebitda[i]
         annual_depr += depreciation[i]
@@ -1408,8 +1514,10 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
     n = len(dates)
     res.dates = dates
 
-    # Capex first — depreciation, interest, FCFF all depend on total
-    capex, total_capex = _calc_capex(inp, dates, is_construction)
+    # Capex first — depreciation, interest, FCFF all depend on total.
+    # A38 Phase A: capex also returns per-account additions for multi-account dep.
+    capex, total_capex, additions_by_account = _calc_capex(
+        inp, dates, is_construction)
     res.capex = capex
     res.total_capex = total_capex
 
@@ -1436,7 +1544,10 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
     ebitda = revenue + opex
     res.ebitda = ebitda
 
-    depr = _calc_depreciation(inp, total_capex, is_operations)
+    # A38 (Phase A + C): per-account, per-month additions feed multi-account
+    # depreciation chains. Excel D&T r51-r178: 3 accounts with own RB/SL
+    # rates and lifetimes (long_term 30 yr / short_term 8 yr / financing 3 yr).
+    depr = _calc_depreciation(inp, additions_by_account, dates)
     res.depreciation = depr
 
     interest = _calc_interest(inp, total_capex, is_operations)
@@ -1444,7 +1555,15 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
 
     shl_interest = _calc_shl_interest(inp, total_capex, is_operations)
 
-    tax = _calc_tax(inp, dates, is_operations, ebitda, depr,
+    # A38 (Phase C): tax computation spans the entire timeline so that
+    # depreciation in development + construction months generates NOL pool
+    # entries that absorb against early ops-year income. The timeline is
+    # already bounded `[timeline_start, ops_end]` by `_build_timeline`,
+    # and ebitda/interest are zero pre-COD by construction (no revenue/opex
+    # nor senior/SHL interest pre-COD; IDC is in capex), so making the
+    # tax loop unconditional is safe.
+    is_active = np.ones(n, dtype=bool)
+    tax = _calc_tax(inp, dates, is_active, ebitda, depr,
                     interest, shl_interest)
     res.tax = tax
     res.total_tax_lifetime = float(-tax.sum())
