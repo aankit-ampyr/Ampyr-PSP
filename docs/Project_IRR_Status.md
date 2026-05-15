@@ -1,7 +1,9 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-16 (end-of-session, post-A39, SME memo sent)
-**Session paused awaiting Anchal Gupta's reply** to the two questions in [docs/SME_Memo_Anchal_2026-05-16.md](SME_Memo_Anchal_2026-05-16.md): (Q1) Insurance NIL contradiction, (Q2) audit tolerance ±0.1 pp vs ±0.3 pp.
+**Last updated:** 2026-05-16 (post-A40, SME memo sent — awaiting reply)
+**Awaiting Anchal Gupta's reply** to the two questions in [docs/SME_Memo_Anchal_2026-05-16.md](SME_Memo_Anchal_2026-05-16.md): (Q1) Insurance NIL contradiction, (Q2) audit tolerance ±0.1 pp vs ±0.3 pp.
+
+**A40 (this session) — time-varying CPI curve shipped (Excel-faithful, null-result for IRR).** Excel `Curves and D&T!r10` curve wired into `_esc_factor` via new `_build_cpi_factor_lookup` + `cpi_curve_by_calendar_year` PirrInputs field. Audit unchanged at 2-decimal precision (d13 8.88% / S+B 9.05% / Gas 13.07%) because the curve's early-year deviation (2.1-2.2% in years 1-3 vs A39's flat 2.0%) is small and steady state covers 31 of 35 ops years. Curve infrastructure now in place for future SME variants (e.g. per-line CPI overrides if Anchal clarifies Insurance).
 
 ## State at handover
 
@@ -9,7 +11,7 @@
 - m115_170 + m115_160 at **-0.19 pp** each (closest to ±0.1 pp tolerance, within 2×)
 - m82_160 at **-0.45 pp**
 - 42 pass + 4 xfail (the 4 xfails are the matrix rows)
-- Working tree clean post-`5a9a52c` push; only `.claude/settings.local.json` modified locally
+- Working tree has A40 changes uncommitted; `.claude/settings.local.json` modified locally
 
 ## Next session start — pick up from here
 

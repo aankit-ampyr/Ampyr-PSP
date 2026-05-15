@@ -497,6 +497,14 @@ class PirrInputs:
     gas_major_maint_schedule: dict = field(
         default_factory=lambda: dict(_DEFAULT_GAS_MAJOR_MAINT_SCHEDULE)
     )
+
+    # A40 (2026-05-16): variable CPI curve per Excel `Curves and D&T!r10`.
+    # Calendar-year-indexed (e.g. {2025: 0.031, 2026: 0.025, ...}). Years not
+    # in the dict fall back to `rates["CPI"]` (engine flat steady-state, 2.0%).
+    cpi_curve_by_calendar_year: dict = field(
+        default_factory=lambda: dict(_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR)
+    )
+
     gas_fuel_price_gbp_mwh: float = 32.51
     gas_net_efficiency: float = 0.385
     gas_co2_kg_per_mwh: float = 185.0
@@ -1068,15 +1076,18 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
         # Solar fixed (excl. PV O&M): bundled CPI escalation per Excel
         # `Inputs!r268-r277` (most lines use CPI in the active branch).
         opex[i] -= monthly_solar_fixed * \
-            _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year)
+            _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year,
+                        cpi_factor_lookup)
 
         # PV O&M — own indexation case ("O&M - Year 3 Onwards") per A34.
         opex[i] -= monthly_pv_om * \
-            _esc_factor(rates, inp.opex_pv_om_indexation, ops_year)
+            _esc_factor(rates, inp.opex_pv_om_indexation, ops_year,
+                        cpi_factor_lookup)
 
         # Corrective maintenance (CPI-escalated, level annual to match Excel)
         opex[i] -= monthly_corrective * \
-            _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year)
+            _esc_factor(rates, inp.opex_solar_fixed_indexation, ops_year,
+                        cpi_factor_lookup)
 
         # Solar variable (balancing services £/MWh × generation).
         # A32 (2026-05-15): split CfD vs Merchant per Excel FS r42/r43.
@@ -1092,7 +1103,7 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
             if inp.opex_balancing_cfd > 0:
                 opex[i] -= (monthly_gen * inp.opex_balancing_cfd
                             * _esc_factor(rates, inp.opex_solar_var_indexation,
-                                          ops_year) / 1000)
+                                          ops_year, cpi_factor_lookup) / 1000)
         else:
             mrch_rate = inp.merchant_balancing_rate_by_ops_year.get(ops_year, 0.0)
             if mrch_rate > 0:
@@ -1101,7 +1112,8 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
         # BESS fixed + step (LTSA / PCS Warranty / Augmentation) — both
         # capped at BESS operating life
         if d < bess_end:
-            esc_bess = _esc_factor(rates, inp.bess_opex_indexation, ops_year)
+            esc_bess = _esc_factor(rates, inp.bess_opex_indexation, ops_year,
+                                   cpi_factor_lookup)
             opex[i] -= monthly_bess_fixed * esc_bess
             opex[i] -= monthly_bess_step * esc_bess
 
@@ -1169,7 +1181,8 @@ def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
         if inp.fixed_lease_switch:
             fixed_lease_m = (
                 inp.fixed_lease_price * inp.fixed_lease_acres / 1000 / 12
-                * _esc_factor(rates, inp.fixed_lease_indexation, ops_year)
+                * _esc_factor(rates, inp.fixed_lease_indexation, ops_year,
+                              cpi_factor_lookup)
             )
         rev_lease_m = 0.0
         if inp.rev_dep_lease_switch and revenue[i] > 0:
@@ -1588,8 +1601,20 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
     res.capex = capex
     res.total_capex = total_capex
 
+    # A40 (2026-05-16): precompute the variable-CPI cumulative factor per
+    # ops_year using Excel `Curves and D&T!r10` curve. Replaces flat A39 rate
+    # at all "CPI"-cased line items in _calc_revenue and _calc_opex. Steady-
+    # state fallback (years not in the curve) uses `rates["CPI"]` (2.0%).
+    cpi_factor_lookup = _build_cpi_factor_lookup(
+        inp.cpi_curve_by_calendar_year,
+        rates["CPI"],
+        inp.cod_date.year,
+        inp.project_life_years,
+    )
+
     # Revenue
-    rev = _calc_revenue(inp, rates, dates, is_operations, ops_idx)
+    rev = _calc_revenue(inp, rates, dates, is_operations, ops_idx,
+                        cpi_factor_lookup)
     revenue = sum(rev.values())  # numpy element-wise sum
     res.revenue = revenue
     res.total_revenue_lifetime = float(revenue.sum())
@@ -1604,7 +1629,8 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
     res.rev_gas_merchant = rev["gas_merchant"]
 
     # Opex (depends on revenue for rev-dep lease)
-    opex = _calc_opex(inp, rates, dates, is_operations, ops_idx, revenue)
+    opex = _calc_opex(inp, rates, dates, is_operations, ops_idx, revenue,
+                      cpi_factor_lookup)
     res.opex = opex
     res.total_opex_lifetime = float(-opex.sum())
 
