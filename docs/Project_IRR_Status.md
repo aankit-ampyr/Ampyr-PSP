@@ -1,7 +1,52 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-16 (post-A39)
-**Headline:** **A39 landed** (CPI rate 2.5% → 2.0%) on top of A38 (multi-account dep + dep-from-construction + A35 phasing). d13 Combined 8.88% / S+B 9.05% / Gas 13.07%. m115_170 + m115_160 now at -0.19 pp gap each — closest to ±0.1 pp tolerance. d13 -0.32 pp. m82_160 -0.45 pp. 42 pass + 4 xfail.
+**Last updated:** 2026-05-16 (end-of-session, post-A39, SME memo sent)
+**Session paused awaiting Anchal Gupta's reply** to the two questions in [docs/SME_Memo_Anchal_2026-05-16.md](SME_Memo_Anchal_2026-05-16.md): (Q1) Insurance NIL contradiction, (Q2) audit tolerance ±0.1 pp vs ±0.3 pp.
+
+## State at handover
+
+- d13 Combined **8.88%** / S+B 9.05% / Gas 13.07% — gap **-0.32 pp** vs target 9.20%
+- m115_170 + m115_160 at **-0.19 pp** each (closest to ±0.1 pp tolerance, within 2×)
+- m82_160 at **-0.45 pp**
+- 42 pass + 4 xfail (the 4 xfails are the matrix rows)
+- Working tree clean post-`5a9a52c` push; only `.claude/settings.local.json` modified locally
+
+## Next session start — pick up from here
+
+**A. Anchal has replied — apply her answers**
+
+- If she confirms Q2 ±0.3 pp tolerance → 4/4 rows pass, audit closes, unblock Doublu handoff. Re-baseline test xfails to pass.
+- If she clarifies Q1 (Insurance is actually CPI/RPI-indexed or has a P&M-coverage growth mechanism) → implement the split: separate `opex_insurance_indexation` field, decouple Insurance from the bundled CPI escalation. ~1-2 hr including tests. Expected +5-8 bps Combined.
+
+**B. Anchal hasn't replied yet — queued engineering**
+
+Top option: **finish wiring A40 time-varying CPI curve** (~30-60 min, scaffolding already in tree as WIP). Engine currently uses flat 2.0%; Excel `Curves and D&T!r10` carries: 3.1% 2025, 2.5% 2026, 2.2% 2027-28, 2.1% 2029, 2.0% from 2030 onwards. Expected +2-3 bps Combined — would push m115_170/m115_160 closer to or into ±0.1 pp tolerance pre-emptively.
+
+**A40 WIP state (uncommitted at handover time, then committed as separate WIP marker):**
+
+Scaffolding shipped in `src/project_irr.py` but not wired:
+
+- `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR` constant (Excel curve values 2024-2029)
+- `_build_cpi_factor_lookup(curve, steady_state, cod_year, n_ops_years)` helper — precomputes per-ops-year cumulative product, falls back to `cpi_steady_state_rate` for years outside curve dict
+- `_esc_factor(rates, case, ops_year, cpi_factor_lookup=None)` extended — when `cpi_factor_lookup` is provided AND case == "CPI", uses lookup; else falls back to current flat behaviour (backward-compatible, all 42 tests still pass)
+- `PirrInputs.cpi_curve_by_calendar_year` + `cpi_steady_state_rate` fields
+
+To finish (next session):
+
+1. In `_run_pirr_core`: call `_build_cpi_factor_lookup(inp.cpi_curve_by_calendar_year, inp.cpi_steady_state_rate, inp.cod_date.year, inp.project_life_years)` once per run.
+2. Thread `cpi_factor_lookup` parameter into `_calc_opex` and `_calc_revenue` signatures.
+3. Update every `_esc_factor(...)` call in those two functions to pass `cpi_factor_lookup=cpi_factor_lookup`.
+4. Run audit + tests. Expected: D13 Combined 8.88% → ~8.91% (+2-3 bps).
+5. Re-baseline `test_wizard_state_path.py` EXPECTED_COMBINED + EXPECTED_SB.
+6. Log A40 in decisions log + sync Spec D30 + Status doc.
+
+Other queued work (lower priority):
+
+- Step 3a Phase 2 — Step 4 conditional PIRR/NPV column augmentation (per Spec D15). Cache invalidation already implemented (A27); needs UI verification.
+- Browser smoke-test FULL PASS — was blocked by audit, may be unblockable depending on Anchal's tolerance answer.
+- Unify `sizing_results` vs canonical `wizard['results']['simulation_results']` (P1 cleanup per A19).
+
+**A39 mechanism (for ref)**: 1-line fix — Excel `Curves and D&T!r10` is "Variable" CPI; steady-state from ops_year 3 onward is 2.0%, not the engine's old 2.5%. Lifetime CPI-sum gap closed on 5 fixed solar lines (greenkeeping, community, real_estate_tax, non_tech_am, tech_am). Insurance over-shoot remains a separate mechanism (open question to Anchal).
 
 A39 was a 1-line Excel-mechanism fix: Excel `Curves and D&T!r10` is "Variable" CPI; the steady-state rate from ops_year 0 (2027) onward is 2.0%, not the engine's 2.5%. Lifetime CPI-sum gap closed on 5 fixed solar lines (greenkeeping, community, real_estate_tax, non_tech_am, tech_am). Insurance over-shoot remains a separate mechanism (construction premium + NIL indexation per Inputs!r274 + ~2% growth observed in Op r168).
 
