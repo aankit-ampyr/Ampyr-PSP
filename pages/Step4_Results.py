@@ -195,6 +195,36 @@ def find_cached_result(bess_mwh: float, dg_mw: float, container_type: str):
     return None
 
 
+def find_cached_financial(bess_mwh: float, dg_mw: float, container_type: str):
+    """Lookup the financial-sweep row matching this config, if Step 3a has run.
+
+    Mirrors `find_cached_result` but against `st.session_state.financial_results`.
+    Returns None when financial_results is absent, empty, or has no matching row.
+    """
+    financial_df = st.session_state.get('financial_results')
+    if financial_df is None or len(financial_df) == 0:
+        return None
+
+    spec = CONTAINER_SPECS.get(container_type, {})
+    duration_hr = spec.get('duration_hr', 2)
+
+    required = {'BESS (MWh)', 'DG (MW)', 'Duration (hr)'}
+    if not required.issubset(financial_df.columns):
+        return None
+
+    mask = (
+        (financial_df['BESS (MWh)'] == bess_mwh) &
+        (financial_df['DG (MW)'] == dg_mw) &
+        (financial_df['Duration (hr)'] == duration_hr)
+    )
+
+    matching = financial_df[mask]
+    if len(matching) > 0:
+        return matching.iloc[0].to_dict()
+
+    return None
+
+
 def run_single_simulation(bess_mwh: float, container_type: str, dg_mw: float):
     """Run a single simulation and return hourly results."""
     spec = CONTAINER_SPECS.get(container_type, CONTAINER_SPECS['5mwh_2.5mw'])
@@ -546,6 +576,72 @@ if st.session_state.analysis_results is not None:
     col2.metric("DG Starts", f"{metrics.dg_starts:,}")
     col3.metric("Delivery Hours", f"{metrics.hours_full_delivery:,}")
     col4.metric("Solar Utilization", f"{solar_utilization:.1f}%")
+
+    # =============================================================================
+    # FINANCIAL METRICS (Step 3a augmentation — conditional)
+    # =============================================================================
+    #
+    # Per Spec D15 + §7: Step 4 surfaces PIRR / NPV alongside the operational
+    # drilldown when the user has run Step 3a's financial sweep. Matches on the
+    # same (BESS MWh, DG MW, Duration hr) tuple used by `find_cached_result`.
+    # Hidden entirely when financial_results is absent (Step 3a not run) or when
+    # the user's current selection isn't in the sweep — caption surfaces the
+    # latter case so they can return to Step 3a.
+
+    financial_row = find_cached_financial(bess_mwh, dg_mw, selected_container)
+    has_financial_sweep = 'financial_results' in st.session_state and \
+        st.session_state.financial_results is not None and \
+        len(st.session_state.financial_results) > 0
+
+    if financial_row is not None:
+        st.divider()
+        st.subheader("£ Financial Metrics")
+        st.caption(
+            "From Step 3a Financial Sweep. The Project IRR engine "
+            "(`src/project_irr.py`) uses `dispatch_energy.run_hourly_dispatch` "
+            "to produce monthly aggregates, so the green/DG share may differ "
+            "from the operational metrics above (see decisions log A24)."
+        )
+
+        f_col1, f_col2, f_col3, f_col4, f_col5, f_col6 = st.columns(6)
+        f_col1.metric(
+            "Combined PIRR",
+            f"{financial_row.get('Combined PIRR (%)', float('nan')):.2f}%"
+        )
+        f_col2.metric(
+            "S+B PIRR",
+            f"{financial_row.get('S+B PIRR (%)', float('nan')):.2f}%"
+        )
+        f_col3.metric(
+            "Gas PIRR",
+            f"{financial_row.get('Gas PIRR (%)', float('nan')):.2f}%"
+        )
+        f_col4.metric(
+            "NPV (GBPm)",
+            f"{financial_row.get('NPV (GBPm)', float('nan')):.1f}"
+        )
+        f_col5.metric(
+            "CAPEX (GBPm)",
+            f"{financial_row.get('Total CAPEX (GBPm)', float('nan')):.1f}"
+        )
+        payback = financial_row.get('Payback (yrs)', float('nan'))
+        f_col6.metric(
+            "Payback (yrs)",
+            "n/a" if pd.isna(payback) else f"{payback:.1f}"
+        )
+
+        if financial_row.get('Error'):
+            st.error(f"PIRR run reported error: {financial_row['Error']}")
+
+    elif has_financial_sweep:
+        st.divider()
+        st.info(
+            "Financial sweep exists but does not include this config "
+            f"(BESS {bess_mwh:.0f} MWh / DG {dg_mw:.0f} MW / "
+            f"{CONTAINER_SPECS[selected_container]['duration_hr']}-hr duration). "
+            "Re-run Step 3a Financial Sweep after Step 3 has produced this row, "
+            "or pick a config that's already in the sweep."
+        )
 
     # =============================================================================
     # MONTHLY SUMMARY TABLE
