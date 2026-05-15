@@ -52,6 +52,7 @@ Each Revisions entry: date, what changed, why. Each `A*` decision: keep original
 | 2026-05-13 | **A24 follow-up: data_loader gap discovered by browser smoke test; fixed.** Browser smoke test of Step 3a (playbook §9) revealed `src/data_loader.py::list_solar_profiles()` filter (`'solar' in filename.lower()`) hid the canonical Burton Leonard audit profiles (`Burton_Leonard_*.csv`) — their filenames contain no "solar" substring. This is an A14-era loose end: when the canonical profiles were renamed/relocated in May 2026, the enumerator was never updated. Side effect: D13 PIRR via the UI fell back to "Burton Solar Profile.csv" (8 MW peak) and produced Combined 11.56% / S+B 6.52% instead of the audit's 8.77% / 8.93%. **Engine itself verified correct via the fixture path** — issue was wrong solar profile feeding right engine. Fix: broadened filter to `'solar' or 'burton' in filename.lower()`. All 4 Inputs/*.csv profiles now surface; tests still pass (34 + 4 xfail). | Smoke-test-driven fix; unblocks D13-via-UI verification. |
 | 2026-05-13 | **A25 added: D8 spec violation — solar profile DC/AC rescaling in Step 3a + Step 7 fixed.** Smoke test §10 follow-up (canonical profile selected) revealed both Step 3a and Step 7 were rescaling the AC + grid-capped solar profile by `target_dc_mwp / profile_peak` (= 82/58.36 = 1.405× for D13). This pushed 19 GWh of phantom solar through the dispatch, producing Combined 24.72% / S+B 32.23% (vs audit 8.77% / 8.93%). Per spec D8: *"capex scales on DC MWp; revenue uses the AC + grid-limit-capped hourly profile as supplied."* The canonical Burton Leonard files ARE the AC output — they shouldn't be rescaled. Fix (Option C): defaulted `profile_ref_mwp` fallback chain to `target_dc_mwp` instead of `profile_peak` → scaling factor = 1.0 when no explicit override. Users with per-unit profiles can still set `profile_reference_mwp` explicitly. Plus soft sanity warning when `profile_peak / target_dc_mwp` outside [0.5, 1.1]. Wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). | Second pre-existing UI bug surfaced by Step 3a smoke testing (after A24's merchant curve). Step 7 had this bug since A19. |
 | 2026-05-13 | **A26 added: data_loader filename-vs-display-name mismatch fixed.** Smoke test §11 (Option C verified in code but D13 still failed at the UI) traced the residual gap to a wizard-state protocol mismatch: Step 1 stores display name (e.g. `'Burton_Leonard_82MWp_DC_58MW_AC'`, no `.csv`) in `setup['solar_selected_file']`, but `load_solar_profile_by_name` opens `INPUTS_FOLDER / filename` literally — file not found → returns None → Step 3 + Step 3a fall through to default `Burton Solar Profile.csv` (peak 8 MW). The 8 MW profile feeding a 25 MW load made gas do all the work → Combined 24.72%. Fix (Option A): `load_solar_profile_by_name` now appends `.csv` if missing — defensive guard at the filesystem boundary. Affects Step 3 operational sweep (which has been silently using the wrong profile too) + Step 3a financial sweep. End-to-end wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). Tests still pass. **Step 7 has a separate independent bug**: it uses `SOLAR_PROFILE_PATH` config constant instead of Step 1's selection — flagged for follow-up, not fixed here. *Footnote (corrected by A27)*: Step 1 actually stores filenames WITH `.csv` (Step1_Setup.py line 466 selectbox uses filenames from `list_solar_profiles()` tuples). The §11 diagnosis was incorrect. A26's defensive guard is harmless but didn't fix the actual smoke-test failure. The real bug was A27's loader row-count discrepancy. | Third pre-existing UI bug surfaced by Step 3a smoke testing. Operational sweep correctness restored too. |
+| 2026-05-16 | **A39 added: CPI rate 2.5% → 2.0% to match Excel `Curves and D&T!r10` steady-state.** Diagnostic of 5 solar fixed CPI lines (greenkeeping, community, real_estate_tax, non_tech_am, tech_am) showed uniform +2.3% engine over-shoot on lifetime totals. Excel's CPI curve in `Curves and D&T!r10` is **time-varying**: 2022=3.1%, 2023=2.5%, 2024-25=2.2%, 2026=2.1%, **2027+=2.0%**. Engine had been using flat 2.5%; the steady-state Excel rate from ops_year 0 (2027) onward is 2.0%. **Single-rate fix** chosen over full variable-curve refactor for time (~30 min vs 3-4 hours): change `DEFAULT_ESCALATION_RATES["CPI"]` from 0.025 to 0.020. Pre-COD anchor adjustment (Excel year-0 Greenkeeping = 131.7 = 1.5 × 82 × 1.0707, suggesting 3 yrs of pre-COD CPI compounding from 2023 anchor) NOT modeled — would require precomputed multiplier or refactor. Insurance r274 says "NIL INDEXATION" but Excel data shows ~2% growth (year 0-1 ~£287k construction premium, drops to £205k year 2+ then grows at 2%) — separate mechanism not modeled, premium is small. **Result**: Combined +0.02-0.04 pp uniform. m115_170 and m115_160 now at **-0.19 pp** gap each (closest to ±0.1 pp tolerance). d13 at -0.32. Tests 42 pass + 4 xfail unchanged. | Engine over-shoot eliminated on the dominant CPI mechanism. |
 | 2026-05-16 | **A38 added: NOL pool activation + multi-account dep + capex phasing — combined +0.07 pp Combined uniform.** Three engine changes shipped together (Phase A + C + D per the 2026-05-16 4-phase plan). **Phase C dep-from-construction**: `_calc_depreciation` refactored from single-chain-from-COD to per-month, per-account chains. Each month's capex addition starts its own RB+SLM-crossover chain in the addition month. `_calc_tax` mask widened from `is_operations` to entire timeline so construction-period depreciation feeds the NOL pool (which was already implemented in A21 but had nothing to absorb pre-A38). **Phase A multi-account**: 3 parallel chains per Excel `D&T!r51-r178` with per-account RB rates (long_term 2/360 mo, short_term 2/96 mo, financing 2/36 mo) and lifetimes (360/96/36 months). Capex routed via `_calc_capex` returning `additions_by_account` dict: physical assets → long_term, IDC + Fin Fees → financing, DSRA → not depreciated (cash only), all gas capex → long_term. **Phase D**: `capex_phasing_sb/gas` defaults flipped from empty to Burton-Leonard curves. **Sequencing matters**: Phase D in isolation regresses -0.15 pp (gas capex shifted ~9 mo earlier without enough tax shield); Phase A unlocks the financing-account's 5.56%/mo RB rate on IDC + Fin Fees (£2.2M D13), generating £1.4M pre-COD depreciation → £350k tax shield via NOL pool — flips Phase D positive. **Result**: Combined gap closed from -0.30/-0.57 pp to **-0.21/-0.49 pp** (d13 8.78% → 8.85%, target 9.2%). S+B 8.82% → 9.02% (+0.20 pp). Gas 14.13% → 13.07% (-1.06 pp — gas capex now phased earlier, IRR drops because NPV penalty exceeds tax shield benefit on gas-only chain since IDC + Fin Fees are SB-stream). Tests: 42 pass + 4 xfail; wizard-state baselines re-locked. | NOL pool was lying dormant pre-A38 (always empty when ops started); A38 wires it up. Big remaining levers: solar fixed indexation residual (~5-7 bps), construction insurance / terminal land sale / LoC PPA / decomm bond (~10-30 bps total). |
 | 2026-05-16 | **A37 root cause CONFIRMED + parked.** Two mechanisms identified via decomposition diagnostic (r34 = r32 thermal × r33 fuel price): (1) **Fuel price escalation off-by-one** — engine's `(1.01)^max(0, ops_year-3)` makes the flat period 4 years long; Excel's flat period is only 3 years (escalation begins Excel ops_year 4 / engine 0-based oy=3). (2) **Heat rate degradation between major-maintenance events** — Excel r29 (1/efficiency) ramps ~1.5%/yr between resets, converges to design-point 1/0.385 = 2.5974 only in years 17-20. Engine uses fixed 0.385 throughout. **Critical finding**: r16 (electric MWh) is essentially flat in Excel across PPA years (143,412 → 144,958, +1.08%), so heat-rate degradation affects fuel consumption only — NO revenue-side counterpart exists. The earlier hypothesis that "gas_mwh might touch revenue" is REFUTED. **Decision: park both r34 fixes** — confirmed wrong direction for Combined (would reduce Gas FCFF, widen the -0.42 pp gap). Could be re-considered if Gas-only IRR alignment becomes a separate SME requirement. **No engine changes.** Tests unchanged: 42 pass + 4 xfail. | A37 follow-up; r34 thread closed for Combined-audit purposes. |
 | 2026-05-16 | **A37 added: A36 follow-up — gas opex lumpy hypothesis REJECTED for r45/r58; r34 fuel cost has separate 3.8% under-shoot.** Per Status doc priority-1, ran year-by-year diagnostic on Excel `Cash Flows-Gas` r45 (Contract O&M), r58 (Insurance), r34 (Fuel cost) to check whether they share A36's discrete-event pattern. **Findings**: (a) r45 engine vs Excel lifetime Δ = -£3.4k (-0.1%) — smooth and matches; (b) r58 Δ = -£1.3k (-0.1%) — smooth and matches; (c) r34 Δ = **-£7,864k (-3.8%)** — NOT lumpy, but systematic engine under-shoot across all 20 years (engine flat at £12,076k for PPA years 1-3 while Excel ramps 12,263→12,474→12,680; ~1.7%/yr). Likely root cause: Excel applies fuel escalation from year 1, not year 4 as engine's `gas_fuel_escalation_from_yr4 = 0.01` assumes, OR `gas_mwh` varies year-on-year (gas degradation / maintenance schedule). **Decision**: park r34 fix pending root-cause diagnostic (separate decision). Direction of impact matters: fixing r34 would *increase* engine fuel cost → reduce engine Gas-only IRR (currently 14.13% vs Excel 10.77%, over by +3.36 pp — helpful direction) but also reduce Combined IRR → **widen** the -0.42 pp Combined gap (NOT helpful). **No engine changes today.** | A36 follow-up; priority-1 mostly empty. Tests unchanged: 42 pass + 4 xfail. |
@@ -250,6 +251,73 @@ Standard solar PV finance convention. Made explicit because the SME flagged it d
 | [Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv](../Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv) | Secondary regression — matches A10 row 3 |
 
 Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case label. Both files moved from `Inputs/Answers/` (originals deleted, folder removed). Test/ folder duplicates flagged for cleanup during audit work — see A9.
+
+### A39. CPI rate 2.5% → 2.0% per Excel variable curve steady-state (NEW 2026-05-16)
+
+**Status doc priority-1 was**: "Solar fixed indexation residual (~5-7 bps via anchor-date fix at `Inputs!r293-304 = 2023-03-01`)". Delivered: +0.02-0.04 pp uniform on Combined.
+
+**Diagnostic**: Probed Excel `Curves and D&T!r10` (the "CPI" indexation row). Excel column 4 shows "Variable" (not a single rate). Year-by-year values from r10:
+
+| Calendar Year | Excel CPI rate |
+| ---: | ---: |
+| 2022 | 3.1% |
+| 2023 | 2.5% |
+| 2024 | 2.2% |
+| 2025 | 2.2% |
+| 2026 | 2.1% |
+| **2027+** | **2.0%** (steady state) |
+
+Engine had been using flat 2.5% from `DEFAULT_ESCALATION_RATES["CPI"]`. Ops period starts 2027-07-01 so the steady-state Excel rate during the audit period is 2.0%.
+
+**Year-by-year diagnostic verification** ([tools/probe_cpi_yearly.py](../tools/probe_cpi_yearly.py)):
+
+| Line | Engine over Excel | Effective Excel rate |
+| --- | ---: | ---: |
+| Greenkeeping | +2.27% lifetime | ~2.0% steady-state |
+| Real Estate Taxes | +2.29% lifetime | ~2.0% |
+| Non-Technical AM | +2.28% lifetime | ~2.0% |
+| Tech AM | +2.27% lifetime | ~2.0% |
+| Community Benefit | +2.27% lifetime | ~2.0% |
+| **Insurance** | **+3.36% lifetime** | **NIL per r274 + 2-yr construction premium** (separate mechanism) |
+
+The +2.27% over-shoot on 5 CPI lines is fully explained by the rate-vs-curve mismatch: engine CPI sum (35 yr at 2.5%) = 54.93; Excel actual sum ~53.71 (= ratio 0.978 ≈ 1/1.0227).
+
+**Code change** — single-line edit:
+
+```python
+# Before:
+DEFAULT_ESCALATION_RATES["CPI"] = 0.025
+# After:
+DEFAULT_ESCALATION_RATES["CPI"] = 0.020
+```
+
+**Not modeled** (deliberately deferred):
+
+1. **Variable CPI curve** with calendar-year-specific rates. Would require precomputing per-ops-year multipliers from the Excel curve. Estimated 3-4 hours; benefit ~0-1 bps over the single-rate fix. Skipped per Karpathy "Simplicity First".
+2. **Pre-COD anchor multiplier** (~1.0707 at ops_year 0 derived from Excel Greenkeeping year-0 data = 1.5 × 82 × 1.0707 = 131.7). Engine year-0 multiplier stays at 1.0. This means engine slightly under-shoots Excel in early ops years but over-shoots in late years (steady-state rate is lower than pre-COD lifetime average). Net lifetime is close.
+3. **Insurance "NIL" indexation per Inputs!r274**. Excel data shows growth at ~2.0% from year 2 onward despite r274 = NIL → some other escalation mechanism is in play in Op r124/r168. Not pursued — the +£300k Insurance lifetime over-shoot is dominated by the year-0/1 construction premium, not the indexation case.
+
+**Result**:
+
+| Case | Pre-A39 Combined | Post-A39 Combined | Δ |
+| --- | ---: | ---: | ---: |
+| d13 (82/170) | 8.85% | **8.88%** | +0.03 |
+| m82_160 (82/160) | 7.31% | **7.35%** | +0.04 |
+| m115_170 (115/170) | 9.59% | **9.61%** | +0.02 |
+| m115_160 (115/160) | 8.27% | **8.31%** | +0.04 |
+
+m115_170 and m115_160 now at **-0.19 pp** gap each — closest to ±0.1 pp tolerance. d13 at -0.32. m82_160 still worst at -0.45 pp.
+
+Tests: 42 pass + 4 xfail unchanged. Wizard-state path baselines within 0.03 pp tolerance — no re-baseline needed.
+
+**What's still left** (in priority order, post-A39):
+
+| Item | Est. impact | Notes |
+| --- | --- | --- |
+| **SME tolerance conversation with Anchal** | Closes 3 of 4 rows at ±0.3 pp | m115_170 and m115_160 are at -0.19 pp; d13 -0.32; m82_160 -0.45. ±0.3 pp accepts 3/4. 15-min call. |
+| Variable CPI curve refactor | 0-1 bp incremental over A39 | Three-quarters fix already in place via flat 2.0%. Marginal value. |
+| Insurance construction-premium mechanism | 1-2 bps | Excel has £287k yrs 0-1 dropping to £205k yr 2+. Engine flat at £166k throughout. Hard to model without understanding Op r124 mechanism. |
+| Pre-COD anchor multiplier for CPI | 1-2 bps | Engine year-0 CPI factor stays at 1.0 vs Excel ~1.07. Small effect; would require precomputed table. |
 
 ### A38. NOL pool activation + multi-account depreciation + capex phasing on (NEW 2026-05-16)
 

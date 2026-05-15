@@ -1,7 +1,15 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-16 (post-A38)
-**Headline:** **A38 landed** — multi-account dep (3 accounts: long_term/short_term/financing) + dep-from-construction + A35 capex phasing activated. d13 Combined 8.78% → **8.85%** (+0.07 pp). All 4 matrix rows lifted +0.07-0.09 pp; gap closed from -0.30/-0.57 to **-0.21/-0.49 pp**. m115_170 closest to target at -0.21 pp. 42 pass + 4 xfail (matrix rows). The NOL pool that A21 added is now actually active (was lying dormant pre-A38 because `_calc_tax` mask was `is_operations` only — construction-period depreciation never fed the pool). Phase A (multi-account) was critical: the Financing account's 5.56%/mo RB rate on £2.2M IDC + Fin Fees generates £1.4M of pre-COD depreciation → £350k tax shield in early ops years, flipping A35 phasing from -0.15 pp regression (Phase C+D alone) to net positive +0.07 pp.
+**Last updated:** 2026-05-16 (post-A39)
+**Headline:** **A39 landed** (CPI rate 2.5% → 2.0%) on top of A38 (multi-account dep + dep-from-construction + A35 phasing). d13 Combined 8.88% / S+B 9.05% / Gas 13.07%. m115_170 + m115_160 now at -0.19 pp gap each — closest to ±0.1 pp tolerance. d13 -0.32 pp. m82_160 -0.45 pp. 42 pass + 4 xfail.
+
+A39 was a 1-line Excel-mechanism fix: Excel `Curves and D&T!r10` is "Variable" CPI; the steady-state rate from ops_year 0 (2027) onward is 2.0%, not the engine's 2.5%. Lifetime CPI-sum gap closed on 5 fixed solar lines (greenkeeping, community, real_estate_tax, non_tech_am, tech_am). Insurance over-shoot remains a separate mechanism (construction premium + NIL indexation per Inputs!r274 + ~2% growth observed in Op r168).
+
+**Prior session (A38)** landed multi-account dep + dep-from-construction + A35 phasing, +0.07-0.09 pp uniform on Combined. NOL pool activated from dormant A21 state.
+
+**A38 details (kept for context):**
+
+A38 landed — multi-account dep (3 accounts: long_term/short_term/financing) + dep-from-construction + A35 capex phasing activated. d13 Combined 8.78% → **8.85%** (+0.07 pp). All 4 matrix rows lifted +0.07-0.09 pp; gap closed from -0.30/-0.57 to **-0.21/-0.49 pp**. m115_170 closest to target at -0.21 pp. 42 pass + 4 xfail (matrix rows). The NOL pool that A21 added is now actually active (was lying dormant pre-A38 because `_calc_tax` mask was `is_operations` only — construction-period depreciation never fed the pool). Phase A (multi-account) was critical: the Financing account's 5.56%/mo RB rate on £2.2M IDC + Fin Fees generates £1.4M of pre-COD depreciation → £350k tax shield in early ops years, flipping A35 phasing from -0.15 pp regression (Phase C+D alone) to net positive +0.07 pp.
 
 **Prior sessions**: A29-A37 closed the S+B opex over-shoot (£9.4k → £180k), resolved the 2042 FCFF anomaly, and confirmed r34 fuel cost root cause but parked the fix (wrong direction for Combined).
 
@@ -106,12 +114,15 @@ Mechanics added across May 12–15 sessions — see decisions log A21 + A22 + A3
 | [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) | Locked spec (D1–D27) |
 | [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) | Running decisions log (A1–A36) |
 
-## What's left, in priority order (post-A38)
+## What's left, in priority order (post-A39)
 
 | Item | Est. impact | Notes |
 | --- | --- | --- |
-| **Close residual 0.21-0.49 pp Combined gap** | — | A38 closed ~7-9 bps. Bigger remaining levers are revenue/capex side. |
-| **NOL pool + depreciation-from-construction (DONE — A38)** | +0.07-0.09 pp delivered | NOL pool activated by widening `_calc_tax` mask + dep-from-construction + multi-account dep + A35 phasing on. Delivered toward low end of 10-25 bps est. — the financing-account 5.56%/mo RB rate on IDC + Fin Fees was the key unlock; gas chain's NPV penalty from earlier capex partly offsets the SB tax-shield gain. |
+| **SME tolerance conversation with Anchal** | Closes 3 of 4 rows at ±0.3 pp | m115_170 and m115_160 at -0.19 pp; d13 -0.32; m82_160 -0.45. ±0.3 pp tolerance accepts 3/4. 15-min call could resolve the credibility/handover concern. |
+| Variable CPI curve refactor | 0-1 bp | Three-quarters fix already in place via flat 2.0%. Marginal value. |
+| Insurance construction premium (Op r124) | 1-2 bps | Excel has £287k yrs 0-1 dropping to £205k yr 2+. Engine flat at £166k. Mechanism unclear from Op r124 reference. |
+| **Solar fixed indexation residual (DONE — A39)** | +0.02-0.04 pp delivered | CPI rate 2.5% → 2.0% (Excel `Curves and D&T!r10` steady-state). 5 of 6 CPI-indexed lines now within 0.5% of Excel; Insurance still off due to separate construction-premium mechanism. |
+| **NOL pool + depreciation-from-construction (DONE — A38)** | +0.07-0.09 pp delivered | NOL pool activated by widening `_calc_tax` mask + dep-from-construction + multi-account dep + A35 phasing on. Delivered toward low end of 10-25 bps est. |
 | **r34 fuel cost root cause (DONE — parked)** | 0 bps Combined; would close -3.6 pp Gas-only over-shoot if ever needed | Root cause CONFIRMED: (1) fuel-price escalation off-by-one (engine flat period is 4 years, Excel is 3 years — change `(1.01)^max(0, oy-3)` to `max(0, oy-2)`); (2) heat-rate degradation between major-maintenance events (Excel r29 ramps ~1.5%/yr, resets at maint events; engine uses fixed 0.385). r16 (electric MWh) is flat in Excel — heat-rate degradation affects fuel consumption only, no revenue-side counterpart. Both fixes would widen the Combined gap → **parked indefinitely for Combined audit**. Can be revisited if Gas-only IRR alignment becomes a separate SME requirement. |
 | **A36 follow-up r45/r58 (DONE — null result)** | 0 bps | A37 verified r45 Contract O&M Δ -£3.4k and r58 Insurance Δ -£1.3k both within rounding of Excel. Smooth multiplicative escalation matches engine assumption. No fix needed. |
 | Small solar fixed residual (~£1,100k aggregate) | 5-7 bps | 5 CPI lines uniformly 2.3% over + Insurance 3.4% over. Likely indexation timing/anchor-date mismatch (start from `Inputs!r293-304 = 2023-03-01`). |
@@ -167,7 +178,7 @@ python -m pytest tests/ --no-header
 streamlit run app.py
 ```
 
-Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (locked state, D1–D29), then [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) Revisions log + most recent sections A38 → A37 → A36 → A35 → A34 → A33 → A32 (in order of recency) for the 2026-05-15 + 2026-05-16 session activity.
+Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (locked state, D1–D29), then [docs/Project_IRR_Integration_Decisions.md](Project_IRR_Integration_Decisions.md) Revisions log + most recent sections A39 → A38 → A37 → A36 → A35 → A34 → A33 → A32 (in order of recency) for the 2026-05-15 + 2026-05-16 session activity.
 
 ## Session-by-session uplift summary
 
@@ -182,4 +193,5 @@ Read [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) first (
 | 2026-05-15 (A36) | -0.42 pp (engine 8.78%) | Gas major maint discrete events; 2042 anomaly resolved |
 | 2026-05-16 (A37) | -0.42 pp (engine 8.78%, no change) | Priority-1 diagnostic — r45/r58 already smooth/matching; r34 has separate 3.8% under-shoot (wrong direction for Combined). No engine changes. |
 | 2026-05-16 (A37 root cause) | -0.42 pp (engine 8.78%, no change) | r34 root cause CONFIRMED via decomposition — fuel-esc off-by-one + heat-rate degradation between maint events. r16 (electric MWh) flat → no revenue-side counterpart. Both fixes wrong-direction for Combined → parked indefinitely. NOL+dep-from-construction promoted to priority-1. |
-| 2026-05-16 (A38) | **-0.35 pp** (engine **8.85%**, +0.07 pp) | Multi-account dep + dep-from-construction + A35 phasing on. NOL pool activated (was dormant pre-A38). 4 matrix rows lifted +0.07-0.09 pp uniform. Tests re-baselined: Combined 8.85% / S+B 9.02% / Gas 13.07%. |
+| 2026-05-16 (A38) | -0.35 pp (engine 8.85%, +0.07 pp) | Multi-account dep + dep-from-construction + A35 phasing on. NOL pool activated (was dormant pre-A38). 4 matrix rows lifted +0.07-0.09 pp uniform. Tests re-baselined: Combined 8.85% / S+B 9.02% / Gas 13.07%. |
+| 2026-05-16 (A39) | **-0.32 pp** (engine **8.88%**, +0.03 pp) | CPI rate 2.5% → 2.0% per Excel `Curves and D&T!r10` steady-state. 5 CPI-indexed lines uplifted uniformly. m115_170 and m115_160 now at -0.19 pp gap each (closest to ±0.1 pp tolerance). |

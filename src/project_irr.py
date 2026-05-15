@@ -34,7 +34,11 @@ import numpy as np
 
 DEFAULT_ESCALATION_RATES = {
     "NIL": 0.0,
-    "CPI": 0.025,
+    # A39 (2026-05-16): CPI 2.5%→2.0% per Excel `Curves and D&T!r10` steady-state
+    # rate from 2027 onward. The curve is "Variable" per Excel but stabilises at
+    # 2.0% from ops year 0 (2027) onward (earlier years: 2022=3.1%, 2023=2.5%,
+    # 2024-25=2.2%, 2026=2.1% — pre-COD inflation handled via base values).
+    "CPI": 0.020,
     "RPI": 0.030,
     "PPA Indexation": 0.0,    # PPA indexed at tariff_escalation, set on input
     "BESS Indexation": 0.020,
