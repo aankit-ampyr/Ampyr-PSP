@@ -611,7 +611,7 @@ if st.session_state.analysis_results is not None:
             "Excel for the IC-pack headline IRR."
         )
 
-        f_col1, f_col2, f_col3, f_col4, f_col5, f_col6 = st.columns(6)
+        f_col1, f_col2, f_col3, f_col4, f_col5, f_col6, f_col7 = st.columns(7)
         f_col1.metric(
             "Combined PIRR",
             f"{financial_row.get('Combined PIRR (%)', float('nan')):.2f}%"
@@ -628,12 +628,19 @@ if st.session_state.analysis_results is not None:
             "NPV (GBPm)",
             f"{financial_row.get('NPV (GBPm)', float('nan')):.1f}"
         )
+        moic = financial_row.get('MOIC (x)', float('nan'))
         f_col5.metric(
+            "MOIC",
+            "n/a" if pd.isna(moic) else f"{moic:.2f}x",
+            help="Multiple on Invested Capital, ungeared FCFF basis: "
+                 "sum(positive FCFF) / |sum(negative FCFF)|."
+        )
+        f_col6.metric(
             "CAPEX (GBPm)",
             f"{financial_row.get('Total CAPEX (GBPm)', float('nan')):.1f}"
         )
         payback = financial_row.get('Payback (yrs)', float('nan'))
-        f_col6.metric(
+        f_col7.metric(
             "Payback (yrs)",
             "n/a" if pd.isna(payback) else f"{payback:.1f}"
         )

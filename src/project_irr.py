@@ -697,6 +697,12 @@ class PirrResults:
     total_revenue_lifetime: float = 0.0
     total_opex_lifetime: float = 0.0
     total_tax_lifetime: float = 0.0
+    # MOIC (Multiple on Invested Capital) — ungeared FCFF basis.
+    # = sum(positive FCFF months) / |sum(negative FCFF months)|.
+    # For a project with positive Project IRR, MOIC > 1.0; typical 35-year
+    # infrastructure assets with 8-10% IRR land in the 2.5-3.5x range.
+    # Returns NaN if no negative cash flows (degenerate). See Spec §7 + A46.
+    moic: float = float("nan")
 
     dates: np.ndarray = field(default_factory=lambda: np.array([]))
     revenue: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -1750,6 +1756,17 @@ def _run_pirr_core(inp: PirrInputs) -> PirrResults:
 
     res.project_irr = xirr(dates, fcff)
     res.project_npv = xnpv(dates, fcff, inp.discount_rate)
+
+    # MOIC (A46): split FCFF by sign. Distributions = positive months
+    # (operating returns); Contributions = absolute value of negative months
+    # (construction capex + any net operating losses + terminal outflows).
+    # Ungeared basis — matches the FCFF-level IRR.
+    distributions = float(fcff[fcff > 0].sum())
+    contributions = float(-fcff[fcff < 0].sum())
+    res.moic = (
+        distributions / contributions if contributions > 0 else float("nan")
+    )
+
     return res
 
 

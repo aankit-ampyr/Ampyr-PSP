@@ -1411,7 +1411,7 @@ def main():
 
         # --- Primary metric: Combined Project IRR ---
         st.subheader("Summary")
-        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+        m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
         with m_col1:
             irr_pct = results.project_irr * 100 if not np.isnan(results.project_irr) else 0
             st.metric("Project IRR (Combined)", f"{irr_pct:.2f}%",
@@ -1422,6 +1422,13 @@ def main():
         with m_col3:
             st.metric("Total CAPEX (GBPm)", f"{results.total_capex / 1000:,.2f}")
         with m_col4:
+            moic_val = results.moic if not np.isnan(results.moic) else 0
+            st.metric(
+                "MOIC", f"{moic_val:.2f}x" if moic_val > 0 else "N/A",
+                help="Multiple on Invested Capital, ungeared FCFF basis: "
+                     "sum(positive FCFF) / |sum(negative FCFF)|."
+            )
+        with m_col5:
             # Payback: month when cumulative FCFF first turns positive
             if len(results.fcff) > 0:
                 cum = np.cumsum(results.fcff)

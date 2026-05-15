@@ -169,6 +169,7 @@ def run_pirr_for_config(
         "S+B PIRR (%)": _pct(results.project_irr_solar_bess),
         "Gas PIRR (%)": _pct(results.project_irr_gas),
         "NPV (GBPm)": results.project_npv / 1000.0,
+        "MOIC (x)": results.moic,
         "Total CAPEX (GBPm)": results.total_capex / 1000.0,
         "Lifetime Revenue (GBPm)": results.total_revenue_lifetime / 1000.0,
         "Payback (yrs)": payback_yrs,
@@ -347,6 +348,7 @@ def main():
                     "S+B PIRR (%)": float("nan"),
                     "Gas PIRR (%)": float("nan"),
                     "NPV (GBPm)": float("nan"),
+                    "MOIC (x)": float("nan"),
                     "Total CAPEX (GBPm)": float("nan"),
                     "Lifetime Revenue (GBPm)": float("nan"),
                     "Payback (yrs)": float("nan"),
@@ -400,7 +402,7 @@ def main():
         with col_b:
             sort_options = [
                 "Combined PIRR (%)", "S+B PIRR (%)", "NPV (GBPm)",
-                "Total CAPEX (GBPm)", "Payback (yrs)", "BESS (MWh)",
+                "MOIC (x)", "Total CAPEX (GBPm)", "Payback (yrs)", "BESS (MWh)",
             ]
             sort_by = st.selectbox(
                 "Sort by", sort_options, index=0,
@@ -423,7 +425,7 @@ def main():
         ) if c in view.columns]
         financial_cols = [
             "Combined PIRR (%)", "S+B PIRR (%)", "Gas PIRR (%)",
-            "NPV (GBPm)", "Total CAPEX (GBPm)", "Payback (yrs)",
+            "NPV (GBPm)", "MOIC (x)", "Total CAPEX (GBPm)", "Payback (yrs)",
         ]
         ordered = identity_cols + operational_cols + financial_cols
         ordered = [c for c in ordered if c in view.columns]
@@ -440,6 +442,7 @@ def main():
                 "S+B PIRR (%)": st.column_config.NumberColumn(format="%.2f"),
                 "Gas PIRR (%)": st.column_config.NumberColumn(format="%.2f"),
                 "NPV (GBPm)": st.column_config.NumberColumn(format="%.1f"),
+                "MOIC (x)": st.column_config.NumberColumn(format="%.2f"),
                 "Total CAPEX (GBPm)": st.column_config.NumberColumn(format="%.1f"),
                 "Payback (yrs)": st.column_config.NumberColumn(format="%.1f"),
                 "Delivery %": st.column_config.ProgressColumn(
