@@ -111,9 +111,9 @@ def check_prerequisites():
     """Check that Step 5 multi-year projection data is available."""
     # Check for multi-year monthly data from Step 5
     has_multiyear = 'multiyear_monthly' in st.session_state
-    # Step 3 writes to st.session_state.sizing_results (matches Step 4's reader).
-    # Canonical wizard['results']['simulation_results'] is currently unused by
-    # any writer — kept as a future-state contract. See P1 cleanup.
+    # Top-level `st.session_state.sizing_results` is the canonical storage per
+    # Spec §8 (Step 3 writes; Step 3a/Step 4/Step 7 read). The previously dead
+    # `wizard['results']['simulation_results']` slot was removed in A42.
     has_sizing = (
         'sizing_results' in st.session_state
         and st.session_state.sizing_results is not None

@@ -136,8 +136,12 @@ DEFAULT_WIZARD_STATE = {
     },
 
     # Step 4: Results
+    # Note: sizing simulation results live at top-level `st.session_state.sizing_results`
+    # per Spec §8 and Step 1's cache-invalidation contract — NOT nested here. See
+    # decisions log A42 (2026-05-16). The remaining keys below are present-but-
+    # unused (helpers in this module reference them, but no page imports those
+    # helpers); flagged for a future broader cleanup, not in scope for A42.
     'results': {
-        'simulation_results': None,  # DataFrame with all configs
         'selected_configs': [],  # List of config indices for comparison (max 3)
         'sort_column': 'delivery_pct',
         'sort_ascending': False,
