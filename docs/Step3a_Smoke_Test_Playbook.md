@@ -44,6 +44,122 @@ URL: http://localhost:8501
 
 ---
 
+## A. Browser-agent verification — A40 / A41 / A42 (NEW 2026-05-16)
+
+**Intent.** A focused, step-by-step verification of the three changes that landed today: A40 (time-varying CPI curve, null-result for IRR), A41 (Step 4 Financial Metrics section), A42 (sizing_results unification). Designed to be executable by a browser-driving agent (Claude for Chrome extension or similar). The longer §3 walkthrough below covers the same paths plus regressions, but §A is the minimum set for verifying today's commits.
+
+**Pre-flight (already done by Ankit / Claude Code agent before handoff):**
+
+- Engine audit: `python -X utf8 tests/test_project_irr_excel_parity.py` → D13 row prints **Combined 8.88%** / **S+B 9.05%** / **Gas 13.07%**. All 4 rows xfail (audit gap pending Anchal Q2 tolerance).
+- pytest: **42 passed + 4 xfailed**.
+- Streamlit running. Replace `<URL>` below with the live URL (e.g. `http://localhost:8510`).
+
+### A.1 — Open the app, confirm sidebar
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.1.1 | Navigate browser to `<URL>` | Page loads; no error overlay; sidebar lists Step1_Setup through Step7_Financial plus Step3a_FinancialSweep |
+| A.1.2 | Confirm Step 1 is active by default | Sidebar shows "Step1_Setup" highlighted, OR clicking it from sidebar lands on Step 1 |
+
+### A.2 — Step 1: Setup (D13 inputs)
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.2.1 | Click "Step1_Setup" in the sidebar | Title shows "Step 1: Setup" or similar; no traceback |
+| A.2.2 | Load mode = "Constant"; Load MW = **25** | Field accepts 25 |
+| A.2.3 | Solar source = "From Inputs folder" | Dropdown appears below |
+| A.2.4 | Solar file = **`Burton_Leonard_82MWp_DC_58MW_AC`** (or with `.csv` suffix if shown) | Dropdown selects it; profile preview/chart updates if any |
+| A.2.5 | Solar capacity (MW) = **82** | Field accepts 82 |
+| A.2.6 | In BESS container types, ensure **`5mwh_1.25mw` (4-hour)** is selected | Container appears in selection |
+| A.2.7 | BESS efficiency = **87**, min SOC = **5**, max SOC = **95** | All fields accept values |
+| A.2.8 | DG enabled = **ON** (checkbox/toggle) | Toggle switches |
+| A.2.9 | Scroll the page; no Streamlit exception overlay visible | Clean |
+
+### A.3 — Step 2: Rules (defaults)
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.3.1 | Click "Step2_Rules" in sidebar | Page loads; leave all fields at defaults |
+| A.3.2 | Click any "Next" / advance button if present | Reaches Step 3 or no-op (rules optional for sweep) |
+
+### A.4 — Step 3: Sizing sweep
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.4.1 | Click "Step3_Sizing" in sidebar | Page loads; no traceback |
+| A.4.2 | BESS min = **50**, max = **300**, step left at default | Accepts values |
+| A.4.3 | DG min = **25**, max = **25** | Accepts values |
+| A.4.4 | Click the "Run Simulation" / "Run Sweep" button (whatever's labelled there) | Progress bar appears; status text updates per config; finishes in <60 s |
+| A.4.5 | Results table appears below | Table has columns including `BESS (MWh)`, `Duration (hr)`, `DG (MW)`, `Delivery %`, `Green %`, `Wastage %`. ~102 rows |
+| A.4.6 | Filter or scroll to find row: `BESS (MWh) = 250`, `Duration (hr) = 4`, `DG (MW) = 25` | Row exists |
+
+### A.5 — Step 3a: Financial Sweep (A40 indirect verification)
+
+A40 is a time-varying CPI curve that produced a null result at 2-decimal precision. We're checking that the engine still produces the post-A40 numbers via the wizard-state path (not a separate visible UI change).
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.5.1 | Click "£ Add Financial Analysis" button at the bottom of Step 3 (or navigate to Step3a_FinancialSweep via sidebar) | Step 3a page loads |
+| A.5.2 | Verify the "Sweep Configuration" section shows `Operational Configs: ~102`, `Load (MW): 25`, `Solar DC (MWp): 82` | All three correct |
+| A.5.3 | Click "Run Financial Sweep" (primary button) | Progress bar; per-config status text; finishes in 8–15 s (D16 perf budget) |
+| A.5.4 | "Ranked Results" table appears | Has columns: `BESS (MWh)`, `Duration (hr)`, `DG (MW)`, `Delivery %`, `Green %`, `Combined PIRR (%)`, `S+B PIRR (%)`, `Gas PIRR (%)`, `NPV (GBPm)`, `Total CAPEX (GBPm)`, `Payback (yrs)` |
+| A.5.5 | Find the row `BESS=250, Duration=4, DG=25`. Read Combined / S+B / Gas PIRR. | **Combined ≈ 8.88%** (±0.10), **S+B ≈ 9.05%** (±0.10), **Gas ≈ 13.07%** (±0.20). CAPEX ≈ £101.6m |
+| A.5.6 | Best-config callout below the table names a specific config + its PIRR | Some config named; numbers match the table |
+| A.5.7 | No `Error` column visible in the table | Clean (no per-config crashes) |
+
+**If A.5.5 numbers diverge from expected by > 0.5 pp** — A40 wiring may have broken the wizard-state path. Run `python -X utf8 tests/test_project_irr_excel_parity.py` to confirm fixture path is still 8.88% — if so, the gap is in `pirr_inputs_from_wizard_state`.
+
+### A.6 — Step 4: A41 Financial Metrics section (happy path)
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.6.1 | From Step 3a, click "Next → Step 4 Results" (or sidebar Step 4) | Step 4 page loads |
+| A.6.2 | In the Configuration Selection block at top: Duration Class = **4-hour (0.25C)**, BESS Capacity (MWh) = **250**, DG Capacity (MW) = **25** | Fields accept |
+| A.6.3 | A green banner says "Found cached results from Step 3 sizing run" | Visible |
+| A.6.4 | Click "See Results" (primary button) | Page renders metrics block + monthly summary table + hourly chart |
+| A.6.5 | **A41 verification**: scroll to find the **"£ Financial Metrics"** subheader. Location: below the "Solar Utilization" metric row, above "Monthly Performance Summary" | Subheader visible |
+| A.6.6 | Below it: **6 metric tiles** in a single row | Tiles labelled: Combined PIRR, S+B PIRR, Gas PIRR, NPV (GBPm), CAPEX (GBPm), Payback (yrs) |
+| A.6.7 | Values: Combined **8.88%**, S+B **9.05%**, Gas **13.07%**, NPV (some figure), CAPEX **101.6** (GBPm), Payback (some figure) | Numbers match Step 3a's row from A.5.5 |
+| A.6.8 | A caption below the tiles mentions "Step 3a Financial Sweep" + the A24 dispatch-module mismatch warning ("green/DG share may differ") | Caption present |
+
+**If A.6.5 fails (no "£ Financial Metrics" subheader)** — A41 isn't wired. Check that `st.session_state.financial_results` exists (Step 3a's "Run Financial Sweep" was clicked in §A.5). Check `find_cached_financial` returns non-None for `(250, 25, '5mwh_1.25mw')`.
+
+### A.7 — Step 4: A41 info banner (no-match path)
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.7.1 | Still in Step 4, change BESS Capacity (MWh) from 250 to **5** (a value NOT in Step 3's sweep range) | Field accepts |
+| A.7.2 | Click "Run Simulation" / "See Results" (button label depends on cache state) | Simulation runs; results display updates |
+| A.7.3 | Where the "£ Financial Metrics" section was (in A.6), the metric tiles are now **replaced** by an **info banner** | Banner present, blue background |
+| A.7.4 | Banner text contains "Financial sweep exists but does not include this config" and mentions the current BESS / DG / duration | Text present |
+
+### A.8 — Step 4: A41 silent fallback (no Step 3a run)
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.8.1 | Stop the Streamlit server (Ctrl-C in the terminal, or via TaskStop on the bg process) | Server stops |
+| A.8.2 | Restart Streamlit: `streamlit run app.py --server.headless true --server.port 8510` | Server boots, prints URL |
+| A.8.3 | Navigate browser to the URL, walk Step 1 (same inputs as A.2) → Step 3 (same inputs as A.4, run sweep) → **SKIP Step 3a** → directly to Step 4 | All pages load |
+| A.8.4 | In Step 4, set BESS = 250, Duration = 4, DG = 25, click "See Results" | Page renders |
+| A.8.5 | Confirm **no "£ Financial Metrics" subheader** appears and **no info banner** appears | Pre-A41 UX preserved |
+
+### A.9 — A42 verification (sizing_results unification)
+
+A42 dropped the dead `wizard['results']['simulation_results']` slot. The visible behaviour is that nothing changes — every consumer still reads `st.session_state.sizing_results` (top-level). The verification is therefore that the pages that depend on `sizing_results` still work.
+
+| Step | Action | Pass criteria |
+| --- | --- | --- |
+| A.9.1 | After §A.5 (Step 3a ran successfully), Step 3a's sweep used `sizing_results` as input | Sweep ran; PIRRs computed |
+| A.9.2 | §A.6 (Step 4 happy path) also worked off `sizing_results` (via `find_cached_result`) + `financial_results` (via the new `find_cached_financial`) | Step 4 metrics tiles rendered |
+| A.9.3 | Navigate to Step 7 (sidebar). It should NOT show a "Step 3 sizing run is required" warning since we ran Step 3. | Step 7 prerequisite check passes (the A42 comment update went here) |
+
+### A.10 — Wrap-up
+
+- Pass if A.1 through A.9 all pass.
+- For each step that fails, capture: (a) browser screenshot, (b) the corresponding line from the Streamlit server log (file path was reported when Streamlit launched), (c) the step ID. Report back so the failure can be triaged.
+
+---
+
 ## 2. Inputs to use — D13-equivalent config
 
 To sanity-check Step 3a's output, use inputs that produce a config in the sweep range matching D13. Then look for the row where BESS = 250 MWh, Duration = 4 hr, DG = 25 MW. That row's PIRR should land at the **current engine state** (post-A40, 2026-05-16):
