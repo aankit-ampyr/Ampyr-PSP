@@ -1,6 +1,8 @@
 # Step 3a — Browser Smoke-Test Playbook
 
-> **⚠️ 2026-05-14 — AUDIT TARGET REVERSED.** Anchal's reply confirmed the SME matrix targets are **Combined PV+BESS+Gas PIRRs**, not S+B-only. The pre-§15 expectation of D13 S+B 8.93% / Combined 8.77% is now wrong as a pass criterion: the new headline target is **D13 Combined PIRR = 9.2%** (engine currently 8.77% → -0.43 pp, FAILS audit). All four matrix rows are Combined targets per decisions log A29. **§2's expected values below are stale** — see A29 for current numbers. Smoke test paths still work for UI verification, but Path A's "D13 sanity check" needs updated expected values before next browser run.
+> **2026-05-16 — current state.** Engine post-A40 produces D13 Combined **8.88%** / S+B **9.05%** / Gas **13.07%**. Target Combined 9.2% (-0.32 pp gap). All 4 audit-matrix rows in xfail pending Anchal's reply on Q1/Q2 tolerance memo. The 4 audit rows have ranged from -0.45 to -0.19 pp across the matrix; m115_170 + m115_160 are closest at -0.19 pp. UI walkthrough below is now a pass/fail check against the engine's ACTUAL numbers (8.88% Combined), not the audit TARGET (9.2%). §2's expected values are aligned with current engine output.
+>
+> **2026-05-14 (kept for history).** Anchal's reply confirmed SME matrix targets are Combined PV+BESS+Gas PIRRs, not S+B-only. The pre-§15 expectation of D13 S+B 8.93% / Combined 8.77% (which expected the old A22 engine state) was the prior baseline.
 
 **Purpose.** Reproducible end-to-end smoke test for the Step 3a Financial Sweep page. Run this whenever you change the PIRR engine, the wizard-state adapter, the dispatch chain, or any page Step 3a depends on (Step 1, Step 3, Step 7). Designed for a Claude agent driving Streamlit + a browser (manually or via a future browser-automation tool).
 
@@ -15,9 +17,9 @@ Run each command, confirm the expected output. If any fails, stop and diagnose b
 | # | Command | Expected | If wrong |
 | --- | --- | --- | --- |
 | 0.1 | `git status --short` | Working tree changes match what you're testing; no stray `tests/diag_*.py` | Clean up — see prior conversation pattern (delete diag files) |
-| 0.2 | `python -X utf8 tests/test_project_irr_excel_parity.py 2>&1 \| tail -10` | D13 row prints `S+B 8.93%` (±0.01), `Combined 8.77%`, `Gas 13.65%` | Engine has regressed; do NOT proceed |
-| 0.3 | `python -m pytest tests/ --no-header -q 2>&1 \| tail -3` | `34 passed, 4 xfailed` | Same as 0.2 |
-| 0.4 | `python -X utf8 -c "import streamlit; print(streamlit.__version__)"` | Some version prints | `pip install -r requirements.txt` |
+| 0.2 | `python -X utf8 tests/test_project_irr_excel_parity.py 2>&1 \| tail -10` | D13 row prints `Combined 8.88%` (±0.01), `S+B 9.05%`, `Gas 13.07%` (post-A40 state). All 4 audit rows xfail with combined gaps in range [-0.45, -0.19] pp. | Engine has regressed; do NOT proceed |
+| 0.3 | `python -m pytest tests/ --no-header -q 2>&1 \| tail -3` | `42 passed, 4 xfailed` | Same as 0.2 |
+| 0.4 | `python -X utf8 -c "import streamlit; print(streamlit.__version__)"` | Some version prints (last verified 2026-05-16: 1.51.0) | `pip install -r requirements.txt` |
 
 If 0.1–0.4 all pass: proceed.
 
@@ -44,15 +46,15 @@ URL: http://localhost:8501
 
 ## 2. Inputs to use — D13-equivalent config
 
-To sanity-check Step 3a's output, use inputs that produce a config in the sweep range matching D13. Then look for the row where BESS = 250 MWh, Duration = 4 hr, DG = 25 MW. That row's PIRR should land at:
+To sanity-check Step 3a's output, use inputs that produce a config in the sweep range matching D13. Then look for the row where BESS = 250 MWh, Duration = 4 hr, DG = 25 MW. That row's PIRR should land at the **current engine state** (post-A40, 2026-05-16):
 
-| Metric | Expected |
-| --- | --- |
-| Combined PIRR | **8.77%** (±0.05) |
-| S+B PIRR | **8.93%** (±0.05) |
-| Gas PIRR | **13.65%** (±0.10) |
+| Metric | Expected (engine) | Target (SME) | Notes |
+| --- | --- | --- | --- |
+| Combined PIRR | **8.88%** (±0.05) | 9.2% | -0.32 pp gap, awaiting Anchal Q2 tolerance reply |
+| S+B PIRR | **9.05%** (±0.05) | (matrix doesn't break out S+B) | |
+| Gas PIRR | **13.07%** (±0.10) | (matrix doesn't break out Gas) | |
 
-If those numbers come out cleanly, the page is wired to the engine correctly. The audit run is authoritative — `python -X utf8 tests/test_project_irr_excel_parity.py` produces these same numbers via the fixture path; Step 3a should produce them via the wizard-state path. If they diverge, it's a wizard-state adapter bug (see A24's merchant-curve sub-finding for a recent example).
+If those numbers come out cleanly via Step 3a, the page is wired to the engine correctly. The audit run is authoritative — `python -X utf8 tests/test_project_irr_excel_parity.py` produces these same numbers via the fixture path; Step 3a should produce them via the wizard-state path. If they diverge, it's a wizard-state adapter bug (see A24's merchant-curve sub-finding for a recent example).
 
 ### Step 1 inputs
 
@@ -179,13 +181,15 @@ Total configs ≈ ((300−50)/5+1) × 2 container types × 1 DG = 102 configs. L
 - Green success callout: "Top by Combined PIRR: …" naming a specific (MWh / hr / DG) config and its PIRR
 - "Download financial sweep (CSV)" button present
 
-**Verify D13 row sanity check:**
+**Verify D13 row sanity check** (engine state post-A40, 2026-05-16):
 
 - Find the row where BESS (MWh) = 250, Duration (hr) = 4, DG (MW) = 25
-- Combined PIRR should be **≈ 8.77 %** (within ±0.10)
-- S+B PIRR should be **≈ 8.93 %** (within ±0.10)
-- Gas PIRR should be **≈ 13.65 %** (within ±0.20)
+- Combined PIRR should be **≈ 8.88 %** (within ±0.10)
+- S+B PIRR should be **≈ 9.05 %** (within ±0.10)
+- Gas PIRR should be **≈ 13.07 %** (within ±0.20)
 - Total CAPEX should be **≈ £101.6 m**
+
+(SME target is 9.2% Combined — the engine is currently -0.32 pp under target, awaiting Anchal's Q2 tolerance reply. UI test is engine-vs-engine, not engine-vs-target.)
 
 If those numbers are off by > 0.5 pp from the audit:
 
@@ -246,16 +250,51 @@ We changed `src/project_irr.py` engine defaults (merchant curve). Step 7 calls `
 
 **Verify:**
 
-- Result reports Combined PIRR ≈ 8.77 %, S+B 8.93 %, Gas 13.65 %
+- Result reports Combined PIRR ≈ **8.88 %**, S+B **9.05 %**, Gas **13.07 %** (engine state post-A40, 2026-05-16)
 - *(If results report ≈ 7.86 % S+B / 7.88 % Combined: the engine merchant-curve default fix didn't take. Re-check `src/project_irr.py`.)*
 
-### 4.2 Step 4 — Results
+### 4.2 Step 4 — Results (A41 Financial Metrics section)
 
-We didn't touch Step 4 in Phase 1. Should still render the operational results table normally.
+A41 (2026-05-16) added a conditional "£ Financial Metrics" section to Step 4's per-config drilldown. It surfaces Combined/S+B/Gas PIRR + NPV + CAPEX + Payback for the SELECTED config when `st.session_state.financial_results` exists (i.e. user has run Step 3a) and the selected config matches a row in the sweep (join on BESS MWh × DG MW × Duration hr).
 
-**Action:** click Step 4. Confirm it renders without crash and shows operational metrics.
+**Action 1 — happy path:**
 
-**Verify:** no PIRR/NPV columns visible in Step 4 (Phase 2 deferred work — they show up *only* after Phase 2 lands).
+1. After running Step 3a in §3.6 above, click "Next → Step 4 Results" (or sidebar Step 4).
+2. In Step 4, set "BESS Capacity (MWh)" = 250, "Duration Class" = 4-hour (0.25C), "DG Capacity (MW)" = 25. These match the D13 sweep row.
+3. Click "See Results" (button label flips to that when a Step 3 cached row matches).
+
+**Verify (happy path):**
+
+- "£ Financial Metrics" section renders below "Solar Utilization" metric row, above "Monthly Performance Summary"
+- 6 metric tiles: Combined PIRR ≈ **8.88%**, S+B PIRR ≈ **9.05%**, Gas PIRR ≈ **13.07%**, NPV (some figure), CAPEX (GBPm) ≈ **101.6**, Payback (yrs) (some figure)
+- Caption mentions A24 dispatch-module mismatch ("green/DG share may differ")
+- No exception in the server log
+
+**Action 2 — no-match info banner:**
+
+1. Without re-running Step 3a, change Step 4's BESS Capacity to a value NOT in Step 3's sweep (e.g. 5 MWh).
+2. Click "See Results" → "Run Simulation" (the cache won't match this row).
+
+**Verify (no-match banner):**
+
+- After simulation completes, an info banner appears in place of the metric tiles: "Financial sweep exists but does not include this config..."
+- Banner references the BESS MWh / DG MW / duration of the current selection
+- No exception in the server log
+
+**Action 3 — silent fallback (no Step 3a sweep):**
+
+1. Open a fresh Streamlit session (kill + restart).
+2. Walk through Step 1 → Step 3 only (no Step 3a). Open Step 4 and run a single-config simulation.
+
+**Verify (silent fallback):**
+
+- No "£ Financial Metrics" section. No info banner. Pre-A41 behaviour preserved.
+- Server log clean.
+
+**If fails:**
+
+- `find_cached_financial` join condition mismatch — verify column types in `st.session_state.financial_results` (Step 3a writes ints for BESS MWh; Step 4 selectbox returns ints too). Compare with `find_cached_result` which works identically.
+- Layout collision — Section sits between `if st.session_state.analysis_results is not None:` body's metrics block and the Monthly Summary table. Check no other Step 4 changes shifted code around this region.
 
 ### 4.3 Sidebar / app.py
 
@@ -305,7 +344,10 @@ After the smoke test:
 ✅ All 7 wizard steps + 3a render without crash
 ✅ Step 3 → Step 3a navigation works via the new button
 ✅ 100-config sweep completes in 8–15 s (D16 budget)
-✅ D13-equivalent row produces Combined ≈ 8.77 %, S+B ≈ 8.93 %, Gas ≈ 13.65 %
+✅ D13-equivalent row produces Combined ≈ 8.88 %, S+B ≈ 9.05 %, Gas ≈ 13.07 % (post-A40 state)
+✅ A41 Step 4 Financial Metrics section renders for in-sweep configs (post-A41, 2026-05-16)
+✅ A41 Step 4 info banner renders for out-of-sweep configs when sweep exists
+✅ A41 Step 4 stays silent when no sweep has been run
 ✅ Filters + sort + CSV download all work
 ✅ Step 7 still produces audit-matching numbers (regression check for the merchant-curve default)
 ✅ No "Error" column in sweep results (no per-config crashes)
