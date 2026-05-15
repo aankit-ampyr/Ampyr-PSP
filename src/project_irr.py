@@ -198,6 +198,40 @@ _DEPRECIATION_ACCOUNTS = {
 }
 
 
+# A40 (2026-05-16): time-varying CPI curve per Excel `Curves and D&T!r10`.
+# Values are calendar-year rates (not cumulative). Engine convention:
+# factor(ops_year=0) = 1.0, factor(y) = factor(y-1) × (1 + cpi[cod_year + y]).
+# Years not in the dict fall back to `cpi_steady_state_rate` (2.0% per Excel
+# steady-state from 2030 onwards). Replaces engine's flat rate from A39.
+_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR = {
+    2024: 0.000,
+    2025: 0.031,
+    2026: 0.025,
+    2027: 0.022,
+    2028: 0.022,
+    2029: 0.021,
+    # 2030+ falls back to 2.0% (cpi_steady_state_rate)
+}
+
+
+def _build_cpi_factor_lookup(curve: dict[int, float],
+                              steady_state: float,
+                              cod_year: int,
+                              n_ops_years: int) -> list[float]:
+    """Precompute `factor(ops_year)` for ops_year in [0, n_ops_years).
+
+    Convention: `factor(0) = 1.0` (engine baseline = no escalation at COD);
+    `factor(y) = factor(y-1) × (1 + curve[cod_year + y])`. Falls back to
+    `steady_state` rate for calendar years not in the curve.
+    """
+    out = [1.0]
+    for y in range(1, n_ops_years):
+        cal_year = cod_year + y
+        rate = curve.get(cal_year, steady_state) if curve else steady_state
+        out.append(out[-1] * (1.0 + rate))
+    return out
+
+
 # A32 (2026-05-15): post-PPA merchant balancing rate £/MWh by engine ops_year.
 # Derived from Excel Op r142 (monthly opex GBPk) / Op r52 (net gen MWh). The
 # underlying source is the `Baringa and Aurora` curve referenced by `Solar&BESS
@@ -212,7 +246,8 @@ _DEFAULT_MERCHANT_BALANCING_BY_OPS_YEAR = {
 }
 
 
-def _esc_factor(rates: dict, case: str, ops_year: int) -> float:
+def _esc_factor(rates: dict, case: str, ops_year: int,
+                cpi_factor_lookup: list[float] | None = None) -> float:
     """Escalation factor for the start of operations year `ops_year`.
 
     Year 0 = 1.0, year y = (1+rate)^y. Matches Excel convention where
@@ -224,12 +259,23 @@ def _esc_factor(rates: dict, case: str, ops_year: int) -> float:
       from operating year 3 onwards; ops_years 0-2 stay at base. PV O&M is
       the only D13 line using this case. Verified against Excel Op r117
       year-by-year totals (A34, 2026-05-15).
+
+      "CPI" — if `cpi_factor_lookup` is provided, use the precomputed
+      per-ops-year cumulative product from the variable curve in Excel
+      `Curves and D&T!r10` (A40, 2026-05-16). Falls back to the flat
+      `rates["CPI"]` value when not provided (backward-compatible).
     """
     if case == "O&M - Year 3 Onwards":
         if ops_year < 3:
             return 1.0
         rate = rates.get(case, 0.020)
         return (1.0 + rate) ** (ops_year - 2)
+    if case == "CPI" and cpi_factor_lookup is not None:
+        if 0 <= ops_year < len(cpi_factor_lookup):
+            return cpi_factor_lookup[ops_year]
+        # ops_year out of range: extend with steady-state rate
+        return cpi_factor_lookup[-1] * \
+            (1.0 + rates.get("CPI", 0.020)) ** (ops_year - (len(cpi_factor_lookup) - 1))
     return (1.0 + rates.get(case, 0.0)) ** ops_year
 
 
@@ -380,6 +426,16 @@ class PirrInputs:
     # "O&M - Year 3 Onwards" (Solar&BESS Inputs!r267). The other 8 solar
     # fixed lines use the bundled `opex_solar_fixed_indexation`.
     opex_pv_om_indexation: str = "O&M - Year 3 Onwards"
+    # A40 (2026-05-16): time-varying CPI curve per Excel `Curves and D&T!r10`.
+    # Calendar-year keyed dict; falls back to `cpi_steady_state_rate` for
+    # years not in the dict (Excel curve has explicit values 2024-2029, then
+    # 2.0% from 2030 onwards). Replaces A39's flat 2.0% — variable curve
+    # captures the higher early-year inflation (2.2% in 2027-28, 2.1% in 2029)
+    # that the steady-state rate alone underweights.
+    cpi_curve_by_calendar_year: dict = field(
+        default_factory=lambda: dict(_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR)
+    )
+    cpi_steady_state_rate: float = 0.020
 
     opex_balancing_cfd: float = 2.75    # GBP/MWh of generation, PPA period
     opex_solar_var_indexation: str = "NIL"  # Excel F287 (active branch) — flat CfD
@@ -780,7 +836,8 @@ def _select_yield(inp: PirrInputs) -> float:
 
 
 def _calc_revenue(inp: PirrInputs, rates: dict, dates: np.ndarray,
-                  is_operations: np.ndarray, ops_idx: np.ndarray) -> dict:
+                  is_operations: np.ndarray, ops_idx: np.ndarray,
+                  cpi_factor_lookup: list[float] | None = None) -> dict:
     n = len(dates)
     out = {k: np.zeros(n) for k in [
         "ppa", "solar_merchant", "rego", "embedded",
@@ -836,14 +893,16 @@ def _calc_revenue(inp: PirrInputs, rates: dict, dates: np.ndarray,
         # ---- REGO ----
         if inp.rego_switch and ops_year < inp.rego_tenor_years:
             out["rego"][i] = monthly_gen * inp.rego_price * \
-                _esc_factor(rates, inp.rego_indexation, ops_year) / 1000
+                _esc_factor(rates, inp.rego_indexation, ops_year,
+                            cpi_factor_lookup) / 1000
 
         # ---- 11kV embedded benefits ----
         if inp.emb_switch and ops_year < inp.emb_tenor_years \
                 and len(inp.emb_benefits_monthly) == 12:
             rate = inp.emb_benefits_monthly[m]  # GBP/MWh
             out["embedded"][i] = monthly_gen * rate * \
-                _esc_factor(rates, inp.emb_indexation, ops_year) / 1000
+                _esc_factor(rates, inp.emb_indexation, ops_year,
+                            cpi_factor_lookup) / 1000
 
         # ---- Capacity Market T-1 ----
         if d >= inp.cm_t1_start:
@@ -851,7 +910,8 @@ def _calc_revenue(inp: PirrInputs, rates: dict, dates: np.ndarray,
             if cm_t1_year < inp.cm_t1_tenor_years:
                 out["cm_t1"][i] = (
                     inp.cm_t1_value * inp.cm_t1_derating * inp.bess_mw / 12
-                    * _esc_factor(rates, inp.cm_t1_indexation, cm_t1_year)
+                    * _esc_factor(rates, inp.cm_t1_indexation, cm_t1_year,
+                                  cpi_factor_lookup)
                 )
 
         # ---- Capacity Market T-4 ----
@@ -860,13 +920,15 @@ def _calc_revenue(inp: PirrInputs, rates: dict, dates: np.ndarray,
             if cm_t4_year < inp.cm_t4_tenor_years:
                 out["cm_t4"][i] = (
                     inp.cm_t4_value * inp.cm_t4_derating * inp.bess_mw / 12
-                    * _esc_factor(rates, inp.cm_t4_indexation, cm_t4_year)
+                    * _esc_factor(rates, inp.cm_t4_indexation, cm_t4_year,
+                                  cpi_factor_lookup)
                 )
 
         # ---- BESS floor (net of underwriter rev share) ----
         if inp.bess_floor_switch and ops_year < inp.bess_floor_tenor_years:
             gross = (inp.bess_floor_price * inp.bess_mw / 12
-                     * _esc_factor(rates, inp.bess_floor_indexation, ops_year))
+                     * _esc_factor(rates, inp.bess_floor_indexation, ops_year,
+                                   cpi_factor_lookup))
             out["bess_floor"][i] = gross * (1.0 - inp.bess_floor_rev_share)
 
         # ---- Gas: PPA (year 1-10) THEN merchant (year 11 → gas EOL) ----
@@ -941,7 +1003,8 @@ def _days_in_month(d: date) -> int:
 
 def _calc_opex(inp: PirrInputs, rates: dict, dates: np.ndarray,
                is_operations: np.ndarray, ops_idx: np.ndarray,
-               revenue: np.ndarray) -> np.ndarray:
+               revenue: np.ndarray,
+               cpi_factor_lookup: list[float] | None = None) -> np.ndarray:
     n = len(dates)
     opex = np.zeros(n)
 
