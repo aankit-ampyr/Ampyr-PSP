@@ -1,5 +1,9 @@
 # PSP — Follow-up to Anchal (2026-05-16)
 
+> **2026-05-16 — DECISION TAKEN.** Ankit chose **Path 1** (accept ±0.5 pp for v1; queue DSCR sculpting + Equity IRR for v2). v1 audit CLOSED. Engine reproduces Excel within ±0.5 pp across all 4 audit rows; residual 0.3-0.5 pp pessimism documented as the structural carve-out per Anchal Q2 reply. v1 use case: pre-IC screening, what-ifs, sizing comparisons. Excel remains source-of-truth for IC-pack headline IRR. See decisions log A45 + Spec §9/§10. Anchal Teams confirmation to follow.
+
+---
+
 **For:** Anchal Gupta
 **From:** Ankit Agarwal
 **Date:** 2026-05-16

@@ -1,17 +1,18 @@
 """
 Project IRR Excel-parity test — locks the SME reference matrix.
 
-Spec D13 (primary audit row): 82 MWp DC / 58.4 MW grid / £170 PPA /
-250 MWh BESS / 25 MW gas / 25 MW load / Burton Leonard 58 MW profile
-→ expected PIRR = 8.9% (tolerance ±0.1 pp).
+v1 scope (A45, 2026-05-16): ±0.5 pp tolerance accepted. The residual
+0.23-0.48 pp gap across all 4 audit rows is the structural carve-out
+that A44 (Insurance schedule) confirmed Anchal pre-acknowledged in her
+Q2 reply: DSCR sculpting / cash sweep / iterative gearing convergence
+are deferred to v2 (Spec §10). Engine reproduces Excel within 0.5 pp
+across all 4 configs; the gap is uniform-direction and uniform-magnitude
+(under 0.25 pp range across rows), so config ranking is preserved.
 
-Three other matrix rows tracked as `xfail` until D13 passes. Their deltas
-are informative even when D13 is out of tolerance — consistent drift across
-all four rows would indicate a single global calibration issue rather than
-a per-case bug.
+Primary purpose for v1: pre-IC screening, what-ifs, sizing comparisons.
+Excel remains the source of truth for the official IC-pack IRR.
 
-See docs/Financial_Assumptions_Spec.md §9 and
-docs/Project_IRR_Integration_Decisions.md A10/A12/A17.
+See docs/Financial_Assumptions_Spec.md §9 + §10 + decisions log A45.
 
 Run:  python tests/test_project_irr_excel_parity.py
   or: python -m pytest tests/test_project_irr_excel_parity.py -v
@@ -28,7 +29,7 @@ from src.project_irr import run_pirr
 from tests.fixtures.d13_inputs import d13_inputs
 
 
-TOLERANCE_PP = 0.001   # 0.1 percentage points = 0.001 in decimal
+TOLERANCE_PP = 0.005   # ±0.5 percentage points = 0.005 in decimal (A45, v1)
 
 
 # SME reference matrix — Anchal's 2026-05-14 reply confirms ALL four targets
@@ -76,16 +77,11 @@ def _run_case(case: dict) -> dict:
     }
 
 
-# Primary test — D13 must be within tolerance on the Combined target.
-# Per Anchal 2026-05-14: matrix targets are Combined PV+BESS+Gas PIRRs.
-# Current engine produces D13 Combined ≈ 8.77% vs target 9.2% (-0.43 pp).
-# xfail tracks this gap as the new primary calibration objective post-A29.
-@pytest.mark.xfail(reason="Post-A29 (matrix reinterpreted as Combined): "
-                          "engine 8.77% vs Combined target 9.2% (-0.43 pp). "
-                          "Pre-A29 this test passed on the wrong (S+B-only) "
-                          "metric per the A20 misinterpretation. Calibration "
-                          "of the -0.43 pp Combined gap is the new headline "
-                          "objective.")
+# Primary test — D13 within v1 tolerance (±0.5 pp per A45).
+# Engine produces D13 Combined ≈ 8.84% post-A44 vs target 9.2% (-0.36 pp).
+# Within ±0.5 pp tolerance — passes. The structural ~0.4 pp gap is the
+# v1 carve-out (DSCR sculpting deferred to v2 per Spec §10). Tighter
+# tolerance (±0.1 pp) would require v2 work; xfail removed at A45.
 def test_d13_audit_combined():
     case = SME_MATRIX[0]
     r = _run_case(case)
@@ -95,8 +91,7 @@ def test_d13_audit_combined():
     assert abs(r["combined"] - r["combined_target"]) <= TOLERANCE_PP, msg
 
 
-# Secondary rows — xfail-tracked until D13 passes Combined target.
-@pytest.mark.xfail(reason="Combined-target calibration pending — see A29 for matrix-interpretation reversal")
+# Secondary rows — also locked at ±0.5 pp per A45.
 @pytest.mark.parametrize("case", SME_MATRIX[1:], ids=[c["id"] for c in SME_MATRIX[1:]])
 def test_secondary_matrix_rows(case):
     r = _run_case(case)
@@ -137,6 +132,8 @@ def main():
     print("  S+B-only = 8.85% (Equity!D175) | Combined = 9.23% (Consol Cash Flows!B9) | Gas = 10.77% (Cash Flows-Gas!D84)")
     print()
     print("D13 SME target (4h BESS, post-A29): Combined = 9.2%")
+    print("v1 tolerance: ±0.5 pp (A45). Residual gap = structural carve-out")
+    print("(DSCR sculpting + cash sweep deferred to v2 per Spec §10).")
     return True
 
 
