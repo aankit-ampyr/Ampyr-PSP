@@ -27,7 +27,6 @@ A40 is now committed and the IRR delta was null at 2-decimal precision (mechanis
 - **Step 3a Phase 2 — Step 4 conditional PIRR/NPV column augmentation** (per Spec D15). Cache invalidation already implemented (A27); needs UI verification. ~2-3 hr.
 - **Browser smoke-test FULL PASS** — was blocked by audit; may be unblockable depending on Anchal's tolerance answer. ~2-3 hr per the 15-iteration playbook in `docs/Step3a_Smoke_Test_Playbook.md`.
 - **Unify `sizing_results` vs canonical `wizard['results']['simulation_results']`** (P1 cleanup per A19). ~2 hr.
-- **Address duplicate `cpi_curve_by_calendar_year` field declaration** in `PirrInputs` (`src/project_irr.py` lines 435-437 AND 504-506). Both reference the same default factory so behaviour is correct (Python keeps the second), but the duplication is a hygiene bug from the A40 scaffolding-then-wiring sequence. ~5 min.
 
 **A39 mechanism (for ref)**: 1-line fix — Excel `Curves and D&T!r10` is "Variable" CPI; steady-state from ops_year 3 onward is 2.0%, not the engine's old 2.5%. Lifetime CPI-sum gap closed on 5 fixed solar lines (greenkeeping, community, real_estate_tax, non_tech_am, tech_am). Insurance over-shoot remains a separate mechanism (open question to Anchal).
 
