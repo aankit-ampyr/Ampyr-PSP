@@ -369,19 +369,6 @@ def main():
             f"D16 budget: 8–12 s for 100 configs."
         )
 
-        # --- TEMPORARY DEBUG (§16 smoke test) — remove after diagnosis ---
-        _dbg_peak = float(solar_mw_unscaled.max()) if solar_mw_unscaled is not None else -1
-        _dbg_fin_keys = sorted(fin.keys()) if fin else []
-        _dbg_capex_bess = fin.get("capex_bess", "NOT SET")
-        _dbg_enabled = fin.get("enabled", "NOT SET")
-        st.warning(
-            f"§16 DEBUG: profile_peak={_dbg_peak:.1f} MW, "
-            f"fin.enabled={_dbg_enabled}, "
-            f"fin.capex_bess={_dbg_capex_bess}, "
-            f"fin has {len(_dbg_fin_keys)} keys, "
-            f"target_dc_mwp={target_dc_mwp}"
-        )
-
     # -------------------------------------------------------------------------
     # Results table
     # -------------------------------------------------------------------------
@@ -389,6 +376,19 @@ def main():
         results_df: pd.DataFrame = st.session_state.financial_results
         st.divider()
         st.subheader("Ranked Results")
+        # v1 SME-facing disclosure (A45): the engine reports IRR ~0.3-0.5 pp
+        # lower than Excel for the audit matrix. Gap is the structural v1
+        # carve-out — DSCR sculpting / cash sweep / Equity IRR all deferred
+        # to v2 (Spec §10). Direction is uniform so config ranking +
+        # sensitivity are preserved; only the absolute level differs.
+        st.info(
+            "ℹ️ **v1 reports Project IRR ~0.3-0.5 pp lower than Excel** for "
+            "the audit matrix. The gap is the structural v1 carve-out — "
+            "DSCR sculpting + cash sweep + Equity IRR are deferred to v2. "
+            "Direction is uniform, so **config ranking and sensitivity are "
+            "preserved**; use Excel for the IC-pack headline IRR until v2 "
+            "lands."
+        )
 
         # Filter + sort
         col_a, col_b = st.columns([1, 2])

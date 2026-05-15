@@ -602,6 +602,14 @@ if st.session_state.analysis_results is not None:
             "to produce monthly aggregates, so the green/DG share may differ "
             "from the operational metrics above (see decisions log A24)."
         )
+        # v1 SME-facing disclosure (A45): conservative-offset note above
+        # the PIRR tiles.
+        st.info(
+            "ℹ️ **v1 reports Project IRR ~0.3-0.5 pp lower than Excel.** Gap is "
+            "the structural v1 carve-out (DSCR sculpting + cash sweep + Equity "
+            "IRR deferred to v2). Config ranking + sensitivity preserved; use "
+            "Excel for the IC-pack headline IRR."
+        )
 
         f_col1, f_col2, f_col3, f_col4, f_col5, f_col6 = st.columns(6)
         f_col1.metric(

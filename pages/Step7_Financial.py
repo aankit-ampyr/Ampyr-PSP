@@ -1399,6 +1399,16 @@ def main():
     if 'step7_pirr_result' in st.session_state:
         results: PirrResults = st.session_state['step7_pirr_result']
 
+        # v1 SME-facing disclosure (A45): the engine reports IRR ~0.3-0.5 pp
+        # lower than Excel for the audit matrix. Gap is the structural v1
+        # carve-out (DSCR sculpting + cash sweep + Equity IRR deferred to v2).
+        st.info(
+            "ℹ️ **v1 reports Project IRR ~0.3-0.5 pp lower than Excel.** Gap is "
+            "the structural v1 carve-out (DSCR sculpting + cash sweep + Equity "
+            "IRR deferred to v2). Config ranking + sensitivity preserved; use "
+            "Excel for the IC-pack headline IRR."
+        )
+
         # --- Primary metric: Combined Project IRR ---
         st.subheader("Summary")
         m_col1, m_col2, m_col3, m_col4 = st.columns(4)
