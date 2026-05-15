@@ -67,6 +67,7 @@ Out of scope (explicitly):
 | D28 | **Tax depreciation uses 3 parallel accounts** (A38 Phase A): per Excel `D&T!r51-r178`. Account 1 "Long term" (360 mo / 30 yr, monthly RB rate 2/360 = 0.5556%/mo) takes physical assets — solar EPC, BESS, grid, land, insurance + all gas capex. Account 3 "Financing" (36 mo / 3 yr, monthly RB rate 2/36 = 5.56%/mo) takes IDC + Financing Fees only. Account 2 "Short term" (96 mo / 8 yr) carries no D13 routing. DSRA is cash-only (returns at EOL, not depreciated). Engine constant `_DEPRECIATION_ACCOUNTS`. Capex line item → account mapping per Excel `Construction!B76:B112` SUMIF against `Curves and D&T!r71-r112` per-line "Choice" tags. | Excel `Construction!B76:B112` + `D&T!r51-r178` extracted 2026-05-16 |
 | D29 | **Depreciation begins at capex-addition month, not COD** (A38 Phase C): per Excel `D&T!r62` "Entering depreciation base" — additions in any month start their own depreciation chain in that month. Engine `_calc_depreciation(inp, additions_by_account, dates)` runs one chain per non-zero addition. Combined with the (pre-existing) NOL pool in `_calc_tax`, this lets construction-period depreciation generate tax losses that absorb against early ops-year income. Pre-A38 the engine started a single chain at COD; the NOL pool had nothing to absorb pre-ops. A38 also flips `capex_phasing_sb/gas` defaults from empty `{}` to the Burton-Leonard curves (`_DEFAULT_CAPEX_PHASING_*_BY_MONTH`), which previously caused -11 bps regression in isolation but combined with multi-account dep + dep-from-construction now yields +0.07 pp Combined uplift. | Excel `D&T!r62` + `Construction!r5/r6` capex phasing |
 | D30 | **CPI escalation uses time-varying curve, not flat rate** (A40): Excel `Curves and D&T!r10` is "Variable" with per-calendar-year rates (2025=3.1%, 2026=2.5%, 2027=2.2%, 2028=2.2%, 2029=2.1%, 2030+=2.0% steady-state). Engine constant `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR` mirrors the Burton-Leonard active branch; `_build_cpi_factor_lookup` precomputes per-ops-year cumulative factor; `_esc_factor` consumes the lookup for "CPI" case. Convention: `factor(ops_year=0) = 1.0` (no pre-COD anchor inflation in engine — the Excel-input base values are assumed to already be in COD-year prices). Years not in the curve fall back to `cpi_steady_state_rate` (engine flat 2.0% from A39). PirrInputs field `cpi_curve_by_calendar_year: dict` (defaulted). | A40 (2026-05-16): Excel `Curves and D&T!r10` extracted. A39's flat 2.0% missed the early-year detail; A40 adds the full curve but IRR delta is sub-bp because early years' deviation is small (0.1-0.2 pp from steady-state). |
+| D32 | **MOIC (Multiple on Invested Capital) reported alongside PIRR + NPV + Payback** (A46): per Spec §7 design intent ("PIRR / NPV / MOIC columns" in Step 4 augmentation). Engine field `PirrResults.moic`; computed as `sum(fcff > 0) / abs(sum(fcff < 0))` (ungeared FCFF basis: distributions / contributions). Matches the FCFF-level Project IRR definition. Returns NaN when no negative cash flows (degenerate). D13 audit MOIC = 2.22x; typical 35-yr infrastructure 8-10% IRR range is 2.5-3.5x (D13 slightly under because the v1 0.3-0.5 pp pessimism on IRR pulls MOIC down too). UI: Step 3a column + sort option, Step 4 tile, Step 7 tile. | A46 (2026-05-16): Spec §7 v1 deliverable, deferred at A41 because engine didn't compute it. |
 | D31 | **Insurance on P&M uses a discrete year-by-year schedule, not £/kWp × CPI** (A44): per Anchal Q1 reply (2026-05-16 memo response). Excel source: `Solar&BESS Operation!r168` (lifetime £8,806.63k for D13 = 82 MWp). Schedule (engine 0-indexed, GBPk): years 0-9 explicit (281.94, 287.58, 205.33, 209.44, 202.94, 207.00, 200.59, 204.60, 198.26, 202.22); year 10+ derived as 206.27 × 1.02^(oy-10). Construction premium tail in years 0-1; 30% discount kicks in at year 2; years 4-9 alternate 0%/5% discount; year 10+ grows at 2%/yr compound. Engine constant `_DEFAULT_INSURANCE_SCHEDULE_GBPK` + helpers. PirrInputs field `opex_insurance_schedule: dict` (defaulted) + `opex_insurance_yr11_base_gbpk`, `opex_insurance_yr11_growth`, `opex_insurance_reference_mwp` (= 82.0 for D13). Per-MW scaling: `solar_dc_mwp / opex_insurance_reference_mwp` for non-D13 configs (Anchal "rough estimate or hardcode" — A44 combines both). Legacy `opex_insurance: float = 2.021` (per-kWp × CPI) kept as fallback when `opex_insurance_schedule = {}`. | A44 (2026-05-16): Anchal Q1 reply rejects the per-kWp × CPI mechanism. Lifetime £8,807k preserved; audit drops 3-4 bps because the schedule front-loads cost into construction-premium years (years 1-2). |
 
 ---
@@ -298,9 +299,11 @@ st.session_state.financial_results           # NEW — DataFrame — PIRR, NPV, 
 
 ---
 
-## 9. Audit success criteria (v1) — CLOSED 2026-05-16 at ±0.5 pp tolerance
+## 9. Audit success criteria (v1) — CLOSED 2026-05-16 at ±0.5 pp tolerance (TEMPORARY)
 
 **Decision (A45)**: v1 tolerance relaxed from ±0.1 pp to ±0.5 pp. All 4 audit rows pass. Residual gap (engine 0.23-0.48 pp under target) is the structural carve-out from deferring DSCR sculpting / cash sweep / iterative gearing convergence to v2 (per Anchal's Q2 reply 2026-05-16: "Pl bring the tolerance level in +/- 0.2 if possible unless it is happening because of gearing or debt sizing not built currently"). Confirmed structural after A44 (Insurance schedule fix) widened the gap — A44 made the engine Excel-faithful and revealed a pre-existing cancellation that had been masking the gearing-related shortfall.
+
+**±0.5 pp is a TEMPORARY v1 carve-out, not a permanent settlement.** §10.1 v2 work is committed (not optional) to lift this back to ±0.1 pp. Anchal acknowledged this framing via Teams (2026-05-16).
 
 **Audit matrix — locked state at v1 closure (2026-05-16)**:
 
@@ -319,26 +322,27 @@ The per-config Green/Gas share targets (82 MWp: 34.5%/65.5%; 115 MWp: 42.8%/57.2
 
 ---
 
-## 10. Deferred to v2
+## 10. v2 scope
 
-**Audit-impacting (~1-2 weeks engineering; estimated to close residual 0.3-0.5 pp gap)**:
+### 10.1 — Committed for v2 (closes the audit to ±0.1 pp)
 
-- **DSCR-driven gearing convergence**. Iterate senior gearing down until `min(DSCR over debt schedule) ≥ 1.40`, recompute SHL principal as `(1 − senior_effective) × total_capex`, re-run CIR cap with the new total interest. Excel does this iteratively via `Solve_P1` VBA; v1 holds senior gearing flat at 80%. Per A45.
-- **Cash sweep mechanism**. Excess cash above the DSCR-required level is swept to amortise debt early. Affects the debt schedule shape and hence the interest tax shield trajectory.
-- **Equity IRR computation**. Ungeared FCFF − net debt service flow = equity FCF; XIRR of that gives Equity IRR. Investor-facing metric typically 12-18% on a 9% Project IRR config. Free byproduct once DSCR sculpting lands.
+**~1-2 weeks engineering. Required to lift the v1 ±0.5 pp tolerance back to ±0.1 pp and replace Excel as the source-of-truth IRR for IC-pack and board materials.** Ankit confirmed this framing on the v1 closure call (2026-05-16); Anchal acknowledged. The ±0.5 pp v1 carve-out is temporary, NOT a permanent settlement.
 
-**Other deferrals (pre-existing)**:
+1. **DSCR-driven gearing convergence**. Iterate senior gearing down until `min(DSCR over debt schedule) ≥ 1.40`, recompute SHL principal as `(1 − senior_effective) × total_capex`, re-run CIR cap with the new total interest. Excel does this iteratively via `Solve_P1` VBA; v1 holds senior gearing flat at 80%. **Primary v2 deliverable.** Per A45.
+2. **Cash sweep mechanism**. Excess cash above the DSCR-required level is swept to amortise debt early. Affects the debt schedule shape and hence the interest tax shield trajectory.
+3. **Equity IRR computation**. Ungeared FCFF − net debt service flow = equity FCF; XIRR of that gives Equity IRR. Investor-facing metric typically 12-18% on a 9% Project IRR config. Free byproduct once DSCR sculpting lands.
+4. **Gearing as a sweep dimension**. PirrInputs has `senior_gearing` as a fixed input; v2 makes it iterable. Unlocks "what if we lever this to 85%" analyses.
+
+### 10.2 — Lower-priority v2 (pre-existing Spec §10 items)
+
+Re-evaluated after the §10.1 quartet lands and v1 is in users' hands:
 
 - Multi-asset / portfolio rollup
 - Sensitivity tables (PPA / EPC / Grid / Yield / Interest)
 - Step-function grid connection costs (real bands per transformer / DNO contract type)
 - Two-component BESS capex (PCS £/MW + storage £/MWh)
-- Real grid step-function thresholds for capex scaling beyond linear
-- Gearing as a sweep dimension (currently a fixed PirrInputs field)
 - Carry-forward losses beyond the v1 NOL pool (e.g., NTL ring-fencing)
 - Capital allowances (UK-specific tax treatment — capital allowances vs RB depreciation arbitrage)
-
-These were eliminated from v1 by the strict-mirror approach. Each gets re-evaluated when v1 is in users' hands and we have feedback on which simplifications hurt.
 
 ---
 

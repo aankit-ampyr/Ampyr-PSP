@@ -17,8 +17,8 @@ Run each command, confirm the expected output. If any fails, stop and diagnose b
 | # | Command | Expected | If wrong |
 | --- | --- | --- | --- |
 | 0.1 | `git status --short` | Working tree changes match what you're testing; no stray `tests/diag_*.py` | Clean up — see prior conversation pattern (delete diag files) |
-| 0.2 | `python -X utf8 tests/test_project_irr_excel_parity.py 2>&1 \| tail -10` | D13 row prints `Combined 8.88%` (±0.01), `S+B 9.05%`, `Gas 13.07%` (post-A40 state). All 4 audit rows xfail with combined gaps in range [-0.45, -0.19] pp. | Engine has regressed; do NOT proceed |
-| 0.3 | `python -m pytest tests/ --no-header -q 2>&1 \| tail -3` | `42 passed, 4 xfailed` | Same as 0.2 |
+| 0.2 | `python -X utf8 tests/test_project_irr_excel_parity.py 2>&1 \| tail -10` | D13 row prints `Combined 8.84%` (±0.01), `S+B 9.00%`, `Gas 13.07%` (post-A44 Insurance schedule + A45 tolerance closure). All 4 audit rows PASS at ±0.5 pp v1 tolerance. | Engine has regressed; do NOT proceed |
+| 0.3 | `python -m pytest tests/ --no-header -q 2>&1 \| tail -3` | `49 passed, 0 xfailed` (post-A45 tolerance relaxation) | Same as 0.2 |
 | 0.4 | `python -X utf8 -c "import streamlit; print(streamlit.__version__)"` | Some version prints (last verified 2026-05-16: 1.51.0) | `pip install -r requirements.txt` |
 
 If 0.1–0.4 all pass: proceed.
@@ -44,14 +44,14 @@ URL: http://localhost:8501
 
 ---
 
-## A. Browser-agent verification — A40 / A41 / A42 (NEW 2026-05-16)
+## A. Browser-agent verification — A40 / A41 / A42 / A43 / A44 / A45 / A46 / A47 (UPDATED 2026-05-16)
 
-**Intent.** A focused, step-by-step verification of the three changes that landed today: A40 (time-varying CPI curve, null-result for IRR), A41 (Step 4 Financial Metrics section), A42 (sizing_results unification). Designed to be executable by a browser-driving agent (Claude for Chrome extension or similar). The longer §3 walkthrough below covers the same paths plus regressions, but §A is the minimum set for verifying today's commits.
+**Intent.** A focused, step-by-step verification of all v1 changes through to v1 SME-handoff state. Designed to be executable by a browser-driving agent (Claude for Chrome extension or similar). Covers: A40 (time-varying CPI), A41 (Step 4 Financial Metrics), A42 (sizing_results unification), A43 (DEFAULT_WIZARD_STATE alignment), A44 (Insurance schedule), A45 (v1 audit closed at ±0.5 pp), v1 polish (DEBUG removal + conservative-offset captions), A46 (MOIC), A47 (dead code cleanup). The longer §3 walkthrough below covers the same paths plus regressions, but §A is the minimum set for verifying v1 readiness.
 
 **Pre-flight (already done by Ankit / Claude Code agent before handoff):**
 
-- Engine audit: `python -X utf8 tests/test_project_irr_excel_parity.py` → D13 row prints **Combined 8.88%** / **S+B 9.05%** / **Gas 13.07%**. All 4 rows xfail (audit gap pending Anchal Q2 tolerance).
-- pytest: **42 passed + 4 xfailed**.
+- Engine audit: `python -X utf8 tests/test_project_irr_excel_parity.py` → D13 row prints **Combined 8.84%** / **S+B 9.00%** / **Gas 13.07%** (post-A44 Insurance schedule). All 4 rows PASS at ±0.5 pp v1 tolerance.
+- pytest: **49 passed + 0 xfailed** (A45 relaxed tolerance + removed xfail markers).
 - Streamlit running. Replace `<URL>` below with the live URL (e.g. `http://localhost:8510`).
 
 ### A.1 — Open the app, confirm sidebar
@@ -93,23 +93,25 @@ URL: http://localhost:8501
 | A.4.5 | Results table appears below | Table has columns including `BESS (MWh)`, `Duration (hr)`, `DG (MW)`, `Delivery %`, `Green %`, `Wastage %`. ~102 rows |
 | A.4.6 | Filter or scroll to find row: `BESS (MWh) = 250`, `Duration (hr) = 4`, `DG (MW) = 25` | Row exists |
 
-### A.5 — Step 3a: Financial Sweep (A40 indirect verification)
+### A.5 — Step 3a: Financial Sweep (A40 / A43 / A44 / A46 verification)
 
-A40 is a time-varying CPI curve that produced a null result at 2-decimal precision. We're checking that the engine still produces the post-A40 numbers via the wizard-state path (not a separate visible UI change).
+Verifies the engine produces the post-A44 numbers via the wizard-state path AND the new A46 MOIC column renders AND the v1 polish info banner shows.
 
 | Step | Action | Pass criteria |
 | --- | --- | --- |
-| A.5.1 | Click "£ Add Financial Analysis" button at the bottom of Step 3 (or navigate to Step3a_FinancialSweep via sidebar) | Step 3a page loads |
+| A.5.1 | Click "£ Add Financial Analysis" button at the bottom of Step 3 (or navigate to Step3a_FinancialSweep via sidebar) | Step 3a page loads. **NO `§16 DEBUG` warning** appears (removed in v1 polish commit `ae48f49`) |
 | A.5.2 | Verify the "Sweep Configuration" section shows `Operational Configs: ~102`, `Load (MW): 25`, `Solar DC (MWp): 82` | All three correct |
-| A.5.3 | Click "Run Financial Sweep" (primary button) | Progress bar; per-config status text; finishes in 8–15 s (D16 perf budget) |
-| A.5.4 | "Ranked Results" table appears | Has columns: `BESS (MWh)`, `Duration (hr)`, `DG (MW)`, `Delivery %`, `Green %`, `Combined PIRR (%)`, `S+B PIRR (%)`, `Gas PIRR (%)`, `NPV (GBPm)`, `Total CAPEX (GBPm)`, `Payback (yrs)` |
-| A.5.5 | Find the row `BESS=250, Duration=4, DG=25`. Read Combined / S+B / Gas PIRR. | **Combined ≈ 8.88%** (±0.10), **S+B ≈ 9.05%** (±0.10), **Gas ≈ 13.07%** (±0.20). CAPEX ≈ £101.6m |
-| A.5.6 | Best-config callout below the table names a specific config + its PIRR | Some config named; numbers match the table |
-| A.5.7 | No `Error` column visible in the table | Clean (no per-config crashes) |
+| A.5.3 | Click "Run Financial Sweep" (primary button) | Progress bar; per-config status text; finishes in 8–15 s (D16 perf budget). **No DEBUG `st.warning` block appears after the sweep finishes** (removed at v1 polish) |
+| A.5.4 | "Ranked Results" table appears | Has columns: `BESS (MWh)`, `Duration (hr)`, `DG (MW)`, `Delivery %`, `Green %`, `Combined PIRR (%)`, `S+B PIRR (%)`, `Gas PIRR (%)`, `NPV (GBPm)`, **`MOIC (x)`** (A46), `Total CAPEX (GBPm)`, `Payback (yrs)` |
+| A.5.5 | Above the Ranked Results table, a blue info banner reads "v1 reports Project IRR ~0.3-0.5 pp lower than Excel..." (v1 polish caption) | Banner visible; mentions DSCR sculpting / cash sweep / Equity IRR deferred to v2 |
+| A.5.6 | Find the row `BESS=250, Duration=4, DG=25`. Read Combined / S+B / Gas PIRR + MOIC. | **Combined ≈ 8.84%** (±0.10), **S+B ≈ 9.00%** (±0.10), **Gas ≈ 13.07%** (±0.20), **MOIC ≈ 2.22x** (±0.10), CAPEX ≈ £101.4m |
+| A.5.7 | "Sort by" dropdown includes **MOIC (x)** as an option | A46 dropdown enrichment present |
+| A.5.8 | Best-config callout below the table names a specific config + its PIRR | Some config named; numbers match the table |
+| A.5.9 | No `Error` column visible in the table | Clean (no per-config crashes) |
 
-**If A.5.5 numbers diverge from expected by > 0.5 pp** — A40 wiring may have broken the wizard-state path. Run `python -X utf8 tests/test_project_irr_excel_parity.py` to confirm fixture path is still 8.88% — if so, the gap is in `pirr_inputs_from_wizard_state`.
+**If A.5.6 numbers diverge from expected by > 0.5 pp** — A44 / A43 wiring may have broken. Run `python -X utf8 tests/test_project_irr_excel_parity.py` to confirm fixture path is still 8.84% — if so, the gap is in `pirr_inputs_from_wizard_state`.
 
-### A.6 — Step 4: A41 Financial Metrics section (happy path)
+### A.6 — Step 4: A41 Financial Metrics + A46 MOIC + v1 polish caption (happy path)
 
 | Step | Action | Pass criteria |
 | --- | --- | --- |
@@ -118,9 +120,10 @@ A40 is a time-varying CPI curve that produced a null result at 2-decimal precisi
 | A.6.3 | A green banner says "Found cached results from Step 3 sizing run" | Visible |
 | A.6.4 | Click "See Results" (primary button) | Page renders metrics block + monthly summary table + hourly chart |
 | A.6.5 | **A41 verification**: scroll to find the **"£ Financial Metrics"** subheader. Location: below the "Solar Utilization" metric row, above "Monthly Performance Summary" | Subheader visible |
-| A.6.6 | Below it: **6 metric tiles** in a single row | Tiles labelled: Combined PIRR, S+B PIRR, Gas PIRR, NPV (GBPm), CAPEX (GBPm), Payback (yrs) |
-| A.6.7 | Values: Combined **8.88%**, S+B **9.05%**, Gas **13.07%**, NPV (some figure), CAPEX **101.6** (GBPm), Payback (some figure) | Numbers match Step 3a's row from A.5.5 |
-| A.6.8 | A caption below the tiles mentions "Step 3a Financial Sweep" + the A24 dispatch-module mismatch warning ("green/DG share may differ") | Caption present |
+| A.6.6 | **v1 polish caption**: below the subheader + the existing A24 dispatch-mismatch caption, a blue info banner reads "v1 reports Project IRR ~0.3-0.5 pp lower than Excel..." | Banner visible |
+| A.6.7 | Below the banner: **7 metric tiles** in a single row (was 6 pre-A46) | Tiles labelled: Combined PIRR, S+B PIRR, Gas PIRR, NPV (GBPm), **MOIC** (A46), CAPEX (GBPm), Payback (yrs) |
+| A.6.8 | Values: Combined **8.84%**, S+B **9.00%**, Gas **13.07%**, NPV (some figure), **MOIC ≈ 2.22x**, CAPEX **101.4** (GBPm), Payback (some figure) | Numbers match Step 3a's row from A.5.6 |
+| A.6.9 | MOIC tile has a help-icon tooltip: "Multiple on Invested Capital, ungeared FCFF basis: sum(positive FCFF) / \|sum(negative FCFF)\|" | Tooltip visible on hover |
 
 **If A.6.5 fails (no "£ Financial Metrics" subheader)** — A41 isn't wired. Check that `st.session_state.financial_results` exists (Step 3a's "Run Financial Sweep" was clicked in §A.5). Check `find_cached_financial` returns non-None for `(250, 25, '5mwh_1.25mw')`.
 
@@ -143,15 +146,19 @@ A40 is a time-varying CPI curve that produced a null result at 2-decimal precisi
 | A.8.4 | In Step 4, set BESS = 250, Duration = 4, DG = 25, click "See Results" | Page renders |
 | A.8.5 | Confirm **no "£ Financial Metrics" subheader** appears and **no info banner** appears | Pre-A41 UX preserved |
 
-### A.9 — A42 verification (sizing_results unification)
+### A.9 — A42 / A47 verification (wizard_state cleanup) + Step 7 visual check
 
-A42 dropped the dead `wizard['results']['simulation_results']` slot. The visible behaviour is that nothing changes — every consumer still reads `st.session_state.sizing_results` (top-level). The verification is therefore that the pages that depend on `sizing_results` still work.
+A42 dropped the dead `wizard['results']['simulation_results']` slot; A47 dropped the rest of the dead `wizard['results']` dict + 5 helper functions. Both should be invisible to the user (cleanup only).
 
 | Step | Action | Pass criteria |
 | --- | --- | --- |
 | A.9.1 | After §A.5 (Step 3a ran successfully), Step 3a's sweep used `sizing_results` as input | Sweep ran; PIRRs computed |
 | A.9.2 | §A.6 (Step 4 happy path) also worked off `sizing_results` (via `find_cached_result`) + `financial_results` (via the new `find_cached_financial`) | Step 4 metrics tiles rendered |
 | A.9.3 | Navigate to Step 7 (sidebar). It should NOT show a "Step 3 sizing run is required" warning since we ran Step 3. | Step 7 prerequisite check passes (the A42 comment update went here) |
+| A.9.4 | In Step 7, click "Save Financial Inputs" + "Run Financial Analysis" with D13-default inputs | Engine runs; results appear in Summary block |
+| A.9.5 | **v1 polish caption**: above the "Summary" subheader, a blue info banner reads "v1 reports Project IRR ~0.3-0.5 pp lower than Excel..." | Banner visible |
+| A.9.6 | Summary block has **5 metric tiles** (was 4 pre-A46): Project IRR (Combined), Project NPV (GBPm), Total CAPEX (GBPm), **MOIC** (A46), Payback | All 5 visible; MOIC ≈ 2.22x |
+| A.9.7 | MOIC tile help-icon tooltip reads same as A.6.9 | Tooltip visible |
 
 ### A.10 — Wrap-up
 

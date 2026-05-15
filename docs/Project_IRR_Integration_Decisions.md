@@ -52,7 +52,9 @@ Each Revisions entry: date, what changed, why. Each `A*` decision: keep original
 | 2026-05-13 | **A24 follow-up: data_loader gap discovered by browser smoke test; fixed.** Browser smoke test of Step 3a (playbook §9) revealed `src/data_loader.py::list_solar_profiles()` filter (`'solar' in filename.lower()`) hid the canonical Burton Leonard audit profiles (`Burton_Leonard_*.csv`) — their filenames contain no "solar" substring. This is an A14-era loose end: when the canonical profiles were renamed/relocated in May 2026, the enumerator was never updated. Side effect: D13 PIRR via the UI fell back to "Burton Solar Profile.csv" (8 MW peak) and produced Combined 11.56% / S+B 6.52% instead of the audit's 8.77% / 8.93%. **Engine itself verified correct via the fixture path** — issue was wrong solar profile feeding right engine. Fix: broadened filter to `'solar' or 'burton' in filename.lower()`. All 4 Inputs/*.csv profiles now surface; tests still pass (34 + 4 xfail). | Smoke-test-driven fix; unblocks D13-via-UI verification. |
 | 2026-05-13 | **A25 added: D8 spec violation — solar profile DC/AC rescaling in Step 3a + Step 7 fixed.** Smoke test §10 follow-up (canonical profile selected) revealed both Step 3a and Step 7 were rescaling the AC + grid-capped solar profile by `target_dc_mwp / profile_peak` (= 82/58.36 = 1.405× for D13). This pushed 19 GWh of phantom solar through the dispatch, producing Combined 24.72% / S+B 32.23% (vs audit 8.77% / 8.93%). Per spec D8: *"capex scales on DC MWp; revenue uses the AC + grid-limit-capped hourly profile as supplied."* The canonical Burton Leonard files ARE the AC output — they shouldn't be rescaled. Fix (Option C): defaulted `profile_ref_mwp` fallback chain to `target_dc_mwp` instead of `profile_peak` → scaling factor = 1.0 when no explicit override. Users with per-unit profiles can still set `profile_reference_mwp` explicitly. Plus soft sanity warning when `profile_peak / target_dc_mwp` outside [0.5, 1.1]. Wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). | Second pre-existing UI bug surfaced by Step 3a smoke testing (after A24's merchant curve). Step 7 had this bug since A19. |
 | 2026-05-13 | **A26 added: data_loader filename-vs-display-name mismatch fixed.** Smoke test §11 (Option C verified in code but D13 still failed at the UI) traced the residual gap to a wizard-state protocol mismatch: Step 1 stores display name (e.g. `'Burton_Leonard_82MWp_DC_58MW_AC'`, no `.csv`) in `setup['solar_selected_file']`, but `load_solar_profile_by_name` opens `INPUTS_FOLDER / filename` literally — file not found → returns None → Step 3 + Step 3a fall through to default `Burton Solar Profile.csv` (peak 8 MW). The 8 MW profile feeding a 25 MW load made gas do all the work → Combined 24.72%. Fix (Option A): `load_solar_profile_by_name` now appends `.csv` if missing — defensive guard at the filesystem boundary. Affects Step 3 operational sweep (which has been silently using the wrong profile too) + Step 3a financial sweep. End-to-end wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). Tests still pass. **Step 7 has a separate independent bug**: it uses `SOLAR_PROFILE_PATH` config constant instead of Step 1's selection — flagged for follow-up, not fixed here. *Footnote (corrected by A27)*: Step 1 actually stores filenames WITH `.csv` (Step1_Setup.py line 466 selectbox uses filenames from `list_solar_profiles()` tuples). The §11 diagnosis was incorrect. A26's defensive guard is harmless but didn't fix the actual smoke-test failure. The real bug was A27's loader row-count discrepancy. | Third pre-existing UI bug surfaced by Step 3a smoke testing. Operational sweep correctness restored too. |
-| 2026-05-16 | **A45 added: v1 audit closed at ±0.5 pp tolerance; DSCR sculpting deferred to v2 (Ankit decision).** Path 1 chosen from the post-A44 follow-up. Rationale: v1's stated aim per Spec D1/D2 was always ungeared Project IRR, NOT Equity IRR; the engine is now Excel-faithful on every individual mechanism (revenue stack, opex, capex phasing, depreciation, tax shield, NOL pool, Insurance schedule); the ~0.3-0.5 pp residual gap is uniformly directional and uniformly-magnitude (range 0.25 pp across 4 rows), so config ranking is preserved. Trade-off accepted: engine reports IRR 0.23-0.48 pp lower than Excel — Excel remains source of truth for the IC-pack headline number; engine is the v1 tool for pre-IC screening, what-ifs, and sizing comparisons. **Test suite: 45 pass + 4 xfail → 49 pass (xfails removed; tolerance relaxed 0.001 → 0.005 in `tests/test_project_irr_excel_parity.py`).** **v2 scope-cut**: DSCR-driven gearing convergence (iterate senior gearing down until min(DSCR) ≥ 1.40, recompute SHL principal, re-run CIR cap); cash-sweep mechanism; Equity IRR computation; gearing-as-a-sweep-dimension. Estimated v2 work: 1-2 weeks. Spec §10 updated. Documentation: SME follow-up doc updated to reflect decision; Anchal to receive a brief Teams confirmation. | Path-1 / Path-2 trade-off table presented to Ankit post-A44; Ankit chose path 1. |
+| 2026-05-16 | **A47 added: dead `wizard['results']` dict + 5 helper functions removed (committed `8d5f248`).** A42 dropped the dead `simulation_results` slot but left the rest of `wizard['results']` in place. Removed in A47: 7 dict keys (`selected_configs`, `sort_column`, `sort_ascending`, `filters`, `detail_view_config`, `ranked_recommendations`, `recommendation_generated`) and 5 helper functions (`add_comparison_config`, `remove_comparison_config`, `clear_comparison_selection`, `set_results_filter`, `toggle_results_filter`). None imported by any page (verified via grep). Net -50 lines. Tests 49 pass; Streamlit boots clean. | Code hygiene; pre-existing dead code per Karpathy "clean up only your own orphans" was deferred to nice-to-have. |
+| 2026-05-16 | **A46 added: MOIC (Multiple on Invested Capital) computation + surfaced in 3 UI pages (committed `6437ed3`).** Per Spec §7 deliverable (the section that designed Step 4 augmentation explicitly listed PIRR / NPV / **MOIC** columns); MOIC was not surfaced at A41 because the engine didn't compute it. Engine: new `PirrResults.moic` field; computed as `sum(fcff > 0) / abs(sum(fcff < 0))` (ungeared FCFF basis: distributions / contributions). D13 audit MOIC = **2.22x** (typical 35-yr infrastructure range). UI surfaces: Step 3a — added "MOIC (x)" column + sort option + 2-decimal NumberColumn format; Step 4 — Financial Metrics section expanded from 6 to 7 tiles, MOIC between NPV and CAPEX; Step 7 — Summary block expanded from 4 to 5 columns, MOIC tile with help tooltip. Tests 49 pass (no engine math change; just a new derived metric). | Spec §7 v1 deliverable. Last visible-feature gap pre-handoff. |
+| 2026-05-16 | **A45 added: v1 audit closed at ±0.5 pp tolerance (TEMPORARY); ±0.1 pp closure COMMITTED for v2 via DSCR sculpting (Ankit decision).** Path 1 chosen from the post-A44 follow-up. Rationale: v1's stated aim per Spec D1/D2 was always ungeared Project IRR, NOT Equity IRR; the engine is now Excel-faithful on every individual mechanism (revenue stack, opex, capex phasing, depreciation, tax shield, NOL pool, Insurance schedule); the ~0.3-0.5 pp residual gap is uniformly directional and uniformly-magnitude (range 0.25 pp across 4 rows), so config ranking is preserved. **The ±0.5 pp is a v1 carve-out, NOT a permanent acceptance.** Trade-off accepted for v1 only: engine reports IRR 0.23-0.48 pp lower than Excel; Excel remains source of truth for the IC-pack headline number; engine is the v1 tool for pre-IC screening, what-ifs, and sizing comparisons. **Test suite: 45 pass + 4 xfail → 49 pass (xfails removed; tolerance relaxed 0.001 → 0.005 in `tests/test_project_irr_excel_parity.py`).** **v2 COMMITMENT** (not deferral): close the gap to ±0.1 pp via DSCR-driven gearing convergence (iterate senior gearing down until min(DSCR) ≥ 1.40, recompute SHL principal, re-run CIR cap), cash-sweep mechanism, Equity IRR computation, gearing-as-a-sweep-dimension. Estimated v2 work: 1-2 weeks. Spec §9 + §10 reorganised to reflect this as a committed deliverable, not optional. Documentation: SME follow-up doc updated to reflect decision; Anchal acknowledged via Teams. | Path-1 / Path-2 trade-off table presented to Ankit post-A44; Ankit chose path 1 with explicit v2 commitment to close the gap. |
 | 2026-05-16 | **A44 added: Insurance on P&M — discrete-year schedule per Anchal Q1 reply (Excel `Solar&BESS Operation!r168`).** Anchal's 2026-05-16 reply: "Insurance is actually not linked to this input of 2.021/kwp but rather calculated different for different year in Insurance sheet... convert the total life year no. into per MW basis or hardcode yearly nos as per excel." A44 implements both: hardcode the per-year £k schedule + linear per-MW scaling for non-D13 configs. Schedule (engine 0-indexed, GBPk): year 0=281.94, 1=287.58, 2=205.33, 3=209.44, 4=202.94, 5=207.00, 6=200.59, 7=204.60, 8=198.26, 9=202.22; year 10+ derived as 206.27 × 1.02^(oy-10). Lifetime £8,806.79k matches Excel £8,806.63k. **Audit dropped 3-4 bps uniformly** (d13 8.88% → 8.84%; m82_160 7.35% → 7.32%; m115_170 9.61% → 9.57%; m115_160 8.31% → 8.27%). The drop is correct, not a bug: pre-A44 mechanism (per-kWp × CPI) had a fortuitous cancellation — under-shot construction-premium years, over-shot late years; lifetimes near-balanced but timing wrong. A44 front-loads cost into years 1-2 where NPV discount is lightest. This confirms Anchal's pre-acknowledgement in Q2 that the residual gap is structural (gearing / debt sizing carve-out). Tests: 45 pass + 4 xfail; wizard-state baselines re-baselined to 0.0884 / 0.0900 / 0.1307. | Anchal Q1 reply 2026-05-16. |
 | 2026-05-16 | **A43 added: DEFAULT_WIZARD_STATE financial defaults aligned to A28 / D13 audit (fresh-session path was broken).** Browser smoke test §16 ran the new §A script via Claude-for-Chrome extension. A.5.5 failed: D13 row (250 MWh / 4-hr / 25 MW DG) produced **Combined 21.59% / S+B 28.21% / Gas 10.70% / CAPEX £64.7m** instead of the expected 8.88% / 9.05% / 13.07% / £101.6m. The £64.7m CAPEX was within £0.3m of smoke test §13's pre-A28 value (£65.0m), suggesting A28's regression hadn't been fully closed. **Root cause confirmed programmatically**: A28 fixed Step 7's UI `number_input` defaults AND added a `test_step7_saved_defaults_produce_audit_capex` lock-in test, but did NOT update `DEFAULT_WIZARD_STATE['financial']` in `src/wizard_state.py`. The wizard state initialization kept the pre-A28 values (`capex_bess: 80.0`, `opex_balancing_cfd: 0.0`, `fixed_lease_switch: 0`, etc.) — so any user who opened Step 3a WITHOUT first visiting Step 7 + clicking "Save Financial Inputs" got the old broken defaults. The A28 test never caught this because it bypassed `DEFAULT_WIZARD_STATE` entirely by constructing the fin dict inline. **Fix**: aligned all 25 misaligned values in `DEFAULT_WIZARD_STATE['financial']` to match Step 7's UI defaults / A28 test fixture / Excel-anchored engine defaults. Added 5 missing advanced keys (`shl_switch`, `shl_pct_of_unfunded`, `shl_rate`, `depreciation_method`, `depreciation_rate`) that the engine adapter reads but wizard state didn't initialize. **Regression tests** (3 new): `test_default_wizard_state_produces_audit_capex` / `_combined` / `_sb` — pytest count went from 42 → 45 (all pass). These exercise the fresh-session path that A28's lock-in tests didn't cover. **Verification**: pre-A43 the fresh-session path produced 19.67% / 24.01% / 12.43% / £64.7m. Post-A43 it produces **8.88% / 9.05% / 13.07% / £101.4m** — matches D13 audit within tolerance. Audit matrix unchanged: 4 xfail rows still at -0.45 to -0.19 pp gap. Streamlit boots clean. | Bug class §15/A28 thought it had closed; the test fixture bypassed `DEFAULT_WIZARD_STATE` so the actual init values never got verified. Browser smoke test §16 caught it because the Chrome agent didn't visit Step 7. |
 | 2026-05-16 | **A42 added: sizing_results unification — dropped the dead `wizard['results']['simulation_results']` slot.** Per A19 P1 cleanup. The unification took the form of *removing* the dead canonical slot, not migrating writers to it: Spec §8 already lists top-level `st.session_state.sizing_results` as the canonical storage, all 7 call sites (Step 1 cache-clear; Step 3 writer; Step 3a/Step 4/Step 7 readers) use the top-level key, and Step 1's cache-invalidation pattern (popping 6 top-level keys on solar profile signature change) is established convention. The `wizard['results']['simulation_results']: None` initialization in `DEFAULT_WIZARD_STATE` was an earlier-design vestige with no writer and no real reader. **Code changes**: (1) Removed the `'simulation_results': None` entry from `DEFAULT_WIZARD_STATE['results']` in [src/wizard_state.py](../src/wizard_state.py). Added a comment block explaining where sizing results actually live + flagging the rest of `wizard['results']` as present-but-unused (out of scope for A42). (2) Updated [pages/Step7_Financial.py](../pages/Step7_Financial.py) `check_prerequisites()` comment — removed the stale "canonical wizard..." reference; now correctly documents top-level as canonical. **Out of scope for A42** (kept as pre-existing dead code per Karpathy "don't delete pre-existing dead code unless asked"): `selected_configs`, `sort_column`, `sort_ascending`, `filters`, `detail_view_config`, `ranked_recommendations`, `recommendation_generated` keys in `wizard['results']`, plus the 5 helper functions in `wizard_state.py` that reference them (`add_comparison_config`, `remove_comparison_config`, `clear_comparison_selection`, `set_results_filter`, `toggle_results_filter`). None of these are imported by any page. **Tests: 42 pass + 4 xfail unchanged.** Streamlit boots clean. | P1 cleanup per A19. |
@@ -259,7 +261,60 @@ Standard solar PV finance convention. Made explicit because the SME flagged it d
 
 Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case label. Both files moved from `Inputs/Answers/` (originals deleted, folder removed). Test/ folder duplicates flagged for cleanup during audit work — see A9.
 
-### A45. v1 audit closed at ±0.5 pp tolerance; DSCR sculpting + Equity IRR deferred to v2 (NEW 2026-05-16)
+### A47. Dead `wizard['results']` dict + 5 helper functions removed (NEW 2026-05-16)
+
+Cleanup of pre-existing dead code that A42 flagged but deferred. None of the targeted code was imported by any page (verified via `grep` across `pages/`, `src/`, `utils/`).
+
+**Removed from `DEFAULT_WIZARD_STATE['results']`**: the entire dict was eliminated. Keys that went away:
+
+- `selected_configs`, `sort_column`, `sort_ascending`, `filters` (4 sub-keys for full_delivery / zero_dg / low_wastage / hide_dominated), `detail_view_config`, `ranked_recommendations`, `recommendation_generated`.
+
+**Removed helper functions** from [src/wizard_state.py](../src/wizard_state.py):
+
+- `add_comparison_config(config_index)` — added a config index to the comparison list (max 3)
+- `remove_comparison_config(config_index)` — removed from the list
+- `clear_comparison_selection()` — cleared the list
+- `set_results_filter(filter_name, value)` — set a filter flag
+- `toggle_results_filter(filter_name)` — toggled a filter flag
+
+All five operated on the now-removed `wizard['results']` slot. They were vestiges of an earlier results-comparison feature that never shipped UI.
+
+**Kept**: a comment block in `DEFAULT_WIZARD_STATE` explaining where sizing results actually live (top-level `st.session_state.sizing_results` per Spec §8) + the fact that the nested `results` dict was removed at A47. Future config-comparison UX should re-introduce these in a fresh module alongside the actual UI that needs them — not as orphan functions in `wizard_state.py`.
+
+**Not in scope (still dead, separate cleanup)**: `utils/metrics.py::calculate_ranked_recommendations()` is also unused but lives in a different file; left for a future hygiene pass.
+
+**Test impact**: 49 pass + 0 xfail unchanged. Streamlit boots clean.
+
+**Net change**: -50 lines in `src/wizard_state.py`. Commit `8d5f248`.
+
+### A46. MOIC (Multiple on Invested Capital) computation + UI surface (NEW 2026-05-16)
+
+Last visible-feature gap before SME handoff. Spec §7 line 263 lists "PIRR / NPV / **MOIC** columns" as the Step 4 augmentation deliverable; A41 (Step 4 Financial Metrics section) shipped the wiring but couldn't surface MOIC because the engine didn't compute it. A46 closes that gap.
+
+**Definition** (ungeared FCFF basis):
+
+```
+distributions = sum(fcff > 0)       # operating returns to capital providers
+contributions = abs(sum(fcff < 0))  # construction capex + any net-negative ops months
+MOIC          = distributions / contributions
+```
+
+Matches the FCFF-level Project IRR definition (interest excluded). Returns NaN when no negative cash flows (degenerate). Typical 35-yr infrastructure assets at 8-10% IRR land in the **2.5-3.5x** MOIC range.
+
+**D13 audit MOIC** = **2.22x** (slightly below the typical range because the v1 0.3-0.5 pp pessimism on IRR pulls MOIC down too — both reflect the same FCFF discount).
+
+**Code changes**:
+
+1. [src/project_irr.py](../src/project_irr.py) — new `PirrResults.moic: float = float("nan")` field. Computed at the end of `_run_pirr_core` from the `fcff` array.
+2. [pages/Step3a_FinancialSweep.py](../pages/Step3a_FinancialSweep.py) — `run_pirr_for_config` returns `"MOIC (x)"` in its output dict. Added to `sort_options`, `financial_cols` ordering, `column_config` (2-decimal `NumberColumn`), and the error-fallback dict.
+3. [pages/Step4_Results.py](../pages/Step4_Results.py) — Financial Metrics section expanded from 6 to 7 `st.columns`. New MOIC tile between NPV and CAPEX. Help tooltip explains the ungeared-FCFF formula.
+4. [pages/Step7_Financial.py](../pages/Step7_Financial.py) — Summary block expanded from 4 to 5 columns. MOIC tile between Total CAPEX and Payback. Same help tooltip.
+
+**Test impact**: 49 pass + 0 xfail (no engine math change; just a new derived metric). Streamlit boots clean.
+
+**Commit**: `6437ed3`.
+
+### A45. v1 audit closed at ±0.5 pp tolerance (TEMPORARY); ±0.1 pp closure COMMITTED for v2 (NEW 2026-05-16)
 
 **Decision**: Path 1 chosen by Ankit after the post-A44 follow-up showed the residual audit gap is the structural carve-out Anchal pre-acknowledged in Q2. v1 ships with engine producing Combined PIRR within ±0.5 pp of Excel across all 4 audit rows (current actuals: -0.36 / -0.48 / -0.23 / -0.23 pp). The 0.23-0.48 pp gap is the cost of NOT modelling DSCR-driven gearing convergence in v1.
 
@@ -279,7 +334,9 @@ Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case
 | Absolute cash flows | Gearing isn't a lever |
 | Operational metrics | Project at hurdle may be misjudged |
 
-**Day-to-day v1 use**: pre-IC screening, what-ifs, sizing comparisons. Excel remains the source-of-truth IRR for IC-pack and board-facing materials. Engine outputs report a 0.3-0.5 pp conservatism flag in the UI (TBD: add to Step 3a + Step 4 + Step 7 captions).
+**Day-to-day v1 use**: pre-IC screening, what-ifs, sizing comparisons. Excel remains the source-of-truth IRR for IC-pack and board-facing materials. Engine outputs report a 0.3-0.5 pp conservatism flag in the UI on every page with PIRR values — shipped in commit `ae48f49` (the post-A45 v1 polish wave).
+
+**This is NOT a permanent settlement.** ±0.5 pp is a v1 carve-out matched to v1's stated scope (ungeared Project IRR for pre-IC screening, what-ifs, and sizing comparisons). The v2 work below is **committed**, not optional — closing the gap to ±0.1 pp is required before the engine can replace Excel as the source-of-truth IRR for IC-pack and board materials. Ankit confirmed this framing on the v1 closure call.
 
 **Test impact**:
 
@@ -290,16 +347,22 @@ Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case
 | `test_secondary_matrix_rows[*]` | xfail (3 cases) | **pass** (3 cases) |
 | Total | 45 pass + 4 xfail | **49 pass + 0 xfail** |
 
-**v2 scope** (deferred):
+**v2 scope — COMMITTED for next iteration** (audit-impacting, required to close to ±0.1 pp):
 
-1. **DSCR sculpting / cash sweep**: iterate senior gearing down until `min(DSCR over debt schedule) ≥ 1.40`, recompute SHL principal as `(1 − senior_effective) × total_capex`, re-run CIR cap with the new total interest. Expected to close most of the residual ~0.4 pp gap.
-2. **Equity IRR**: ungeared FCFF − net debt service flow = equity FCF; XIRR of that gives Equity IRR. Typical 12-18% for a 9% Project IRR config. Investor-facing metric.
+1. **DSCR sculpting / cash sweep**: iterate senior gearing down until `min(DSCR over debt schedule) ≥ 1.40`, recompute SHL principal as `(1 − senior_effective) × total_capex`, re-run CIR cap with the new total interest. Expected to close most of the residual ~0.4 pp gap. This is the primary v2 deliverable.
+2. **Equity IRR**: ungeared FCFF − net debt service flow = equity FCF; XIRR of that gives Equity IRR. Typical 12-18% for a 9% Project IRR config. Investor-facing metric. Free byproduct once DSCR sculpting lands.
 3. **Gearing as a sweep dimension**: PirrInputs has `senior_gearing` as a fixed input; v2 makes it iterable. Unlocks "what if we lever this to 85%" analyses.
-4. **Multi-asset portfolio rollup** (Spec §10 pre-existing).
-5. **Sensitivity tables** (Spec §10 pre-existing).
-6. **Step-function grid connection costs** (Spec §10 pre-existing).
 
-Estimated v2 engineering: 1-2 weeks for DSCR sculpting + Equity IRR + gearing sweep. Pre-existing v2 items separate.
+Estimated v2 engineering: **1-2 weeks** for the audit-impacting quartet (DSCR sculpting + cash sweep + Equity IRR + gearing sweep). Closes the audit to ±0.1 pp and unblocks the engine becoming source-of-truth.
+
+**v2 pre-existing items (Spec §10, lower priority)**:
+
+4. Multi-asset portfolio rollup.
+5. Sensitivity tables (PPA / EPC / Grid / Yield / Interest tornado charts).
+6. Step-function grid connection costs (real DNO contract bands per transformer size).
+7. Two-component BESS capex (PCS £/MW + storage £/MWh).
+8. Carry-forward losses beyond v1 NOL pool.
+9. Capital allowances (UK-specific tax treatment).
 
 **Files touched**:
 

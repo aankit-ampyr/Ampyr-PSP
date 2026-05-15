@@ -1,6 +1,6 @@
 # PSP — Follow-up to Anchal (2026-05-16)
 
-> **2026-05-16 — DECISION TAKEN.** Ankit chose **Path 1** (accept ±0.5 pp for v1; queue DSCR sculpting + Equity IRR for v2). v1 audit CLOSED. Engine reproduces Excel within ±0.5 pp across all 4 audit rows; residual 0.3-0.5 pp pessimism documented as the structural carve-out per Anchal Q2 reply. v1 use case: pre-IC screening, what-ifs, sizing comparisons. Excel remains source-of-truth for IC-pack headline IRR. See decisions log A45 + Spec §9/§10. Anchal Teams confirmation to follow.
+> **2026-05-16 — DECISION TAKEN + SME ACKNOWLEDGED.** Ankit chose **Path 1** (accept ±0.5 pp for v1; queue DSCR sculpting + Equity IRR for v2). **±0.5 pp is a TEMPORARY v1 carve-out, NOT a permanent settlement** — v2 work is committed (not optional) to close back to ±0.1 pp. **Anchal acknowledged the path-1 framing via Teams** (2026-05-16). v1 audit CLOSED. Engine reproduces Excel within ±0.5 pp across all 4 audit rows; UI banners on Step 3a + Step 4 + Step 7 disclose the offset in-context (commit `ae48f49`). v1 use case: pre-IC screening, what-ifs, sizing comparisons. Excel remains source-of-truth for IC-pack headline IRR until v2 lands. See decisions log A45-A47 + Spec §9/§10 + Status doc.
 
 ---
 
