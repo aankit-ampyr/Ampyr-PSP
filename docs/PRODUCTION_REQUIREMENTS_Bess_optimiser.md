@@ -55,7 +55,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 ### 2.2 Target Users
 
 | Role | Description | Primary Functions |
-|------|-------------|-------------------|
+| ------ | ------------- | ------------------- |
 | **Admin** | System administrators | User management, system settings, full access, audit logs |
 | **Analyst** | Technical users | Run simulations, configure scenarios, use AI features, export data |
 | **Viewer** | Read-only users | View shared results/reports, no simulation access |
@@ -64,7 +64,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 ### 2.3 Key Features Overview
 
 | Feature Category | Description |
-|------------------|-------------|
+| ------------------ | ------------- |
 | **Simulation Engine** | Year-long (8760 hour) battery dispatch simulation |
 | **Optimization** | Multi-dimensional sweep (Solar × BESS × Container × DG) |
 | **Visualization** | Interactive charts, heatmaps, time-series plots |
@@ -79,7 +79,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 ### 3.1 Technology Stack
 
 | Layer | Technology | Justification |
-|-------|------------|---------------|
+| ------- | ------------ | --------------- |
 | **Frontend** | React 18+ | Professional UI, component ecosystem, large talent pool |
 | **UI Components** | MUI (Material-UI) or Ant Design | Enterprise-grade component library |
 | **Charts** | Plotly.js or Recharts | Interactive visualizations |
@@ -151,7 +151,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 #### 3.3.1 PostgreSQL Schema (Core Tables)
 
 | Table | Purpose | Key Fields |
-|-------|---------|------------|
+| ------- | --------- | ------------ |
 | `users` | User accounts | id, email, password_hash, role, created_at, is_active |
 | `projects` | Project organization | id, name, owner_id, created_at, settings_json |
 | `simulations` | Simulation index | id, project_id, user_id, name, created_at, file_path, summary_json |
@@ -238,7 +238,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 ### 3.4 Caching Strategy
 
 | Cache Type | Technology | Purpose | Expiration |
-|------------|------------|---------|------------|
+| ------------ | ------------ | --------- | ------------ |
 | **Session Cache** | In-memory (app) | Store active simulation results for fast analysis | Session-based (logout clears) |
 | **API Cache** | FastAPI built-in | Cache expensive computations | Time-based (configurable) |
 
@@ -259,7 +259,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 #### 4.1.1 Authentication
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **Login** | Email + password authentication |
 | **JWT Tokens** | Access token (short-lived) + Refresh token (long-lived) |
 | **Password Reset** | Email-based password reset flow |
@@ -269,7 +269,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 #### 4.1.2 Role-Based Access Control
 
 | Role | Projects | Simulations | AI Features | Admin Panel | Export |
-|------|----------|-------------|-------------|-------------|--------|
+| ------ | ---------- | ------------- | ------------- | ------------- | -------- |
 | **Admin** | Full CRUD | Full CRUD | Full access | Full access | Yes |
 | **Analyst** | View assigned, create own | Full CRUD on accessible | Full access | No | Yes |
 | **Viewer** | View assigned | View only | View insights only | No | Limited |
@@ -278,7 +278,7 @@ The BESS Sizing Tool helps energy professionals determine optimal battery storag
 ### 4.2 Project Management
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **Create Project** | Name, description, assign users |
 | **Project Settings** | Default simulation parameters per project |
 | **User Assignment** | Assign users to projects with specific roles |
@@ -292,7 +292,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### Step 1: Setup Configuration
 
 | Parameter | Type | Description |
-|-----------|------|-------------|
+| ----------- | ------ | ------------- |
 | Load Configuration | Multiple modes | Constant, time-windows, seasonal, CSV upload |
 | Solar Configuration | File select/upload | Select from library or upload custom profile |
 | BESS Parameters | Numeric inputs | Efficiency, SOC limits, cycle limits, container types |
@@ -301,7 +301,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### Step 2: Dispatch Rules
 
 | Parameter | Type | Description |
-|-----------|------|-------------|
+| ----------- | ------ | ------------- |
 | Template Selection | Dropdown | T0-T6 dispatch templates |
 | DG Behavior | Toggles/inputs | Charges BESS, load priority, SOC triggers |
 | Time Windows | Time pickers | Night hours, blackout windows |
@@ -310,7 +310,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### Step 3: BESS Sizing
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | Capacity Range | Min/Max/Step for BESS capacity sweep |
 | Duration Classes | Select container types (2-hour, 4-hour) |
 | Run Optimization | Execute sizing sweep |
@@ -320,7 +320,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### Step 4: Results & Analysis
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | Summary Metrics | Key performance indicators |
 | Interactive Charts | Plotly-based visualizations |
 | Hourly Dispatch View | 8760-hour data explorer |
@@ -329,7 +329,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### Step 5: Multi-Year Analysis
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | Degradation Modeling | Battery capacity fade over years |
 | Year-by-Year Results | Annual performance metrics |
 | Lifetime Economics | NPV, payback period (if applicable) |
@@ -337,7 +337,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### Step 6: Green Energy Analysis
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | 4D Optimization | Solar × BESS × Container × DG sweep |
 | Range Configuration | Min/Max/Step for each dimension |
 | Green Energy Targets | Minimum green %, maximum wastage % |
@@ -348,7 +348,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 4.4 Data Management
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **Save Simulation** | Persist current results with user-defined name |
 | **Load Simulation** | Retrieve saved simulation into cache |
 | **Rename Simulation** | Edit display name |
@@ -360,7 +360,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 4.5 Admin Panel
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **User Management** | Create, edit, disable, delete users |
 | **Role Assignment** | Assign roles to users |
 | **Project Management** | View all projects, reassign ownership |
@@ -370,7 +370,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 4.6 Management Dashboard
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **Project Overview** | Summary cards for all accessible projects |
 | **Key Metrics** | Aggregated statistics across simulations |
 | **Recent Activity** | Timeline of recent simulations |
@@ -381,7 +381,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### 4.7.1 AI Chat Interface
 
 | Feature | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **Contextual Chat** | Chat within project/simulation context |
 | **Conversation History** | Persistent chat history |
 | **Privacy Toggle** | Switch between local and cloud AI |
@@ -389,7 +389,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### 4.7.2 AI Capabilities
 
 | Capability | Description | Example Query |
-|------------|-------------|---------------|
+| ------------ | ------------- | --------------- |
 | **Natural Language Queries** | Query results using plain English | "Show configs with >80% green energy and <15% wastage" |
 | **Result Interpretation** | AI explains what results mean | "Why does this config have low delivery?" |
 | **Scenario Recommendations** | AI suggests optimal configurations | "What's the best config for 90% delivery with minimal DG?" |
@@ -400,7 +400,7 @@ Recreate existing Streamlit wizard functionality in React:
 #### 4.7.3 AI Architecture
 
 | Component | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | **Local AI** | Ollama with LLaMA/Mistral for privacy-sensitive queries |
 | **Cloud AI** | OpenAI GPT-4 / Anthropic Claude for complex analysis |
 | **Privacy Controls** | User selects per-query or sets default preference |
@@ -413,7 +413,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 5.1 Performance
 
 | Metric | Target |
-|--------|--------|
+| -------- | -------- |
 | **Page Load Time** | < 2 seconds |
 | **API Response Time** | < 500ms for standard queries |
 | **Simulation Speed** | < 50ms per configuration (single simulation) |
@@ -423,7 +423,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 5.2 Security
 
 | Requirement | Implementation |
-|-------------|----------------|
+| ------------- | ---------------- |
 | **HTTPS Only** | All traffic encrypted (via Cloudflare) |
 | **Password Hashing** | bcrypt with appropriate cost factor |
 | **JWT Security** | Short-lived access tokens, secure refresh flow |
@@ -436,7 +436,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 5.3 Reliability
 
 | Requirement | Implementation |
-|-------------|----------------|
+| ------------- | ---------------- |
 | **Data Backup** | PostgreSQL daily backup (automated script) |
 | **File Backup** | Simulation files included in backup |
 | **Error Handling** | Graceful error messages, no stack traces to users |
@@ -446,7 +446,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 5.4 Usability
 
 | Requirement | Description |
-|-------------|-------------|
+| ------------- | ------------- |
 | **Responsive Design** | Works on desktop, tablet (mobile not required) |
 | **Loading States** | Skeleton loaders, progress indicators |
 | **Error Messages** | User-friendly, actionable error messages |
@@ -456,7 +456,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 5.5 Maintainability
 
 | Requirement | Description |
-|-------------|-------------|
+| ------------- | ------------- |
 | **Code Quality** | ESLint (frontend), Ruff/Black (backend) |
 | **Type Safety** | TypeScript (frontend), Type hints (backend) |
 | **Test Coverage** | Minimum 70% coverage |
@@ -567,7 +567,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 7.1 Code Deliverables
 
 | Deliverable | Format |
-|-------------|--------|
+| ------------- | -------- |
 | **Source Code** | GitHub repository |
 | **Frontend** | React/TypeScript application |
 | **Backend** | FastAPI/Python application |
@@ -578,7 +578,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 7.2 Documentation Deliverables
 
 | Document | Contents |
-|----------|----------|
+| ---------- | ---------- |
 | **API Documentation** | OpenAPI spec, endpoint descriptions, examples |
 | **Deployment Guide** | Step-by-step setup instructions, environment variables, troubleshooting |
 | **User Guide** | Feature walkthroughs, screenshots, FAQ |
@@ -587,7 +587,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 7.3 Source Control Requirements
 
 | Requirement | Description |
-|-------------|-------------|
+| ------------- | ------------- |
 | **Repository** | GitHub (private repository) |
 | **Branching** | Feature branches, pull requests |
 | **Commits** | Descriptive commit messages |
@@ -597,7 +597,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 7.4 Testing Requirements
 
 | Test Type | Coverage | Description |
-|-----------|----------|-------------|
+| ----------- | ---------- | ------------- |
 | **Unit Tests** | 70%+ | Individual functions and components |
 | **Integration Tests** | Key flows | API endpoints, database operations |
 | **E2E Tests** | Critical paths | Login, simulation workflow, export |
@@ -605,7 +605,7 @@ Recreate existing Streamlit wizard functionality in React:
 ### 7.5 Handoff Requirements
 
 | Item | Description |
-|------|-------------|
+| ------ | ------------- |
 | **Code Access** | Full repository access transferred |
 | **Environment Variables** | Documented and securely transferred |
 | **Admin Credentials** | Initial admin account credentials |
@@ -620,7 +620,7 @@ Recreate existing Streamlit wizard functionality in React:
 The following files from the existing Streamlit prototype are provided as reference:
 
 | File/Directory | Purpose | Reuse Recommendation |
-|----------------|---------|----------------------|
+| ---------------- | --------- | ---------------------- |
 | `/src/dispatch_engine.py` | Core simulation logic | Port to FastAPI service |
 | `/src/green_energy_optimizer.py` | 4D optimization sweep | Port to FastAPI service |
 | `/src/config.py` | Default configuration | Reference for defaults |
@@ -643,7 +643,7 @@ Key BESS simulation concepts documented in `CLAUDE.md`:
 ### 8.3 Technical References
 
 | Resource | URL |
-|----------|-----|
+| ---------- | ----- |
 | FastAPI Documentation | <https://fastapi.tiangolo.com/> |
 | React Documentation | <https://react.dev/> |
 | PostgreSQL Documentation | <https://www.postgresql.org/docs/> |
@@ -657,7 +657,7 @@ Key BESS simulation concepts documented in `CLAUDE.md`:
 ## Appendix A: Decision Log
 
 | # | Decision | Choice | Rationale |
-|---|----------|--------|-----------|
+| --- | ---------- | -------- | ----------- |
 | 1 | Frontend | React | Professional UI, large ecosystem, talent availability |
 | 2 | Backend | FastAPI | Performance, Python ecosystem, reuse existing code |
 | 3 | Database | PostgreSQL | Industry standard, JSON support, reliability |
@@ -681,7 +681,7 @@ Key BESS simulation concepts documented in `CLAUDE.md`:
 ## Appendix B: Glossary
 
 | Term | Definition |
-|------|------------|
+| ------ | ------------ |
 | **BESS** | Battery Energy Storage System |
 | **SOC** | State of Charge (battery level as percentage) |
 | **DG** | Diesel Generator |
@@ -700,7 +700,7 @@ Key BESS simulation concepts documented in `CLAUDE.md`:
 ## Appendix C: Contact Information
 
 | Role | Contact |
-|------|---------|
+| ------ | --------- |
 | **Project Owner** | [To be filled] |
 | **Technical Contact** | [To be filled] |
 | **Email** | [To be filled] |

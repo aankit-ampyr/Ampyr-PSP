@@ -54,14 +54,18 @@ set_current_step(1)
 def render_step_indicator():
     """Render the step progress indicator."""
     steps = [
-        ("1", "Setup", get_step_status(1)),
+        ("1", "Setup", 'current'),
         ("2", "Rules", get_step_status(2)),
+        ("2b", "Financial Setup", get_step_status(2)),
         ("3", "Sizing", get_step_status(3)),
+        ("3a", "Financial Sweep", get_step_status(3)),
         ("4", "Results", get_step_status(4)),
-        ("5", "Analysis", get_step_status(5)),
+        ("5", "Multi-Year", get_step_status(5)),
+        ("6", "Green Energy", get_step_status(6)),
+        ("7", "Financial", get_step_status(7)),
     ]
 
-    cols = st.columns(5)
+    cols = st.columns(len(steps))
     for i, (num, label, status) in enumerate(steps):
         with cols[i]:
             if status == 'completed':
@@ -171,7 +175,7 @@ def create_monthly_generation_chart(solar: np.ndarray) -> go.Figure:
 # =============================================================================
 
 st.title("🚀 BESS & DG Sizing Tool")
-st.markdown("### Step 1 of 4: System Setup")
+st.markdown("### Step 1 of 7: System Setup")
 
 render_step_indicator()
 
@@ -362,7 +366,7 @@ if load_source == 'builder':
     else:
         col3.metric("Load Hours", f"{stats['load_hours']:,}", "24/7")
 
-    st.plotly_chart(create_load_preview_chart(load_profile), use_container_width=True)
+    st.plotly_chart(create_load_preview_chart(load_profile), width='stretch')
 
 else:
     # CSV Upload Mode
@@ -392,7 +396,7 @@ else:
                 col2.metric("Peak Load", f"{stats['peak_mw']:.1f} MW")
                 col3.metric("Load Hours", f"{stats['load_hours']:,}")
 
-                st.plotly_chart(create_load_preview_chart(load_profile), use_container_width=True)
+                st.plotly_chart(create_load_preview_chart(load_profile), width='stretch')
             else:
                 st.error(message)
         except Exception as e:
@@ -519,16 +523,322 @@ if active_solar_profile is not None and len(active_solar_profile) > 0:
     col3.metric("Avg Generation", f"{stats['mean_mw']:.1f} MW")
     col4.metric("Generation Hours", f"{stats['generation_hours']:,}/8760")
 
-    st.plotly_chart(create_solar_preview_chart(active_solar_profile), use_container_width=True)
+    st.plotly_chart(create_solar_preview_chart(active_solar_profile), width='stretch')
 
     # Monthly generation profile
-    st.plotly_chart(create_monthly_generation_chart(active_solar_profile), use_container_width=True)
+    st.plotly_chart(create_monthly_generation_chart(active_solar_profile), width='stretch')
 
     # Store the active solar profile for use in simulation
     if solar_source == 'inputs':
         update_wizard_state('setup', 'solar_csv_data', None)  # Clear uploaded data when using Inputs folder
+
+    # =========================================================================
+    # CANONICAL PROFILE STORAGE — Step 1 is the single source of profile truth.
+    # See decisions log A27. All downstream consumers (Step 3, Step 3a, Step 4,
+    # Step 7) read `wizard['setup']['solar_profile_array']` directly rather
+    # than re-loading from disk per-page. Eliminates loader/extension/length
+    # drift surfaced repeatedly by the Step 3a smoke test loop.
+    # =========================================================================
+    active_array = np.asarray(active_solar_profile, dtype=float)
+
+    # Pad to 8760 if needed (defensive — Option B fix makes data_loader return
+    # 8760 already; this is a safety net for future uploads).
+    if len(active_array) == 8759:
+        active_array = np.concatenate([active_array, [active_array[-1]]])
+    if len(active_array) >= 8760:
+        active_array = active_array[:8760]
+
+    # Profile-change signature → invalidates downstream caches on change.
+    source_id = selected_file if solar_source == 'inputs' else 'upload'
+    new_signature = (
+        solar_source,
+        source_id,
+        round(float(active_array.max()), 4),
+        round(float(active_array.sum()), 1),
+    )
+    old_signature = setup.get('solar_profile_signature')
+    if old_signature != new_signature:
+        # Clear all downstream caches that depend on the solar profile (spec §8
+        # cache invalidation rules). Any cache derived from this profile is
+        # now stale; force re-computation on next visit.
+        for cache_key in (
+            'sizing_results',
+            'sizing_monthly_aggregates',
+            'financial_results',
+            'step7_pirr_result',
+            'dispatch_monthly',
+            'multiyear_monthly',
+        ):
+            st.session_state.pop(cache_key, None)
+        update_wizard_state('setup', 'solar_profile_signature', new_signature)
+
+    # Store the canonical 8760-element array for downstream consumers.
+    update_wizard_state('setup', 'solar_profile_array', active_array.tolist())
 else:
     st.warning("⚠️ No valid solar profile available. Simulation requires a solar profile.")
+
+
+st.divider()
+
+
+# =============================================================================
+# NOMINAL MERCHANT CURVE SECTION (A49: engine-wired)
+# =============================================================================
+# Post-PPA merchant electricity price curve. Uploaded values feed
+# `PirrInputs.merchant_prices_monthly` directly via the engine adapter
+# `pirr_inputs_from_wizard_state`. Treated as **nominal £/MWh** — passed to
+# the engine verbatim, no inflation applied. Real-terms uploads + variable
+# CPI curve handling are deferred to v2; see
+# docs/future_improvements/v2_price_and_inflation_curves.md.
+# =============================================================================
+
+# Grab financial state for the coverage validator (post-PPA window depends
+# on construction_start, construction_months, ppa_tenor_years, project_life_years).
+financial = state.get('financial', {})
+
+st.subheader("💰 Nominal Merchant Curve")
+st.caption(
+    "Post-PPA merchant electricity price (£/MWh, monthly, **nominal terms "
+    "— inflation already applied**). Sourced from the locked Burton-Leonard "
+    "Excel export `Solar&BESS Operation!row 66`. Upload a custom curve to "
+    "override; values are passed to the engine verbatim, so they must "
+    "already include your inflation assumption."
+)
+
+# Load the engine's current default curve for visualisation.
+try:
+    from src.project_irr import _DEFAULT_MERCHANT_PRICES_MONTHLY as _ENGINE_DEFAULT_CURVE
+except ImportError:
+    _ENGINE_DEFAULT_CURVE = {}
+
+price_source_options = ['default', 'upload']
+price_source_labels = {
+    'default': "Use engine default (Burton-Leonard `Solar&BESS Operation!r66`)",
+    'upload': "Upload custom nominal curve (CSV)",
+}
+current_price_source = setup.get('merchant_price_curve_source', 'default')
+if current_price_source not in price_source_options:
+    current_price_source = 'default'
+
+price_source = st.radio(
+    "Curve source:",
+    options=price_source_options,
+    format_func=lambda x: price_source_labels[x],
+    horizontal=True,
+    index=price_source_options.index(current_price_source),
+    key='merchant_price_source_radio',
+)
+update_wizard_state('setup', 'merchant_price_curve_source', price_source)
+
+
+def _curve_to_dataframe(curve_dict):
+    """Convert {(year, month): price} to a DataFrame sorted by date."""
+    if not curve_dict:
+        return pd.DataFrame(columns=['date', 'year', 'month', 'price'])
+    rows = []
+    for (yr, mo), price in curve_dict.items():
+        rows.append({
+            'date': pd.Timestamp(year=int(yr), month=int(mo), day=1),
+            'year': int(yr),
+            'month': int(mo),
+            'price': float(price),
+        })
+    df = pd.DataFrame(rows).sort_values('date').reset_index(drop=True)
+    return df
+
+
+def _render_price_curve_chart(curve_dict, title):
+    """Render a monthly + yearly-average price-curve chart."""
+    df = _curve_to_dataframe(curve_dict)
+    if df.empty:
+        st.info("No price curve data to display.")
+        return
+
+    yearly_avg = df.groupby('year')['price'].mean().reset_index()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df['date'], y=df['price'],
+        mode='lines', name='Monthly',
+        line=dict(color='#3498db', width=1),
+        opacity=0.6,
+    ))
+    fig.add_trace(go.Scatter(
+        x=pd.to_datetime(yearly_avg['year'].astype(str) + '-07-01'),
+        y=yearly_avg['price'],
+        mode='lines+markers', name='Yearly avg',
+        line=dict(color='#e74c3c', width=2),
+        marker=dict(size=5),
+    ))
+    fig.update_layout(
+        height=320,
+        margin=dict(l=40, r=20, t=40, b=40),
+        title=dict(text=title, font=dict(size=14)),
+        xaxis_title="Date",
+        yaxis_title="£/MWh (nominal)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1),
+        hovermode='x unified',
+    )
+    st.plotly_chart(fig, width='stretch')
+
+    # Summary stats
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Min £/MWh", f"{df['price'].min():.1f}")
+    c2.metric("Mean £/MWh", f"{df['price'].mean():.1f}")
+    c3.metric("Max £/MWh", f"{df['price'].max():.1f}")
+    c4.metric("Months", f"{len(df):,}")
+
+
+def _compute_post_ppa_range(fin_dict):
+    """Returns (first_key, last_key) for the post-PPA window as (year, month)
+    tuples. Uses wizard financial state; falls back to engine D13 defaults
+    when fields are missing (e.g. user hasn't visited Step 2b yet).
+    """
+    from datetime import date as _date
+
+    cod = fin_dict.get('cod_date')
+    if cod is None:
+        cstart = fin_dict.get('construction_start')
+        cmonths = int(fin_dict.get('construction_months') or 9)
+        if cstart is not None:
+            total = cstart.month - 1 + cmonths
+            cod = _date(cstart.year + total // 12, total % 12 + 1, 1)
+        else:
+            cod = _date(2027, 7, 1)  # D13 engine default
+
+    ppa_tenor = int(fin_dict.get('ppa_tenor_years') or 10)
+    proj_life = int(fin_dict.get('project_life_years') or 35)
+    first = (cod.year + ppa_tenor, cod.month)
+    last = (cod.year + proj_life - 1, 12)
+    return first, last
+
+
+def _validate_curve_coverage(curve_dict, fin_dict):
+    """Check curve_dict covers every (year, month) in the post-PPA window.
+
+    Returns: (ok: bool, missing_count: int, first_missing_str: str | None,
+              range_str: str)
+    """
+    first, last = _compute_post_ppa_range(fin_dict)
+    first_y, first_m = first
+    last_y, last_m = last
+
+    missing = []
+    y, m = first_y, first_m
+    while (y, m) <= (last_y, last_m):
+        if (y, m) not in curve_dict:
+            missing.append((y, m))
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+
+    range_str = f"{first_y}-{first_m:02d} through {last_y}-{last_m:02d}"
+    if not missing:
+        return True, 0, None, range_str
+    first_missing_str = f"{missing[0][0]}-{missing[0][1]:02d}"
+    return False, len(missing), first_missing_str, range_str
+
+
+# Compute the required coverage range upfront for the help text + validator.
+_required_first, _required_last = _compute_post_ppa_range(financial)
+_required_range_str = (
+    f"{_required_first[0]}-{_required_first[1]:02d} through "
+    f"{_required_last[0]}-{_required_last[1]:02d}"
+)
+
+
+if price_source == 'default':
+    _render_price_curve_chart(
+        _ENGINE_DEFAULT_CURVE,
+        "Engine default merchant curve (Burton-Leonard, locked)"
+    )
+    # Clear any stored upload if user toggled back to default
+    update_wizard_state('setup', 'merchant_price_curve', None)
+
+else:
+    uploaded_price = st.file_uploader(
+        "Upload Nominal Merchant Curve CSV",
+        type=['csv'],
+        help=(
+            "CSV with columns: `year`, `month` (1-12), `price_gbp_mwh` "
+            "(nominal £/MWh — must include inflation; engine does not "
+            "escalate this curve). One row per month. Required coverage: "
+            f"**{_required_range_str}** (post-PPA window for current "
+            "project timeline)."
+        ),
+        key='merchant_price_csv_uploader',
+    )
+
+    if uploaded_price is not None:
+        try:
+            df_upload = pd.read_csv(uploaded_price)
+            df_upload.columns = [c.strip().lower() for c in df_upload.columns]
+            required = {'year', 'month', 'price_gbp_mwh'}
+            if not required.issubset(set(df_upload.columns)):
+                st.error(
+                    f"CSV must have columns: {', '.join(sorted(required))}. "
+                    f"Got: {', '.join(df_upload.columns)}"
+                )
+            else:
+                df_upload = df_upload.dropna(subset=['year', 'month', 'price_gbp_mwh'])
+                df_upload['year'] = df_upload['year'].astype(int)
+                df_upload['month'] = df_upload['month'].astype(int)
+                df_upload['price_gbp_mwh'] = df_upload['price_gbp_mwh'].astype(float)
+
+                bad_months = df_upload[(df_upload['month'] < 1) | (df_upload['month'] > 12)]
+                if not bad_months.empty:
+                    st.error(f"Month values must be 1-12. Found: {bad_months['month'].tolist()[:5]}")
+                elif (df_upload['price_gbp_mwh'] < 0).any():
+                    st.error("Price values must be non-negative.")
+                else:
+                    curve_dict = {
+                        (int(r.year), int(r.month)): float(r.price_gbp_mwh)
+                        for r in df_upload.itertuples()
+                    }
+                    # A49: reject incomplete coverage of the post-PPA window
+                    # to avoid silent default-substitution surprises (engine's
+                    # _merchant_price would fall back per-month to its locked
+                    # default, mixing user data with Burton-Leonard values).
+                    ok, n_missing, first_miss, range_str = _validate_curve_coverage(
+                        curve_dict, financial
+                    )
+                    if not ok:
+                        st.error(
+                            f"Curve must cover **{range_str}** (post-PPA "
+                            f"window for current project timeline). Missing "
+                            f"{n_missing} months — first: {first_miss}. "
+                            "Stored curve unchanged."
+                        )
+                    else:
+                        update_wizard_state('setup', 'merchant_price_curve', curve_dict)
+                        st.success(
+                            f"Loaded {len(curve_dict)} monthly price points "
+                            f"(covers {range_str} + extras)."
+                        )
+                        _render_price_curve_chart(curve_dict, "Uploaded merchant curve")
+        except Exception as e:
+            st.error(f"Error reading CSV: {e}")
+    else:
+        stored = setup.get('merchant_price_curve')
+        if stored:
+            st.info(f"Using previously uploaded curve: {len(stored)} months.")
+            _render_price_curve_chart(stored, "Uploaded merchant curve")
+        else:
+            st.info(
+                f"Upload a CSV to set a custom merchant price curve. "
+                f"Required coverage: {_required_range_str}. "
+                "Engine uses the default curve until upload."
+            )
+
+st.caption(
+    "Upload-only feeds the engine for post-PPA years; PPA-tenor revenue "
+    "comes from your PPA tariff (configured in Step 2b). Real-terms uploads "
+    "+ customisable inflation curve are planned for v2 — see "
+    "[`docs/future_improvements/v2_price_and_inflation_curves.md`]"
+    "(docs/future_improvements/v2_price_and_inflation_curves.md)."
+)
 
 
 st.divider()
@@ -616,7 +926,7 @@ if have_load_profile and have_solar_profile:
         hovermode='x unified'
     )
 
-    st.plotly_chart(fig_storable, use_container_width=True)
+    st.plotly_chart(fig_storable, width='stretch')
 
 
 st.divider()
@@ -829,7 +1139,7 @@ if dg_enabled:
                     'Fuel Rate': f"{fuel_rate:.0f} L/hr",
                     'Specific': f"{specific:.3f} L/kWh"
                 })
-            st.dataframe(pd.DataFrame(eff_data), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(eff_data), hide_index=True, width='stretch')
 
             st.caption("Lower load = higher specific fuel consumption (less efficient)")
         else:
@@ -878,7 +1188,7 @@ if errors:
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col3:
-    if st.button("Next → Dispatch Rules", type="primary", disabled=not is_valid, use_container_width=True):
+    if st.button("Next → Dispatch Rules", type="primary", disabled=not is_valid, width='stretch'):
         mark_step_completed(1)
         st.switch_page("pages/Step2_Rules.py")
 

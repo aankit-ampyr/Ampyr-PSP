@@ -1,0 +1,2000 @@
+Loading workbook: Financial Model/Off-Grid Solution v8.xlsm
+(formulas visible, not computed values)
+
+Sheets in workbook: ['Overall Inputs', 'Master Profiles', 'Cover', 'Notes', 'E_Out', 'Consol Cash Flows', 'Inputs-Gas', 'Capex & Funding-Gas', 'Cash Flows-Gas', '12 MW CAPEX Estimate-Gas', 'Solar&BESS Inputs', 'Solar&BESS Operation', 'Log', 'Chart1', 'FS (Annual)', 'FS', 'Baringa and Aurora', 'Phasing', 'Curves and D&T', 'Timing', 'Results', 'Returns', 'BESS OPEX', 'Analysis', 'IC', 'CFs 1&2', 'Construction', 'Drawdown', 'BESS', 'Debt', 'D&T', 'Copy', 'Equity', 'Macro', 'Insurance', 'SETUP', 'CHECKS', 'Modo Monthly', 'Wasted Solar']
+
+
+====================================================================================================
+SHEET: Solar&BESS Inputs
+Range: rows 1-500, cols A-T
+====================================================================================================
+Row    Cell     Type       Label                                    Value/Formula
+------ -------- ---------- ---------------------------------------- --------------------------------------------------
+1      A1       text                                                INPUTS
+2      J2       text                                                Fixed debt
+2      K2       text       Fixed debt                               Sculpted debt
+2      L2       text       Sculpted debt                            SHL
+2      M2       text       SHL                                      Equity
+2      N2       text       Equity                                   Total
+3      C3       formula                                             =Checks_Alerts
+3      E3       text                                                PIRR
+3      F3       text       PIRR                                     EIRR
+3      G3       text       EIRR                                     NPM
+3      H3       text       NPM                                      Balloon
+3      J3       formula    Balloon                                  =Construction!$I$118
+3      K3       formula    Balloon                                  =Construction!$I$119
+3      L3       formula                                             =Construction!$I$127
+3      M3       formula                                             =Construction!$I$126
+3      N3       formula                                             =SUM(J3:M3)
+4      C4       formula                                             =Checks_Warnings
+4      E4       formula                                             =Equity!$G$162
+4      F4       formula                                             =Equity!$F$118
+4      G4       formula                                             =Equity!$E$146
+4      H4       formula                                             =Debt!$F$358
+4      J4       formula                                             =J3/SUM($J$3:$M$3)
+4      K4       formula                                             =K3/SUM($J$3:$M$3)
+4      L4       formula                                             =L3/SUM($J$3:$M$3)
+4      M4       formula                                             =M3/SUM($J$3:$M$3)
+4      N4       formula                                             =SUM(J4:M4)
+5      E5       text                                                FCFF IRR
+5      F5       text       FCFF IRR                                 MOIC
+5      G5       text       MOIC                                     Min. DSCR
+5      H5       text       Min. DSCR                                Gearing
+5      N5       formula                                             =6828+1600
+6      E6       formula                                             =Equity!D175
+6      F6       formula                                             =Equity!H138
+6      G6       formula                                             =Debt!F348
+6      H6       formula                                             =J4+K4
+6      J6       text                                                Base DEBT Case
+6      K6       text       Base DEBT Case                           Base EQUITY Case
+6      N6       formula    Base EQUITY Case                         =N5/N3
+7      C7       text                                                Case selected
+7      D7       text       Case selected                            #
+7      F7       number     #                                        2
+7      J7       number                                              1
+7      K7       formula                                             =J7+1
+7      L7       formula                                             =K7+1
+7      M7       formula                                             =L7+1
+7      N7       formula                                             =M7+1
+7      O7       formula                                             =N7+1
+7      P7       formula                                             =O7+1
+7      Q7       formula                                             =P7+1
+7      R7       formula                                             =Q7+1
+7      S7       formula                                             =R7+1
+7      T7       formula                                             =S7+1
+8      C8       text                                                Case name
+8      D8       text       Case name                                Name
+8      F8       ArrayFormula Name                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE509D310>
+8      H8       text                                                Equity Default
+8      J8       formula    Equity Default                           =J12&" (Debt)"
+8      K8       formula    Equity Default                           =K12
+8      L8       formula                                             =L12&" (Debt)"
+8      M8       formula                                             =M12
+8      N8       formula                                             =N12&" (Debt)"
+8      O8       formula                                             =O12
+8      P8       formula                                             =P12&" (Debt)"
+8      Q8       formula                                             =Q12
+
+10     A10      text                                                GENERAL
+
+12     C12      text                                                Project name
+12     D12      text       Project name                             Name
+12     F12      ArrayFormula Name                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE40CD0D0>
+12     H12      text                                                IC Assumptions
+12     J12      text       IC Assumptions                           Burton Top-3.8h
+12     K12      text       Burton Top-3.8h                          Burton Top-3.8h
+12     L12      text       Burton Top-3.8h                          Burton Top-2.3h
+12     M12      text       Burton Top-2.3h                          Burton Top-2.3h
+12     N12      text       Burton Top-2.3h                          Burton Top-6h
+12     O12      text       Burton Top-6h                            Burton Top-6h
+12     P12      text       Burton Top-6h                            Northwold 
+12     Q12      text       Northwold                                Northwold 
+13     C13      text                                                Municipality
+13     D13      text       Municipality                             Name
+13     F13      ArrayFormula Name                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE406EC90>
+
+15     B15      text                                                Timing
+16     C16      text                                                Model start
+16     D16      text       Model start                              Date
+16     F16      ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE55835F0>
+16     H16      datetime                                            2023-01-01 00:00:00
+17     C17      text                                                Development start
+17     D17      text       Development start                        Various
+17     F17      ArrayFormula Various                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE3F75F10>
+17     H17      formula                                             =H16+1
+17     J17      datetime                                            2025-03-01 00:00:00
+17     K17      datetime                                            2025-03-01 00:00:00
+17     L17      datetime                                            2025-03-01 00:00:00
+17     M17      datetime                                            2025-03-01 00:00:00
+17     N17      datetime                                            2025-03-01 00:00:00
+17     O17      datetime                                            2025-03-01 00:00:00
+17     P17      datetime                                            2023-09-01 00:00:00
+17     Q17      datetime                                            2023-09-01 00:00:00
+18     C18      text                                                Development time
+18     D18      text       Development time                         Month(s)
+18     F18      ArrayFormula Month(s)                                 <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE40CD6D0>
+18     H18      number                                              15
+18     J18      formula                                             =DATEDIF(J17,J19,"M")
+18     K18      formula                                             =DATEDIF(K17,K19,"M")
+18     L18      formula                                             =DATEDIF(L17,L19,"M")
+18     M18      formula                                             =DATEDIF(M17,M19,"M")
+18     N18      formula                                             =DATEDIF(N17,N19,"M")
+18     O18      formula                                             =DATEDIF(O17,O19,"M")
+18     P18      formula                                             =DATEDIF(P17,P19,"M")
+18     Q18      formula                                             =DATEDIF(Q17,Q19,"M")
+19     C19      text                                                Construction Start
+19     D19      text       Construction Start                       Date
+19     F19      ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE52937A0>
+19     H19      formula                                             =EOMONTH(H17,H18-1)+1
+19     J19      datetime                                            2026-10-01 00:00:00
+19     K19      datetime                                            2026-10-01 00:00:00
+19     L19      datetime                                            2026-10-01 00:00:00
+19     M19      datetime                                            2026-10-01 00:00:00
+19     N19      datetime                                            2026-10-01 00:00:00
+19     O19      datetime                                            2026-10-01 00:00:00
+19     P19      datetime                                            2024-10-01 00:00:00
+19     Q19      datetime                                            2024-10-01 00:00:00
+20     C20      text                                                Construction time
+20     D20      text       Construction time                        Month(s)
+20     F20      ArrayFormula Month(s)                                 <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE3286D80>
+20     H20      number                                              6
+20     J20      formula                                             =DATEDIF(J19,J23,"M")
+20     K20      formula                                             =DATEDIF(K19,K23,"M")
+20     L20      formula                                             =DATEDIF(L19,L23,"M")
+20     M20      formula                                             =DATEDIF(M19,M23,"M")
+20     N20      formula                                             =DATEDIF(N19,N23,"M")
+20     O20      formula                                             =DATEDIF(O19,O23,"M")
+20     P20      formula                                             =DATEDIF(P19,P23,"M")
+20     Q20      formula                                             =DATEDIF(Q19,Q23,"M")
+21     C21      text                                                Development + Construction time
+21     D21      text       Development + Construction time          Month(s)
+21     F21      ArrayFormula Month(s)                                 <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE3CD4740>
+21     H21      formula                                             =H18+H20
+21     J21      formula                                             =J18+J20
+21     K21      formula                                             =K18+K20
+21     L21      formula                                             =L18+L20
+21     M21      formula                                             =M18+M20
+21     N21      formula                                             =N18+N20
+21     O21      formula                                             =O18+O20
+21     P21      formula                                             =P18+P20
+21     Q21      formula                                             =Q18+Q20
+22     C22      text                                                Construction end
+22     D22      text       Construction end                         Date
+22     F22      ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5383CE0>
+22     H22      formula                                             =EOMONTH(H17,H21-1)
+22     J22      formula                                             =EOMONTH(J19,J20-1)
+22     K22      formula                                             =EOMONTH(K19,K20-1)
+22     L22      formula                                             =EOMONTH(L19,L20-1)
+22     M22      formula                                             =EOMONTH(M19,M20-1)
+22     N22      formula                                             =EOMONTH(N19,N20-1)
+22     O22      formula                                             =EOMONTH(O19,O20-1)
+22     P22      formula                                             =EOMONTH(P19,P20-1)
+22     Q22      formula                                             =EOMONTH(Q19,Q20-1)
+23     C23      text                                                Operations start (COD)
+23     D23      text       Operations start (COD)                   Date
+23     F23      ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE53CFAA0>
+23     H23      formula                                             =EOMONTH(H17,H21-1)+1
+23     J23      datetime                                            2027-07-01 00:00:00
+23     K23      datetime                                            2027-07-01 00:00:00
+23     L23      datetime                                            2027-07-01 00:00:00
+23     M23      datetime                                            2027-07-01 00:00:00
+23     N23      datetime                                            2027-07-01 00:00:00
+23     O23      datetime                                            2027-07-01 00:00:00
+23     P23      datetime                                            2025-05-01 00:00:00
+23     Q23      datetime                                            2025-05-01 00:00:00
+24     C24      text                                                Project Life
+24     D24      text       Project Life                             Various
+24     F24      ArrayFormula Various                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE53CEE10>
+24     H24      number                                              35
+24     J24      number                                              35
+24     K24      number                                              35
+24     L24      number                                              35
+24     M24      number                                              35
+24     N24      number                                              35
+24     O24      number                                              35
+24     P24      number                                              35
+24     Q24      number                                              35
+25     C25      text                                                Operations end
+25     D25      text       Operations end                           Date
+25     F25      ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5663800>
+25     H25      formula                                             =EOMONTH(H23,H24*12-1)+1
+25     J25      formula                                             =EOMONTH(J23,J24*12-1)
+25     K25      formula                                             =EOMONTH(K23,K24*12-1)
+25     L25      formula                                             =EOMONTH(L23,L24*12-1)
+25     M25      formula                                             =EOMONTH(M23,M24*12-1)
+25     N25      formula                                             =EOMONTH(N23,N24*12-1)
+25     O25      formula                                             =EOMONTH(O23,O24*12-1)
+25     P25      formula                                             =EOMONTH(P23,P24*12-1)
+25     Q25      formula                                             =EOMONTH(Q23,Q24*12-1)
+
+27     A27      text                                                SOLAR REVENUE
+
+29     B29      text                                                Generation
+30     B30      text                                                Capacity
+31     C31      text                                                Capacity
+31     D31      text       Capacity                                 MWp
+31     F31      ArrayFormula MWp                                      <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE52C51C0>
+31     H31      number                                              5.085
+31     J31      number                                              82
+31     K31      number                                              82
+31     L31      number                                              82
+31     M31      number                                              82
+31     N31      number                                              82
+31     O31      number                                              82
+31     P31      number                                              10
+31     Q31      number                                              10
+
+33     B33      text                                                Gross yield
+34     C34      text                                                P50
+34     D34      text       P50                                      MWh / MWp / Yr
+34     F34      ArrayFormula MWh / MWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE42ACFE0>
+34     H34      number                                              997.4434611602753
+34     J34      number                                              967
+34     K34      number                                              967
+34     L34      number                                              967
+34     M34      number                                              967
+34     N34      number                                              967
+34     O34      number                                              967
+34     P34      number                                              1141
+34     Q34      number                                              1065
+35     C35      text                                                P75
+35     D35      text       P75                                      MWh / MWp / Yr
+35     F35      ArrayFormula MWh / MWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE52C6B70>
+35     H35      number                                              950.2458210422812
+35     J35      number                                              936
+35     K35      number                                              936
+35     L35      number                                              936
+35     M35      number                                              936
+35     N35      number                                              936
+35     O35      number                                              936
+35     P35      number                                              1100
+35     Q35      number                                              1011.75
+36     C36      text                                                P90
+36     D36      text       P90                                      MWh / MWp / Yr
+36     F36      ArrayFormula MWh / MWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE55B4500>
+36     H36      number                                              907.7679449360866
+36     J36      number                                              895
+36     K36      number                                              895
+36     L36      number                                              895
+36     M36      number                                              895
+36     N36      number                                              895
+36     O36      number                                              895
+36     P36      number                                              1200
+36     Q36      number                                              992
+37     C37      text                                                Applied
+37     D37      text       Applied                                  MWh / MWp / Yr
+37     E37      formula    MWh / MWp / Yr                           =MATCH($F$66,Yield,0)
+37     F37      ArrayFormula MWh / MWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5659370>
+
+39     B39      text                                                Degradation
+40     C40      text                                                Linear Degradation from 2nd Year
+40     D40      text       Linear Degradation from 2nd Year         %
+40     F40      ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE565A900>
+40     H40      number                                              0.0025
+40     J40      number                                              0.003
+40     K40      number                                              0.003
+40     L40      number                                              0.003
+40     M40      number                                              0.003
+40     N40      number                                              0.003
+40     O40      number                                              0.003
+40     P40      number                                              0.003
+40     Q40      number                                              0.003
+
+42     B42      text                                                Grid Availability
+43     C43      text                                                Annual Outage
+43     D43      text       Annual Outage                            Selection
+43     F43      ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE565B110>
+43     H43      number                                              0
+43     J43      number                                              0
+43     K43      number                                              0
+43     L43      number                                              0
+43     M43      number                                              0
+43     N43      number                                              0
+43     O43      number                                              0
+43     P43      number                                              0
+43     Q43      number                                              0
+44     C44      text                                                Outage Month
+44     F44      ArrayFormula Outage Month                             <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5659250>
+44     H44      text                                                December
+45     C45      text                                                Outage Length
+45     F45      ArrayFormula Outage Length                            <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE568A390>
+45     H45      number                                              10
+
+47     B47      text                                                Curtailment
+48     C48      text                                                Negative Price Curtailment
+48     D48      text       Negative Price Curtailment               Selection
+48     F48      number     Selection                                0
+48     H48      number                                              0
+48     J48      number                                              1
+48     K48      number                                              1
+48     L48      number                                              1
+48     M48      number                                              1
+48     N48      number                                              1
+48     O48      number                                              1
+
+50     B50      text                                                Seasonality
+51     C51      formula                                             =SETUP!E50
+51     F51      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5583560>
+51     H51      number                                              0.02383677338255359
+51     J51      number                                              0.02462514427365368
+51     K51      number                                              0.02462514427365368
+51     L51      number                                              0.02462514427365368
+51     M51      number                                              0.02462514427365368
+51     N51      number                                              0.02462514427365368
+51     O51      number                                              0.02462514427365368
+51     P51      number                                              0.02691724903237175
+51     Q51      number                                              0.02691724903237175
+52     C52      formula                                             =SETUP!E51
+52     F52      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5583200>
+52     H52      number                                              0.042742758124026906
+52     J52      number                                              0.04804885649807934
+52     K52      number                                              0.04804885649807934
+52     L52      number                                              0.04804885649807934
+52     M52      number                                              0.04804885649807934
+52     N52      number                                              0.04804885649807934
+52     O52      number                                              0.04804885649807934
+52     P52      number                                              0.04984238552573706
+52     Q52      number                                              0.04984238552573706
+53     C53      formula                                             =SETUP!E52
+53     F53      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5583DA0>
+53     H53      number                                              0.09908767265813458
+53     J53      number                                              0.09048123381795506
+53     K53      number                                              0.09048123381795506
+53     L53      number                                              0.09048123381795506
+53     M53      number                                              0.09048123381795506
+53     N53      number                                              0.09048123381795506
+53     O53      number                                              0.09048123381795506
+53     P53      number                                              0.0832561741385607
+53     Q53      number                                              0.0832561741385607
+54     C54      formula                                             =SETUP!E53
+54     F54      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE55B40E0>
+54     H54      number                                              0.10675785003249055
+54     J54      number                                              0.11906805463597
+54     K54      number                                              0.11906805463597
+54     L54      number                                              0.11906805463597
+54     M54      number                                              0.11906805463597
+54     N54      number                                              0.11906805463597
+54     O54      number                                              0.11906805463597
+54     P54      number                                              0.11733630980245975
+54     Q54      number                                              0.11733630980245975
+55     C55      formula                                             =SETUP!E54
+55     F55      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5680AA0>
+55     H55      number                                              0.14004798604850072
+55     J55      number                                              0.135136430944388
+55     K55      number                                              0.135136430944388
+55     L55      number                                              0.135136430944388
+55     M55      number                                              0.135136430944388
+55     N55      number                                              0.135136430944388
+55     O55      number                                              0.135136430944388
+55     P55      number                                              0.13506520649494222
+55     Q55      number                                              0.13506520649494222
+56     C56      formula                                             =SETUP!E55
+56     F56      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5682150>
+56     H56      number                                              0.1401007484860883
+56     J56      number                                              0.1350055352335646
+56     K56      number                                              0.1350055352335646
+56     L56      number                                              0.1350055352335646
+56     M56      number                                              0.1350055352335646
+56     N56      number                                              0.1350055352335646
+56     O56      number                                              0.1350055352335646
+56     P56      number                                              0.1274223401559186
+56     Q56      number                                              0.1274223401559186
+57     C57      formula                                             =SETUP!E56
+57     F57      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56834A0>
+57     H57      number                                              0.14108842429145602
+57     J57      number                                              0.13014403844261588
+57     K57      number                                              0.13014403844261588
+57     L57      number                                              0.13014403844261588
+57     M57      number                                              0.13014403844261588
+57     N57      number                                              0.13014403844261588
+57     O57      number                                              0.13014403844261588
+57     P57      number                                              0.13392727859306436
+57     Q57      number                                              0.13392727859306436
+58     C58      formula                                             =SETUP!E57
+58     F58      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56AEE70>
+58     H58      number                                              0.11555695843986101
+58     J58      number                                              0.1195985584019048
+58     K58      number                                              0.1195985584019048
+58     L58      number                                              0.1195985584019048
+58     M58      number                                              0.1195985584019048
+58     N58      number                                              0.1195985584019048
+58     O58      number                                              0.1195985584019048
+58     P58      number                                              0.11599335378290977
+58     Q58      number                                              0.11599335378290977
+59     C59      formula                                             =SETUP!E58
+59     F59      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5681B50>
+59     H59      number                                              0.0871696562295777
+59     J59      number                                              0.09018965233798296
+59     K59      number                                              0.09018965233798296
+59     L59      number                                              0.09018965233798296
+59     M59      number                                              0.09018965233798296
+59     N59      number                                              0.09018965233798296
+59     O59      number                                              0.09018965233798296
+59     P59      number                                              0.09057846091812209
+59     Q59      number                                              0.09057846091812209
+60     C60      formula                                             =SETUP!E59
+60     F60      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5663C50>
+60     H60      number                                              0.043185962599762664
+60     J60      number                                              0.05966186378039451
+60     K60      number                                              0.05966186378039451
+60     L60      number                                              0.05966186378039451
+60     M60      number                                              0.05966186378039451
+60     N60      number                                              0.05966186378039451
+60     O60      number                                              0.05966186378039451
+60     P60      number                                              0.06469298181324754
+60     Q60      number                                              0.06469298181324754
+61     C61      formula                                             =SETUP!E60
+61     F61      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56618B0>
+61     H61      number                                              0.03280472159020433
+61     J61      number                                              0.02960620251081043
+61     K61      number                                              0.02960620251081043
+61     L61      number                                              0.02960620251081043
+61     M61      number                                              0.02960620251081043
+61     N61      number                                              0.02960620251081043
+61     O61      number                                              0.02960620251081043
+61     P61      number                                              0.0340705689872109
+61     Q61      number                                              0.0340705689872109
+62     C62      formula                                             =SETUP!E61
+62     F62      ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5662AE0>
+62     H62      number                                              0.02762048811734366
+62     J62      number                                              0.018434429122680777
+62     K62      number                                              0.018434429122680777
+62     L62      number                                              0.018434429122680777
+62     M62      number                                              0.018434429122680777
+62     N62      number                                              0.018434429122680777
+62     O62      number                                              0.018434429122680777
+62     P62      number                                              0.020897690755455424
+62     Q62      number                                              0.020897690755455424
+63     C63      text                                                Total
+63     F63      formula    Total                                    =SUM(F51:F62)
+
+65     B65      text                                                Merchant
+66     C66      text                                                Generation selection
+66     D66      text       Generation selection                     Case
+66     F66      ArrayFormula Case                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5663D40>
+66     H66      text                                                P50
+66     J66      text       P50                                      P90
+66     K66      text       P90                                      P50
+66     L66      text       P50                                      P90
+66     M66      text       P90                                      P50
+66     N66      text       P50                                      P90
+66     O66      text       P90                                      P50
+66     P66      text       P50                                      P90
+66     Q66      text       P90                                      P50
+67     C67      text                                                Merchant price selection
+67     D67      text       Merchant price selection                 Case
+67     F67      ArrayFormula Case                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5663E30>
+67     H67      text                                                Base
+67     J67      text       Base                                     Low
+67     K67      text       Low                                      Monthly Average
+67     L67      text       Monthly Average                          Low
+67     M67      text       Low                                      Monthly Average
+67     N67      text       Monthly Average                          Low
+67     O67      text       Low                                      Monthly Average
+67     P67      text       Monthly Average                          Low
+67     Q67      text       Low                                      Monthly Average
+68     C68      text                                                Curve
+68     D68      text       Curve                                    Case
+68     F68      ArrayFormula Case                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56A5760>
+68     H68      text                                                Baringa
+68     J68      text       Baringa                                  Aurora
+68     K68      text       Aurora                                   Blend
+68     L68      text       Blend                                    Aurora
+68     M68      text       Aurora                                   Blend
+68     N68      text       Blend                                    Aurora
+68     O68      text       Aurora                                   Blend
+68     P68      text       Blend                                    Aurora
+68     Q68      text       Aurora                                   Blend
+69     C69      text                                                Technology
+69     D69      text       Technology                               Case
+69     F69      ArrayFormula Case                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56A6FC0>
+69     J69      text                                                FT
+69     K69      text       FT                                       FT
+69     L69      text       FT                                       FT
+69     M69      text       FT                                       FT
+69     N69      text       FT                                       FT
+69     O69      text       FT                                       FT
+69     P69      text       FT                                       FT
+69     Q69      text       FT                                       FT
+70     C70      text                                                Price flex
+70     D70      text       Price flex                               %
+70     F70      ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56A6930>
+70     H70      number                                              0
+
+72     B72      text                                                PPA
+73     C73      text                                                PPA selection
+73     D73      text       PPA selection                            Case
+73     E73      formula    Case                                     =IF(IFERROR(MATCH(F73,PPA_Case,0),0)=0,1,0)
+73     F73      ArrayFormula Case                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56A5010>
+73     H73      text                                                Asahi (Actual Start Date)
+73     J73      text       Asahi (Actual Start Date)                PPA  with data Centre
+73     K73      text       PPA  with data Centre                    PPA  with data Centre
+73     L73      text       PPA  with data Centre                    PPA  with data Centre
+73     M73      text       PPA  with data Centre                    PPA  with data Centre
+73     N73      text       PPA  with data Centre                    PPA  with data Centre
+73     O73      text       PPA  with data Centre                    PPA  with data Centre
+73     P73      text       PPA  with data Centre                    Multiplex PPA
+73     Q73      text       Multiplex PPA                            Multiplex PPA
+74     C74      text                                                PPA flex
+74     D74      text       PPA flex                                 %
+74     F74      ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5681C70>
+74     H74      number                                              0
+75     C75      text                                                PPA price indexation
+75     D75      text       PPA price indexation                     %
+75     F75      ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE568A8D0>
+75     H75      text                                                NIL INDEXATION
+75     J75      text       NIL INDEXATION                           NIL INDEXATION
+75     K75      text       NIL INDEXATION                           NIL INDEXATION
+75     L75      text       NIL INDEXATION                           NIL INDEXATION
+75     M75      text       NIL INDEXATION                           NIL INDEXATION
+75     N75      text       NIL INDEXATION                           NIL INDEXATION
+75     O75      text       NIL INDEXATION                           NIL INDEXATION
+75     P75      text       NIL INDEXATION                           PPA Indexation
+75     Q75      text       PPA Indexation                           PPA Indexation
+76     C76      text                                                PPA End Date
+76     D76      text       PPA End Date                             Date
+76     F76      formula    Date                                     ='Curves and D&T'!$H$48
+
+78     B78      text                                                Renewable Energy Gurantees of Origin (REGO)
+79     C79      text                                                REGO switch
+79     D79      text       REGO switch                              Selection
+79     F79      ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5689070>
+79     H79      number                                              1
+79     J79      number                                              1
+79     K79      number                                              1
+79     L79      number                                              1
+79     M79      number                                              1
+79     N79      number                                              1
+79     O79      number                                              1
+79     P79      number                                              1
+79     Q79      number                                              1
+80     C80      text                                                REGO price
+80     D80      text       REGO price                               GBP / MWh
+80     F80      ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE568AC00>
+80     H80      number                                              1
+80     J80      number                                              2.5
+80     K80      number                                              2.5
+80     L80      number                                              2.5
+80     M80      number                                              2.5
+80     N80      number                                              2.5
+80     O80      number                                              2.5
+80     P80      number                                              2.5
+80     Q80      number                                              2.5
+81     C81      text                                                REGO price indexation
+81     D81      text       REGO price indexation                    %
+81     F81      ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56800B0>
+81     H81      text                                                NIL INDEXATION
+81     J81      text       NIL INDEXATION                           NIL INDEXATION
+81     K81      text       NIL INDEXATION                           NIL INDEXATION
+81     L81      text       NIL INDEXATION                           NIL INDEXATION
+81     M81      text       NIL INDEXATION                           NIL INDEXATION
+81     N81      text       NIL INDEXATION                           NIL INDEXATION
+81     O81      text       NIL INDEXATION                           NIL INDEXATION
+81     P81      text       NIL INDEXATION                           NIL INDEXATION
+81     Q81      text       NIL INDEXATION                           NIL INDEXATION
+82     C82      text                                                REGO tenor
+82     D82      text       REGO tenor                               Year(s)
+82     F82      ArrayFormula Year(s)                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56CC860>
+82     H82      number                                              15
+82     J82      number                                              35
+82     K82      number                                              35
+82     L82      number                                              35
+82     M82      number                                              35
+82     N82      number                                              35
+82     O82      number                                              35
+82     P82      number                                              35
+82     Q82      number                                              35
+83     C83      text                                                REGO tenor start
+83     D83      text       REGO tenor start                         Various
+83     F83      formula    Various                                  =Op_Start
+84     C84      text                                                REGO tenor end
+84     D84      text       REGO tenor end                           Various
+84     F84      formula    Various                                  =EOMONTH(F83,F82*Months_yr-1)
+
+86     B86      text                                                Embedded Benefits - 11kV
+87     C87      text                                                Embedded Benefits Switch
+87     D87      text       Embedded Benefits Switch                 Selection
+87     F87      ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56CF9B0>
+87     H87      number                                              0
+87     J87      number                                              1
+87     K87      number                                              1
+87     L87      number                                              1
+87     M87      number                                              1
+87     N87      number                                              1
+87     O87      number                                              1
+87     P87      number                                              1
+87     Q87      number                                              1
+88     C88      text                                                Embedded Benefits Indexation
+88     D88      text       Embedded Benefits Indexation             %
+88     F88      ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56CDEE0>
+88     H88      text                                                NIL INDEXATION
+88     J88      text       NIL INDEXATION                           CPI
+88     K88      text       CPI                                      CPI
+88     L88      text       CPI                                      CPI
+88     M88      text       CPI                                      CPI
+88     N88      text       CPI                                      CPI
+88     O88      text       CPI                                      CPI
+88     P88      text       CPI                                      CPI
+88     Q88      text       CPI                                      CPI
+89     C89      text                                                Embedded Benefits Tenor
+89     D89      text       Embedded Benefits Tenor                  Year(s)
+89     F89      ArrayFormula Year(s)                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE570B500>
+89     H89      number                                              15
+89     J89      number                                              15
+89     K89      number                                              15
+89     L89      number                                              15
+89     M89      number                                              15
+89     N89      number                                              15
+89     O89      number                                              15
+89     P89      number                                              15
+89     Q89      number                                              15
+90     C90      text                                                Embedded Benefits Tenor Start
+90     D90      text       Embedded Benefits Tenor Start            Various
+90     F90      ArrayFormula Various                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE55B4170>
+90     H90      formula                                             =Op_Start
+90     J90      formula                                             =Op_Start
+90     K90      formula                                             =Op_Start
+90     L90      formula                                             =Op_Start
+90     M90      formula                                             =Op_Start
+90     N90      formula                                             =Op_Start
+90     O90      formula                                             =Op_Start
+90     P90      formula                                             =Op_Start
+90     Q90      formula                                             =Op_Start
+91     C91      text                                                Embedded Benefits Tenor End
+91     D91      text       Embedded Benefits Tenor End              Various
+91     F91      formula    Various                                  =EOMONTH(F90,F89*Months_yr-1)
+
+93     C93      text                                                Month
+94     C94      number                                              1
+94     D94      text                                                GBP / MWh
+94     F94      ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56AF5C0>
+94     J94      number                                              5.376065399875111
+94     K94      number                                              5.376065399875111
+94     L94      number                                              5.376065399875111
+94     M94      number                                              5.376065399875111
+94     N94      number                                              5.376065399875111
+94     O94      number                                              5.376065399875111
+94     P94      number                                              5.376065399875111
+94     Q94      number                                              5.376065399875111
+95     C95      formula                                             =C94+1
+95     D95      text                                                GBP / MWh
+95     F95      ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56FC080>
+95     J95      number                                              6.271120849353936
+95     K95      number                                              6.271120849353936
+95     L95      number                                              6.271120849353936
+95     M95      number                                              6.271120849353936
+95     N95      number                                              6.271120849353936
+95     O95      number                                              6.271120849353936
+95     P95      number                                              6.271120849353936
+95     Q95      number                                              6.271120849353936
+96     C96      formula                                             =C95+1
+96     D96      text                                                GBP / MWh
+96     F96      ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56FD7F0>
+96     J96      number                                              8.307826687969099
+96     K96      number                                              8.307826687969099
+96     L96      number                                              8.307826687969099
+96     M96      number                                              8.307826687969099
+96     N96      number                                              8.307826687969099
+96     O96      number                                              8.307826687969099
+96     P96      number                                              8.307826687969099
+96     Q96      number                                              8.307826687969099
+97     C97      formula                                             =C96+1
+97     D97      text                                                GBP / MWh
+97     F97      ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56FF0B0>
+97     J97      number                                              8.190875724446295
+97     K97      number                                              8.190875724446295
+97     L97      number                                              8.190875724446295
+97     M97      number                                              8.190875724446295
+97     N97      number                                              8.190875724446295
+97     O97      number                                              8.190875724446295
+97     P97      number                                              8.190875724446295
+97     Q97      number                                              8.190875724446295
+98     C98      formula                                             =C97+1
+98     D98      text                                                GBP / MWh
+98     F98      ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56FE630>
+98     J98      number                                              9.398769265851335
+98     K98      number                                              9.398769265851335
+98     L98      number                                              9.398769265851335
+98     M98      number                                              9.398769265851335
+98     N98      number                                              9.398769265851335
+98     O98      number                                              9.398769265851335
+98     P98      number                                              9.398769265851335
+98     Q98      number                                              9.398769265851335
+99     C99      formula                                             =C98+1
+99     D99      text                                                GBP / MWh
+99     F99      ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE573DD30>
+99     J99      number                                              10.383818221872936
+99     K99      number                                              10.383818221872936
+99     L99      number                                              10.383818221872936
+99     M99      number                                              10.383818221872936
+99     N99      number                                              10.383818221872936
+99     O99      number                                              10.383818221872936
+99     P99      number                                              10.383818221872936
+99     Q99      number                                              10.383818221872936
+100    C100     formula                                             =C99+1
+100    D100     text                                                GBP / MWh
+100    F100     ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5680050>
+100    J100     number                                              10.78234510564014
+100    K100     number                                              10.78234510564014
+100    L100     number                                              10.78234510564014
+100    M100     number                                              10.78234510564014
+100    N100     number                                              10.78234510564014
+100    O100     number                                              10.78234510564014
+100    P100     number                                              10.78234510564014
+100    Q100     number                                              10.78234510564014
+101    C101     formula                                             =C100+1
+101    D101     text                                                GBP / MWh
+101    F101     ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56D8470>
+101    J101     number                                              10.045227460402979
+101    K101     number                                              10.045227460402979
+101    L101     number                                              10.045227460402979
+101    M101     number                                              10.045227460402979
+101    N101     number                                              10.045227460402979
+101    O101     number                                              10.045227460402979
+101    P101     number                                              10.045227460402979
+101    Q101     number                                              10.045227460402979
+102    C102     formula                                             =C101+1
+102    D102     text                                                GBP / MWh
+102    F102     ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56D9E80>
+102    J102     number                                              7.541433282156071
+102    K102     number                                              7.541433282156071
+102    L102     number                                              7.541433282156071
+102    M102     number                                              7.541433282156071
+102    N102     number                                              7.541433282156071
+102    O102     number                                              7.541433282156071
+102    P102     number                                              7.541433282156071
+102    Q102     number                                              7.541433282156071
+103    C103     formula                                             =C102+1
+103    D103     text                                                GBP / MWh
+103    F103     ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56D98E0>
+103    J103     number                                              5.9506198221264635
+103    K103     number                                              5.9506198221264635
+103    L103     number                                              5.9506198221264635
+103    M103     number                                              5.9506198221264635
+103    N103     number                                              5.9506198221264635
+103    O103     number                                              5.9506198221264635
+103    P103     number                                              5.9506198221264635
+103    Q103     number                                              5.9506198221264635
+104    C104     formula                                             =C103+1
+104    D104     text                                                GBP / MWh
+104    F104     ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56DB650>
+104    J104     number                                              5.370000000000005
+104    K104     number                                              5.370000000000005
+104    L104     number                                              5.370000000000005
+104    M104     number                                              5.370000000000005
+104    N104     number                                              5.370000000000005
+104    O104     number                                              5.370000000000005
+104    P104     number                                              5.370000000000005
+104    Q104     number                                              5.370000000000005
+105    C105     formula                                             =C104+1
+105    D105     text                                                GBP / MWh
+105    F105     ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE56DB860>
+105    J105     number                                              5.370000000000005
+105    K105     number                                              5.370000000000005
+105    L105     number                                              5.370000000000005
+105    M105     number                                              5.370000000000005
+105    N105     number                                              5.370000000000005
+105    O105     number                                              5.370000000000005
+105    P105     number                                              5.370000000000005
+105    Q105     number                                              5.370000000000005
+
+107    A107     text                                                BESS Revenue
+
+109    B109     text                                                Switch
+109    F109     ArrayFormula                                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE572F650>
+109    H109     number                                              0
+109    J109     number                                              1
+109    K109     number                                              1
+109    L109     number                                              1
+109    M109     number                                              1
+109    N109     number                                              1
+109    O109     number                                              1
+109    P109     number                                              1
+109    Q109     number                                              1
+
+111    B111     text                                                Capacity
+112    C112     text                                                Operating Life
+112    D112     text       Operating Life                           Year(s)
+112    F112     ArrayFormula Year(s)                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5762F30>
+112    H112     number                                              0
+112    J112     formula                                             =IF('Overall Inputs'!$E$21=0,10,15)
+112    K112     formula                                             =IF('Overall Inputs'!$E$21=0,10,20)
+112    L112     formula                                             =IF('Overall Inputs'!$E$21=0,10,15)
+112    M112     formula                                             =IF('Overall Inputs'!$E$21=0,10,20)
+112    N112     formula                                             =IF('Overall Inputs'!$E$21=0,10,15)
+112    O112     formula                                             =IF('Overall Inputs'!$E$21=0,10,20)
+112    P112     number                                              15
+112    Q112     number                                              20
+113    C113     text                                                Start Date
+113    D113     text       Start Date                               Date
+113    F113     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE572CBC0>
+113    H113     formula                                             =Op_Start
+113    J113     formula                                             =Op_Start
+113    K113     formula                                             =Op_Start
+113    L113     formula                                             =Op_Start
+113    M113     formula                                             =Op_Start
+113    N113     formula                                             =Op_Start
+113    O113     formula                                             =Op_Start
+113    P113     formula                                             =Op_Start
+113    Q113     formula                                             =Op_Start
+114    C114     text                                                End Date
+114    D114     text       End Date                                 Date
+114    F114     formula    Date                                     =EOMONTH(F113,F112*Months_yr-1)
+
+116    C116     text                                                BESS Capacity
+116    D116     text       BESS Capacity                            MW
+116    F116     ArrayFormula MW                                       <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5709B50>
+116    H116     number                                              0
+116    J116     number                                              62.5
+116    K116     number                                              62.5
+116    L116     number                                              125
+116    M116     number                                              125
+116    N116     number                                              41.6667
+116    O116     number                                              41.6667
+116    P116     number                                              7.5
+116    Q116     number                                              7.5
+117    C117     text                                                Duration
+117    D117     text       Duration                                 Hours
+117    F117     ArrayFormula Hours                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE570A7E0>
+117    H117     number                                              0
+117    J117     number                                              4
+117    K117     number                                              4
+117    L117     number                                              2
+117    M117     number                                              2
+117    N117     number                                              6
+117    O117     number                                              6
+117    P117     number                                              1.12
+117    Q117     number                                              1.12
+118    C118     text                                                BESS MWh
+118    D118     text       BESS MWh                                 MWh
+118    F118     formula    MWh                                      =F116*F117
+
+120    C120     text                                                Degradation
+120    D120     text       Degradation                              %
+120    F120     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57086B0>
+120    H120     number                                              0
+121    C121     text                                                Initial State
+121    D121     text       Initial State                            %
+121    F121     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE570BB30>
+121    H121     number                                              1
+
+123    B123     text                                                Merchant
+124    C124     text                                                Switch
+124    F124     ArrayFormula Switch                                   <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5759A30>
+124    J124     number                                              1
+124    K124     number                                              1
+124    L124     number                                              1
+124    M124     number                                              1
+124    N124     number                                              1
+124    O124     number                                              1
+124    P124     number                                              1
+124    Q124     number                                              1
+125    C125     text                                                Battery Scenario
+125    D125     text       Battery Scenario                         Case
+125    F125     ArrayFormula Case                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE575A750>
+125    J125     text                                                Burton Top
+125    K125     text       Burton Top                               Burton Top
+125    L125     text       Burton Top                               Burton Top
+125    M125     text       Burton Top                               Burton Top
+125    N125     text       Burton Top                               Burton Top
+125    O125     text       Burton Top                               Burton Top
+125    P125     text       Burton Top                               Northwold
+125    Q125     text       Northwold                                Northwold
+126    C126     text                                                Merchant Curve Discount / Share of Revenue
+126    D126     text       Merchant Curve Discount / Share of Revenue %
+126    F126     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE575B470>
+126    H126     number                                              0.25
+126    J126     number                                              0.05
+126    K126     number                                              0.05
+126    L126     number                                              0.05
+126    M126     number                                              0.05
+126    N126     number                                              0.05
+126    O126     number                                              0.05
+126    P126     number                                              0.05
+126    Q126     number                                              0.05
+127    C127     text                                                Offtake
+127    D127     text       Offtake                                  %
+127    F127     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5797320>
+127    H127     number                                              1
+127    J127     number                                              1
+127    K127     number                                              1
+127    L127     number                                              1
+127    M127     number                                              1
+127    N127     number                                              1
+127    O127     number                                              1
+127    P127     number                                              1
+127    Q127     number                                              1
+128    C128     text                                                Indexation
+128    D128     text       Indexation                               Index
+128    F128     ArrayFormula Index                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5759A00>
+128    H128     text                                                NIL INDEXATION
+128    J128     text       NIL INDEXATION                           BESS Indexation
+128    K128     text       BESS Indexation                          BESS Indexation
+128    L128     text       BESS Indexation                          BESS Indexation
+128    M128     text       BESS Indexation                          BESS Indexation
+128    N128     text       BESS Indexation                          BESS Indexation
+128    O128     text       BESS Indexation                          BESS Indexation
+128    P128     text       BESS Indexation                          BESS Indexation
+128    Q128     text       BESS Indexation                          BESS Indexation
+
+130    B130     text                                                BESS Optimiser Floor
+131    C131     text                                                Switch
+131    F131     ArrayFormula Switch                                   <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE573EAE0>
+131    J131     number                                              1
+131    K131     number                                              1
+131    L131     number                                              1
+131    M131     number                                              1
+131    N131     number                                              1
+131    O131     number                                              1
+131    P131     number                                              0
+131    Q131     number                                              0
+132    C132     text                                                Floor Price
+132    F132     ArrayFormula Floor Price                              <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE573C170>
+132    J132     number                                              40
+132    K132     number                                              40
+132    L132     number                                              40
+132    M132     number                                              40
+132    N132     number                                              40
+132    O132     number                                              40
+133    C133     text                                                Floor Underwriter Revenue Share
+133    F133     ArrayFormula Floor Underwriter Revenue Share          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE573CC50>
+133    J133     number                                              0.09
+133    K133     number                                              0.09
+133    L133     number                                              0.09
+133    M133     number                                              0.09
+133    N133     number                                              0.09
+133    O133     number                                              0.09
+134    C134     text                                                Floor Tenor
+134    F134     ArrayFormula Floor Tenor                              <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE573EC00>
+134    H134     number                                              0.1
+134    J134     number                                              10
+134    K134     number                                              10
+134    L134     number                                              10
+134    M134     number                                              10
+134    N134     number                                              10
+134    O134     number                                              10
+135    C135     text                                                Floor Start
+135    F135     ArrayFormula Floor Start                              <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE573FE30>
+135    J135     formula                                             =Op_Start
+135    K135     formula                                             =Op_Start
+135    L135     formula                                             =Op_Start
+135    M135     formula                                             =Op_Start
+135    N135     formula                                             =Op_Start
+135    O135     formula                                             =Op_Start
+136    C136     text                                                Floor End
+136    F136     formula    Floor End                                =EOMONTH(F135,F134*12-1)
+
+138    B138     text                                                Capacity Market
+139    C139     text                                                T-1
+140    C140     text                                                Contract Value
+140    D140     text       Contract Value                           GBP k / MW / Year
+140    F140     ArrayFormula GBP k / MW / Year                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE578A600>
+140    H140     number                                              0
+140    J140     number                                              20
+140    K140     number                                              20
+140    L140     number                                              20
+140    M140     number                                              20
+140    N140     number                                              20
+140    O140     number                                              20
+140    P140     number                                              20
+140    Q140     number                                              20
+141    C141     text                                                De-rating Factor
+141    D141     text       De-rating Factor                         %
+141    F141     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE578B440>
+141    H141     number                                              0
+141    J141     number                                              0.2715
+141    K141     number                                              0.2715
+141    L141     number                                              0.2715
+141    M141     number                                              0.2715
+141    N141     number                                              0.2715
+141    O141     number                                              0.2715
+141    P141     number                                              0.1364
+141    Q141     number                                              0.1364
+142    C142     text                                                Tenor
+142    D142     text       Tenor                                    Year(s)
+142    F142     ArrayFormula Year(s)                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE578A8A0>
+142    H142     number                                              0
+142    J142     number                                              3
+142    K142     number                                              3
+142    L142     number                                              3
+142    M142     number                                              3
+142    N142     number                                              3
+142    O142     number                                              3
+142    P142     number                                              3
+142    Q142     number                                              3
+143    C143     text                                                Start Date
+143    D143     text       Start Date                               Date
+143    F143     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57C7710>
+143    H143     formula                                             =Op_Start
+143    J143     datetime                                            2026-10-01 00:00:00
+143    K143     datetime                                            2026-10-01 00:00:00
+143    L143     datetime                                            2026-10-01 00:00:00
+143    M143     datetime                                            2026-10-01 00:00:00
+143    N143     datetime                                            2026-10-01 00:00:00
+143    O143     datetime                                            2026-10-01 00:00:00
+143    P143     datetime                                            2025-10-01 00:00:00
+143    Q143     datetime                                            2025-10-01 00:00:00
+144    C144     text                                                End Date
+144    D144     text       End Date                                 Date
+144    F144     formula    Date                                     =EOMONTH(F143,F142*Months_yr-1)
+145    C145     text                                                Indexation
+145    D145     text       Indexation                               Index
+145    F145     ArrayFormula Index                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57636E0>
+145    H145     text                                                NIL INDEXATION
+145    J145     text       NIL INDEXATION                           CPI
+145    K145     text       CPI                                      CPI
+145    L145     text       CPI                                      CPI
+145    M145     text       CPI                                      CPI
+145    N145     text       CPI                                      CPI
+145    O145     text       CPI                                      CPI
+145    P145     text       CPI                                      CPI
+145    Q145     text       CPI                                      CPI
+
+147    C147     text                                                T-4
+148    C148     text                                                Contract Value
+148    D148     text       Contract Value                           GBP k / MW / Year
+148    F148     ArrayFormula GBP k / MW / Year                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57619D0>
+148    H148     number                                              0
+148    J148     number                                              60
+148    K148     number                                              60
+148    L148     number                                              60
+148    M148     number                                              60
+148    N148     number                                              60
+148    O148     number                                              60
+148    P148     number                                              60
+148    Q148     number                                              60
+149    C149     text                                                De-rating Factor
+149    D149     text       De-rating Factor                         %
+149    F149     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5762210>
+149    H149     number                                              0
+149    J149     number                                              0.2094
+149    K149     number                                              0.2094
+149    L149     number                                              0.2094
+149    M149     number                                              0.2094
+149    N149     number                                              0.2094
+149    O149     number                                              0.2094
+149    P149     number                                              0.1047
+149    Q149     number                                              0.1047
+150    C150     text                                                Tenor
+150    D150     text       Tenor                                    Year(s)
+150    F150     ArrayFormula Year(s)                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57604D0>
+150    H150     number                                              0
+150    J150     number                                              15
+150    K150     number                                              15
+150    L150     number                                              15
+150    M150     number                                              15
+150    N150     number                                              15
+150    O150     number                                              15
+150    P150     number                                              15
+150    Q150     number                                              15
+151    C151     text                                                Start Date
+151    D151     text       Start Date                               Date
+151    F151     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE572D040>
+151    H151     formula                                             =Op_Start
+151    J151     datetime                                            2029-10-01 00:00:00
+151    K151     datetime                                            2029-10-01 00:00:00
+151    L151     datetime                                            2029-10-01 00:00:00
+151    M151     datetime                                            2029-10-01 00:00:00
+151    N151     datetime                                            2029-10-01 00:00:00
+151    O151     datetime                                            2029-10-01 00:00:00
+151    P151     datetime                                            2028-10-01 00:00:00
+151    Q151     datetime                                            2028-10-01 00:00:00
+152    C152     text                                                End Date
+152    D152     text       End Date                                 Date
+152    F152     formula    Date                                     =EOMONTH(F151,F150*Months_yr-1)
+153    C153     text                                                Indexation
+153    D153     text       Indexation                               Index
+153    F153     ArrayFormula Index                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57B9A00>
+153    H153     text                                                NIL INDEXATION
+153    J153     text       NIL INDEXATION                           CPI
+153    K153     text       CPI                                      CPI
+153    L153     text       CPI                                      CPI
+153    M153     text       CPI                                      CPI
+153    N153     text       CPI                                      CPI
+153    O153     text       CPI                                      CPI
+153    P153     text       CPI                                      CPI
+153    Q153     text       CPI                                      CPI
+
+156    B156     text                                                Embedded Benefits - 11kV
+157    C157     text                                                Capture Rate
+157    D157     text       Capture Rate                             %
+157    F157     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57BBE00>
+157    H157     number                                              0
+158    C158     text                                                Peak Period Benefit
+158    D158     text       Peak Period Benefit                      GBP / MWh
+158    F158     ArrayFormula GBP / MWh                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57BA210>
+158    H158     number                                              0
+159    C159     text                                                Tenor
+159    D159     text       Tenor                                    Year(s)
+159    F159     ArrayFormula Year(s)                                  <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57F7410>
+159    H159     number                                              15
+160    C160     text                                                Start Date
+160    D160     text       Start Date                               Date
+160    F160     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57B8320>
+160    H160     formula                                             =Op_Start
+161    C161     text                                                End Date
+161    D161     text       End Date                                 Date
+161    F161     formula    Date                                     =EOMONTH(F160,F159*Months_yr-1)
+162    C162     text                                                Indexation
+162    D162     text       Indexation                               Index
+162    F162     ArrayFormula Index                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5795190>
+162    H162     text                                                NIL INDEXATION
+
+164    A164     text                                                LAND
+
+166    B166     text                                                Lease
+167    B167     text                                                General
+168    C168     text                                                Lease indexation
+168    D168     text       Lease indexation                         Selection
+168    F168     ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5794290>
+168    H168     text                                                Flat 2%
+168    J168     text       Flat 2%                                  Land Lease - RPI
+168    K168     text       Land Lease - RPI                         Land Lease - RPI
+168    L168     text       Land Lease - RPI                         Land Lease - RPI
+168    M168     text       Land Lease - RPI                         Land Lease - RPI
+168    N168     text       Land Lease - RPI                         Land Lease - RPI
+168    O168     text       Land Lease - RPI                         Land Lease - RPI
+168    P168     text       Land Lease - RPI                         Land Lease - CPI
+168    Q168     text       Land Lease - CPI                         Land Lease - CPI
+169    C169     text                                                Lease entry
+169    F169     ArrayFormula Lease entry                              <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57B8350>
+169    J169     formula                                             =J$19
+169    K169     formula                                             =K$19
+169    L169     formula                                             =L$19
+169    M169     formula                                             =M$19
+169    N169     formula                                             =N$19
+169    O169     formula                                             =O$19
+169    P169     formula                                             =P$19
+169    Q169     formula                                             =Q$19
+
+171    B171     text                                                Fixed lease
+172    C172     text                                                Fixed lease switch
+172    D172     text       Fixed lease switch                       Selection
+172    F172     ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57E9970>
+172    H172     number                                              0
+172    J172     number                                              1
+172    K172     number                                              1
+172    L172     number                                              1
+172    M172     number                                              1
+172    N172     number                                              1
+172    O172     number                                              1
+172    P172     number                                              1
+172    Q172     number                                              1
+173    C173     text                                                Land area for fixed lease
+173    D173     text       Land area for fixed lease                Acres
+173    F173     ArrayFormula Acres                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57EA690>
+173    H173     number                                              4.92
+173    J173     formula                                             =2.5*Project_Capacity
+173    K173     formula                                             =2.5*Project_Capacity
+173    L173     formula                                             =2.5*Project_Capacity
+173    M173     formula                                             =2.5*Project_Capacity
+173    N173     formula                                             =2.5*Project_Capacity
+173    O173     formula                                             =2.5*Project_Capacity
+173    P173     number                                              46
+173    Q173     number                                              46
+174    C174     text                                                Land Lease price
+174    D174     text       Land Lease price                         GBP / Acre / Yr
+174    F174     ArrayFormula GBP / Acre / Yr                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57EB4A0>
+174    H174     number                                              5500
+174    J174     number                                              700
+174    K174     number                                              700
+174    L174     number                                              700
+174    M174     number                                              700
+174    N174     number                                              700
+174    O174     number                                              700
+174    P174     number                                              850
+174    Q174     number                                              850
+
+176    B176     text                                                Variable lease
+177    B177     text                                                Revenue dependent
+178    C178     text                                                Rev. dependent lease switch
+178    D178     text       Rev. dependent lease switch              Selection
+178    F178     ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE582C3B0>
+178    H178     number                                              0
+178    J178     number                                              1
+178    K178     number                                              1
+178    L178     number                                              1
+178    M178     number                                              1
+178    N178     number                                              1
+178    O178     number                                              1
+178    P178     number                                              1
+178    Q178     number                                              1
+179    C179     text                                                Land area for rev. dep. lease
+179    D179     text       Land area for rev. dep. lease            Acres
+179    F179     ArrayFormula Acres                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57E83E0>
+179    J179     formula                                             =J173
+179    K179     formula                                             =K173
+179    L179     formula                                             =L173
+179    M179     formula                                             =M173
+179    N179     formula                                             =N173
+179    O179     formula                                             =O173
+179    P179     formula                                             =P173
+179    Q179     formula                                             =Q173
+180    C180     text                                                Revenue Share (Years 1 -10)
+180    D180     text       Revenue Share (Years 1 -10)              %
+180    F180     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57C50A0>
+180    J180     number                                              0.05
+180    K180     number                                              0.05
+180    L180     number                                              0.05
+180    M180     number                                              0.05
+180    N180     number                                              0.05
+180    O180     number                                              0.05
+180    P180     number                                              0.05
+180    Q180     number                                              0.05
+181    C181     text                                                Revenue Share (Years 11 -35)
+181    D181     text       Revenue Share (Years 11 -35)             %
+181    F181     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57C6A20>
+181    J181     number                                              0.05
+181    K181     number                                              0.05
+181    L181     number                                              0.05
+181    M181     number                                              0.05
+181    N181     number                                              0.05
+181    O181     number                                              0.05
+181    P181     number                                              0.05
+181    Q181     number                                              0.05
+
+183    B183     text                                                Construction Rent
+184    C184     text                                                Construction Rent Switch
+184    D184     text       Construction Rent Switch                 Selection
+184    F184     ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57C4BC0>
+184    H184     number                                              0
+184    J184     number                                              0
+184    K184     number                                              0
+184    L184     number                                              0
+184    M184     number                                              0
+184    N184     number                                              0
+184    O184     number                                              0
+184    P184     number                                              0
+184    Q184     number                                              0
+185    C185     text                                                Construction Rent
+185    D185     text       Construction Rent                        GBP / Acre / Yr
+185    F185     ArrayFormula GBP / Acre / Yr                          <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57C4170>
+
+187    B187     text                                                Purchase
+188    C188     text                                                Land for purchase switch
+188    D188     text       Land for purchase switch                 Selection
+188    F188     ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5815B20>
+188    H188     number                                              0
+189    C189     text                                                Land area for purchase
+189    D189     text       Land area for purchase                   Acres
+189    F189     ArrayFormula Acres                                    <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5816840>
+189    H189     number                                              4.92
+190    C190     text                                                Land purchase price
+190    D190     text       Land purchase price                      GBP / Acre
+190    F190     ArrayFormula GBP / Acre                               <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5817EF0>
+190    H190     number                                              150000
+191    C191     text                                                Sell land after project life is over
+191    D191     text       Sell land after project life is over     Selection
+191    F191     ArrayFormula Selection                                <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE581D5E0>
+191    H191     number                                              1
+192    C192     text                                                Land sale price
+192    D192     text       Land sale price                          GBP / Acre
+192    F192     ArrayFormula GBP / Acre                               <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5860110>
+192    H192     formula                                             =H190
+
+194    A194     text                                                OPEX
+
+196    B196     text                                                Indexation start dates
+197    C197     formula                                             ='Curves and D&T'!C6
+197    D197     text                                                Date
+197    F197     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58166F0>
+197    H197     datetime                                            2025-01-01 00:00:00
+198    C198     formula                                             ='Curves and D&T'!C7
+198    D198     text                                                Date
+198    F198     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5814A40>
+198    H198     datetime                                            2025-01-01 00:00:00
+199    C199     formula                                             ='Curves and D&T'!C8
+199    D199     text                                                Date
+199    F199     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57F40E0>
+199    H199     datetime                                            2025-01-01 00:00:00
+200    C200     formula                                             ='Curves and D&T'!C9
+200    D200     text                                                Date
+200    F200     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57F5A90>
+200    H200     datetime                                            2025-01-01 00:00:00
+201    C201     formula                                             ='Curves and D&T'!C10
+201    D201     text                                                Date
+201    F201     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE582C4D0>
+201    H201     datetime                                            2025-01-01 00:00:00
+201    J201     datetime                                            2025-01-01 00:00:00
+201    K201     datetime                                            2025-01-01 00:00:00
+201    L201     datetime                                            2025-01-01 00:00:00
+201    M201     datetime                                            2025-01-01 00:00:00
+201    N201     datetime                                            2025-01-01 00:00:00
+201    O201     datetime                                            2025-01-01 00:00:00
+201    P201     datetime                                            2025-01-01 00:00:00
+201    Q201     datetime                                            2025-01-01 00:00:00
+202    C202     formula                                             ='Curves and D&T'!C11
+202    D202     text                                                Date
+202    F202     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE582DD30>
+202    H202     datetime                                            2025-01-01 00:00:00
+202    J202     datetime                                            2024-01-01 00:00:00
+202    K202     datetime                                            2024-01-01 00:00:00
+202    L202     datetime                                            2024-01-01 00:00:00
+202    M202     datetime                                            2024-01-01 00:00:00
+202    N202     datetime                                            2024-01-01 00:00:00
+202    O202     datetime                                            2024-01-01 00:00:00
+202    P202     datetime                                            2024-01-01 00:00:00
+202    Q202     datetime                                            2024-01-01 00:00:00
+203    C203     formula                                             ='Curves and D&T'!C12
+203    D203     text                                                Date
+203    F203     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE582F560>
+203    H203     datetime                                            2025-01-01 00:00:00
+203    J203     formula                                             =EOMONTH(J$23,24-1)+1
+203    K203     formula                                             =EOMONTH(K$23,24-1)+1
+203    L203     formula                                             =EOMONTH(L$23,24-1)+1
+203    M203     formula                                             =EOMONTH(M$23,24-1)+1
+203    N203     formula                                             =EOMONTH(N$23,24-1)+1
+203    O203     formula                                             =EOMONTH(O$23,24-1)+1
+203    P203     formula                                             =EOMONTH(P$23,24-1)+1
+203    Q203     formula                                             =EOMONTH(Q$23,24-1)+1
+204    C204     formula                                             ='Curves and D&T'!C13
+204    D204     text                                                Date
+204    F204     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE584D070>
+204    H204     datetime                                            2025-01-01 00:00:00
+205    C205     formula                                             ='Curves and D&T'!C14
+205    D205     text                                                Date
+205    F205     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE588C980>
+205    H205     datetime                                            2025-01-01 00:00:00
+206    C206     formula                                             ='Curves and D&T'!C15
+206    D206     text                                                Date
+206    F206     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE584FDD0>
+206    H206     datetime                                            2025-01-01 00:00:00
+206    J206     datetime                                            2025-04-01 00:00:00
+206    K206     datetime                                            2025-04-01 00:00:00
+206    L206     datetime                                            2025-04-01 00:00:00
+206    M206     datetime                                            2025-04-01 00:00:00
+206    N206     datetime                                            2025-04-01 00:00:00
+206    O206     datetime                                            2025-04-01 00:00:00
+206    P206     datetime                                            2025-04-01 00:00:00
+206    Q206     datetime                                            2025-04-01 00:00:00
+207    C207     formula                                             ='Curves and D&T'!C16
+207    D207     text                                                Date
+207    F207     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE584C5C0>
+207    H207     datetime                                            2025-01-01 00:00:00
+207    P207     datetime                                            2025-04-01 00:00:00
+207    Q207     datetime                                            2025-04-01 00:00:00
+208    C208     formula                                             ='Curves and D&T'!C17
+208    D208     text                                                Date
+208    F208     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE582D400>
+208    H208     datetime                                            2025-01-01 00:00:00
+208    J208     datetime                                            2023-01-01 00:00:00
+208    K208     datetime                                            2023-01-01 00:00:00
+208    L208     datetime                                            2023-01-01 00:00:00
+208    M208     datetime                                            2023-01-01 00:00:00
+208    N208     datetime                                            2023-01-01 00:00:00
+208    O208     datetime                                            2023-01-01 00:00:00
+209    C209     formula                                             ='Curves and D&T'!C18
+209    D209     text                                                Date
+209    F209     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE57F40B0>
+209    H209     datetime                                            2025-01-01 00:00:00
+209    J209     datetime                                            2025-03-01 00:00:00
+209    K209     datetime                                            2025-03-01 00:00:00
+209    L209     datetime                                            2025-03-01 00:00:00
+209    M209     datetime                                            2025-03-01 00:00:00
+209    N209     datetime                                            2025-03-01 00:00:00
+209    O209     datetime                                            2025-03-01 00:00:00
+209    P209     datetime                                            2024-10-01 00:00:00
+209    Q209     datetime                                            2024-10-01 00:00:00
+210    C210     formula                                             ='Curves and D&T'!C19
+210    D210     text                                                Date
+210    F210     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE581D0A0>
+210    H210     datetime                                            2025-01-01 00:00:00
+
+213    B213     text                                                Fixed costs (real)
+214    B214     text                                                Costs
+215    C215     text                                                PV Plant O&M Expense
+215    D215     text       PV Plant O&M Expense                     GBP / kWp / Yr
+215    F215     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5862030>
+215    H215     number                                              4.5
+215    J215     number                                              5.48
+215    K215     number                                              5.48
+215    L215     number                                              5.48
+215    M215     number                                              5.48
+215    N215     number                                              5.48
+215    O215     number                                              5.48
+215    P215     number                                              5.7
+215    Q215     number                                              5.7
+216    C216     text                                                Grid Connection Expense
+216    D216     text       Grid Connection Expense                  GBP / kWp / Yr
+216    F216     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5862FC0>
+216    H216     number                                              0
+216    J216     formula                                             =0.26/J$31
+216    K216     formula                                             =0.26/K$31
+216    L216     formula                                             =0.26/L$31
+216    M216     formula                                             =0.26/M$31
+216    N216     formula                                             =0.26/N$31
+216    O216     formula                                             =0.26/O$31
+216    P216     number                                              0.0047
+216    Q216     number                                              0.0047
+217    C217     text                                                Greenkeeping, Metering etc.
+217    D217     text       Greenkeeping, Metering etc.              GBP / kWp / Yr
+217    F217     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58788C0>
+217    J217     number                                              1.5
+217    K217     number                                              1.5
+217    L217     number                                              1.5
+217    M217     number                                              1.5
+217    N217     number                                              1.5
+217    O217     number                                              1.5
+217    P217     number                                              1
+217    Q217     number                                              1
+218    C218     text                                                Community Benefit
+218    D218     text       Community Benefit                        GBP / kWp / Yr
+218    F218     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE587A090>
+218    H218     number                                              0
+218    J218     number                                              0.5
+218    K218     number                                              0.5
+218    L218     number                                              0.5
+218    M218     number                                              0.5
+218    N218     number                                              0.5
+218    O218     number                                              0.5
+219    C219     text                                                Real Estate Taxes
+219    D219     text       Real Estate Taxes                        GBP / kWp / Yr
+219    F219     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58B9250>
+219    H219     number                                              0
+219    J219     number                                              1.221552
+219    K219     number                                              1.221552
+219    L219     number                                              1.221552
+219    M219     number                                              1.221552
+219    N219     number                                              1.221552
+219    O219     number                                              1.221552
+219    P219     number                                              1.221552
+219    Q219     number                                              1.221552
+220    C220     text                                                Non-Technical Asset Management
+220    D220     text       Non-Technical Asset Management           GBP / kWp / Yr
+220    F220     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE587AF30>
+220    H220     number                                              0
+220    J220     number                                              1.3
+220    K220     number                                              1.3
+220    L220     number                                              1.3
+220    M220     number                                              1.3
+220    N220     number                                              1.3
+220    O220     number                                              1.3
+220    Q220     number                                              0.8
+221    C221     text                                                Landowner Subsidy Loss
+221    D221     text       Landowner Subsidy Loss                   GBP / kWp / Yr
+221    F221     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5863F50>
+222    C222     text                                                Insurance on Plant & Machinery
+222    D222     text       Insurance on Plant & Machinery           GBP / kWp / Yr
+222    F222     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5860740>
+222    H222     number                                              0
+222    J222     number                                              2.020730909090909
+222    K222     number                                              2.020730909090909
+222    L222     number                                              2.020730909090909
+222    M222     number                                              2.020730909090909
+222    N222     number                                              2.020730909090909
+222    O222     number                                              2.020730909090909
+223    C223     text                                                Fixed lease
+223    D223     text       Fixed lease                              GBP / kWp / Yr
+223    F223     text       GBP / kWp / Yr                           The lease is calculated differently in the "Operation" tab than the rest of t...
+224    C224     text                                                Corrective Maintenance
+224    D224     text       Corrective Maintenance                   GBP / kWp / Yr
+224    F224     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE584CB90>
+224    H224     number                                              0
+224    J224     number                                              3.2
+224    K224     number                                              3.2
+224    L224     number                                              3.2
+224    M224     number                                              3.2
+224    N224     number                                              3.2
+224    O224     number                                              3.2
+224    P224     number                                              3.2
+224    Q224     number                                              3.2
+225    C225     text                                                Technical Asset Management
+225    D225     text       Technical Asset Management               GBP / kWp / Yr
+225    F225     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE582EA50>
+225    H225     number                                              0
+225    J225     number                                              0.3
+225    K225     number                                              0.3
+225    L225     number                                              0.3
+225    M225     number                                              0.3
+225    N225     number                                              0.3
+225    O225     number                                              0.3
+225    P225     number                                              0.4
+225    Q225     number                                              0.5
+
+227    B227     text                                                Payment Frequency
+228    C228     text                                                PV Plant O&M Expense
+228    D228     text       PV Plant O&M Expense                     GBP / kWp / Yr
+228    F228     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5860800>
+228    H228     text                                                Quarterly
+228    J228     text       Quarterly                                Quarterly
+228    K228     text       Quarterly                                Quarterly
+228    L228     text       Quarterly                                Quarterly
+228    M228     text       Quarterly                                Quarterly
+228    N228     text       Quarterly                                Quarterly
+228    O228     text       Quarterly                                Quarterly
+228    P228     text       Quarterly                                Quarterly
+228    Q228     text       Quarterly                                Quarterly
+229    C229     text                                                Grid Connection Expense
+229    D229     text       Grid Connection Expense                  GBP / kWp / Yr
+229    F229     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58A87A0>
+229    H229     text                                                Monthly
+229    J229     text       Monthly                                  Monthly
+229    K229     text       Monthly                                  Monthly
+229    L229     text       Monthly                                  Monthly
+229    M229     text       Monthly                                  Monthly
+229    N229     text       Monthly                                  Monthly
+229    O229     text       Monthly                                  Monthly
+229    P229     text       Monthly                                  Monthly
+229    Q229     text       Monthly                                  Monthly
+230    C230     text                                                Community Benefit, Metering Fees, PPA Admin
+230    D230     text       Community Benefit, Metering Fees, PPA Admin GBP / kWp / Yr
+230    F230     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58AA030>
+230    H230     text                                                Monthly
+230    J230     text       Monthly                                  Monthly
+230    K230     text       Monthly                                  Monthly
+230    L230     text       Monthly                                  Monthly
+230    M230     text       Monthly                                  Monthly
+230    N230     text       Monthly                                  Monthly
+230    O230     text       Monthly                                  Monthly
+230    P230     text       Monthly                                  Monthly
+230    Q230     text       Monthly                                  Monthly
+231    C231     text                                                Greenkeeping/Ground Maintenance Expense
+231    D231     text       Greenkeeping/Ground Maintenance Expense  GBP / kWp / Yr
+231    F231     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58ED3D0>
+231    H231     text                                                Monthly
+231    J231     text       Monthly                                  Monthly
+231    K231     text       Monthly                                  Monthly
+231    L231     text       Monthly                                  Monthly
+231    M231     text       Monthly                                  Monthly
+231    N231     text       Monthly                                  Monthly
+231    O231     text       Monthly                                  Monthly
+231    P231     text       Monthly                                  Monthly
+231    Q231     text       Monthly                                  Monthly
+232    C232     text                                                Real Estate Taxes
+232    D232     text       Real Estate Taxes                        GBP / kWp / Yr
+232    F232     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58B9190>
+232    H232     text                                                Semi-annually
+232    J232     text       Semi-annually                            Quarterly
+232    K232     text       Quarterly                                Quarterly
+232    L232     text       Quarterly                                Quarterly
+232    M232     text       Quarterly                                Quarterly
+232    N232     text       Quarterly                                Quarterly
+232    O232     text       Quarterly                                Quarterly
+232    P232     text       Quarterly                                Quarterly
+232    Q232     text       Quarterly                                Quarterly
+233    C233     text                                                Non-Technical Asset Management
+233    D233     text       Non-Technical Asset Management           GBP / kWp / Yr
+233    F233     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58A8590>
+233    H233     text                                                Monthly
+233    J233     text       Monthly                                  Monthly
+233    K233     text       Monthly                                  Monthly
+233    L233     text       Monthly                                  Monthly
+233    M233     text       Monthly                                  Monthly
+233    N233     text       Monthly                                  Monthly
+233    O233     text       Monthly                                  Monthly
+233    P233     text       Monthly                                  Monthly
+233    Q233     text       Monthly                                  Monthly
+234    C234     text                                                Landowner Subsidy Loss
+234    D234     text       Landowner Subsidy Loss                   GBP / kWp / Yr
+234    F234     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58793A0>
+234    H234     text                                                Monthly
+234    J234     text       Monthly                                  Monthly
+234    K234     text       Monthly                                  Monthly
+234    L234     text       Monthly                                  Monthly
+234    M234     text       Monthly                                  Monthly
+234    N234     text       Monthly                                  Monthly
+234    O234     text       Monthly                                  Monthly
+234    P234     text       Monthly                                  Monthly
+234    Q234     text       Monthly                                  Monthly
+235    C235     text                                                Insurance on Plant & Machinery
+235    D235     text       Insurance on Plant & Machinery           GBP / kWp / Yr
+235    F235     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE588EE70>
+235    H235     text                                                Monthly
+235    J235     text       Monthly                                  Monthly
+235    K235     text       Monthly                                  Monthly
+235    L235     text       Monthly                                  Monthly
+235    M235     text       Monthly                                  Monthly
+235    N235     text       Monthly                                  Monthly
+235    O235     text       Monthly                                  Monthly
+235    P235     text       Monthly                                  Monthly
+235    Q235     text       Monthly                                  Monthly
+236    C236     text                                                Fixed lease
+236    D236     text       Fixed lease                              GBP / kWp / Yr
+236    F236     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE588D520>
+236    H236     text                                                Quarterly
+236    J236     text       Quarterly                                Quarterly
+236    K236     text       Quarterly                                Quarterly
+236    L236     text       Quarterly                                Quarterly
+236    M236     text       Quarterly                                Quarterly
+236    N236     text       Quarterly                                Quarterly
+236    O236     text       Quarterly                                Quarterly
+236    P236     text       Quarterly                                Quarterly
+236    Q236     text       Quarterly                                Quarterly
+237    C237     text                                                Corrective Maintenance
+237    D237     text       Corrective Maintenance                   GBP / kWp / Yr
+237    F237     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE588D880>
+237    H237     text                                                Monthly
+237    J237     text       Monthly                                  Quarterly
+237    K237     text       Quarterly                                Quarterly
+237    L237     text       Quarterly                                Quarterly
+237    M237     text       Quarterly                                Quarterly
+237    N237     text       Quarterly                                Quarterly
+237    O237     text       Quarterly                                Quarterly
+237    P237     text       Quarterly                                Quarterly
+237    Q237     text       Quarterly                                Quarterly
+238    C238     text                                                Technical Asset Management
+238    D238     text       Technical Asset Management               GBP / kWp / Yr
+238    F238     ArrayFormula GBP / kWp / Yr                           <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE588F020>
+238    H238     text                                                Monthly
+238    J238     text       Monthly                                  Monthly
+238    K238     text       Monthly                                  Monthly
+238    L238     text       Monthly                                  Monthly
+238    M238     text       Monthly                                  Monthly
+238    N238     text       Monthly                                  Monthly
+238    O238     text       Monthly                                  Monthly
+238    P238     text       Monthly                                  Monthly
+238    Q238     text       Monthly                                  Monthly
+
+240    B240     text                                                Start Date
+241    C241     text                                                PV Plant O&M Expense
+241    D241     text       PV Plant O&M Expense                     Date
+241    F241     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58D97C0>
+241    H241     formula                                             =Op_Start
+241    J241     formula                                             =Op_Start
+241    K241     formula                                             =Op_Start
+241    L241     formula                                             =Op_Start
+241    M241     formula                                             =Op_Start
+241    N241     formula                                             =Op_Start
+241    O241     formula                                             =Op_Start
+241    P241     formula                                             =Op_Start
+241    Q241     formula                                             =Op_Start
+242    C242     text                                                Grid Connection Expense
+242    D242     text       Grid Connection Expense                  Date
+242    F242     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58DAB70>
+242    H242     formula                                             =Op_Start
+242    J242     formula                                             =Op_Start
+242    K242     formula                                             =Op_Start
+242    L242     formula                                             =Op_Start
+242    M242     formula                                             =Op_Start
+242    N242     formula                                             =Op_Start
+242    O242     formula                                             =Op_Start
+242    P242     formula                                             =Op_Start
+242    Q242     formula                                             =Op_Start
+243    C243     text                                                Community Benefit, Metering Fees, PPA Admin
+243    D243     text       Community Benefit, Metering Fees, PPA Admin Date
+243    F243     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5918B30>
+243    H243     formula                                             =Op_Start
+243    J243     formula                                             =Op_Start
+243    K243     formula                                             =Op_Start
+243    L243     formula                                             =Op_Start
+243    M243     formula                                             =Op_Start
+243    N243     formula                                             =Op_Start
+243    O243     formula                                             =Op_Start
+243    P243     formula                                             =Op_Start
+243    Q243     formula                                             =Op_Start
+244    C244     text                                                Greenkeeping/Ground Maintenance Expense
+244    D244     text       Greenkeeping/Ground Maintenance Expense  Date
+244    F244     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58D9100>
+244    H244     formula                                             =Op_Start
+244    J244     formula                                             =Op_Start
+244    K244     formula                                             =Op_Start
+244    L244     formula                                             =Op_Start
+244    M244     formula                                             =Op_Start
+244    N244     formula                                             =Op_Start
+244    O244     formula                                             =Op_Start
+244    P244     formula                                             =Op_Start
+244    Q244     formula                                             =Op_Start
+245    C245     text                                                Real Estate Taxes
+245    D245     text       Real Estate Taxes                        Date
+245    F245     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5862480>
+245    H245     formula                                             =Op_Start
+245    J245     formula                                             =Op_Start
+245    K245     formula                                             =Op_Start
+245    L245     formula                                             =Op_Start
+245    M245     formula                                             =Op_Start
+245    N245     formula                                             =Op_Start
+245    O245     formula                                             =Op_Start
+245    P245     formula                                             =Op_Start
+245    Q245     formula                                             =Op_Start
+246    C246     text                                                Non-Technical Asset Management
+246    D246     text       Non-Technical Asset Management           Date
+246    F246     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58BB200>
+246    H246     formula                                             =Op_Start
+246    J246     formula                                             =Op_Start
+246    K246     formula                                             =Op_Start
+246    L246     formula                                             =Op_Start
+246    M246     formula                                             =Op_Start
+246    N246     formula                                             =Op_Start
+246    O246     formula                                             =Op_Start
+246    P246     formula                                             =Op_Start
+246    Q246     formula                                             =Op_Start
+247    C247     text                                                Landowner Subsidy Loss
+247    D247     text       Landowner Subsidy Loss                   Date
+247    F247     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58B95B0>
+247    H247     formula                                             =Op_Start
+247    J247     formula                                             =Op_Start
+247    K247     formula                                             =Op_Start
+247    L247     formula                                             =Op_Start
+247    M247     formula                                             =Op_Start
+247    N247     formula                                             =Op_Start
+247    O247     formula                                             =Op_Start
+247    P247     formula                                             =Op_Start
+247    Q247     formula                                             =Op_Start
+248    C248     text                                                Insurance on Plant & Machinery
+248    D248     text       Insurance on Plant & Machinery           Date
+248    F248     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58B98B0>
+248    H248     formula                                             =Op_Start
+248    J248     formula                                             =Op_Start
+248    K248     formula                                             =Op_Start
+248    L248     formula                                             =Op_Start
+248    M248     formula                                             =Op_Start
+248    N248     formula                                             =Op_Start
+248    O248     formula                                             =Op_Start
+248    P248     formula                                             =Op_Start
+248    Q248     formula                                             =Op_Start
+249    C249     text                                                Fixed lease
+249    D249     text       Fixed lease                              Date
+249    F249     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58BA420>
+249    H249     formula                                             =Op_Start
+249    J249     formula                                             =Op_Start
+249    K249     formula                                             =Op_Start
+249    L249     formula                                             =Op_Start
+249    M249     formula                                             =Op_Start
+249    N249     formula                                             =Op_Start
+249    O249     formula                                             =Op_Start
+249    P249     formula                                             =Op_Start
+249    Q249     formula                                             =Op_Start
+250    C250     text                                                Corrective Maintenance
+250    D250     text       Corrective Maintenance                   Date
+250    F250     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5908080>
+250    H250     formula                                             =Op_Start
+250    J250     formula                                             =Op_Start
+250    K250     formula                                             =Op_Start
+250    L250     formula                                             =Op_Start
+250    M250     formula                                             =Op_Start
+250    N250     formula                                             =Op_Start
+250    O250     formula                                             =Op_Start
+250    P250     formula                                             =Op_Start
+250    Q250     formula                                             =Op_Start
+251    C251     text                                                Technical Asset Management
+251    D251     text       Technical Asset Management               Date
+251    F251     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5909C10>
+251    H251     formula                                             =Op_Start
+251    J251     formula                                             =Op_Start
+251    K251     formula                                             =Op_Start
+251    L251     formula                                             =Op_Start
+251    M251     formula                                             =Op_Start
+251    N251     formula                                             =Op_Start
+251    O251     formula                                             =Op_Start
+251    P251     formula                                             =Op_Start
+251    Q251     formula                                             =Op_Start
+
+253    B253     text                                                Duration
+254    C254     text                                                PV Plant O&M Expense
+254    D254     text       PV Plant O&M Expense                     Date
+254    F254     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE590B230>
+254    H254     number                                              35
+254    J254     number                                              35
+254    K254     number                                              35
+254    L254     number                                              35
+254    M254     number                                              35
+254    N254     number                                              35
+254    O254     number                                              35
+254    P254     number                                              35
+254    Q254     number                                              35
+255    C255     text                                                Grid Connection Expense
+255    D255     text       Grid Connection Expense                  Date
+255    F255     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE59095E0>
+255    H255     number                                              35
+255    J255     number                                              35
+255    K255     number                                              35
+255    L255     number                                              35
+255    M255     number                                              35
+255    N255     number                                              35
+255    O255     number                                              35
+255    P255     number                                              35
+255    Q255     number                                              35
+256    C256     text                                                Community Benefit, Metering Fees, PPA Admin
+256    D256     text       Community Benefit, Metering Fees, PPA Admin Date
+256    F256     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58BBF80>
+256    H256     number                                              35
+256    J256     number                                              35
+256    K256     number                                              35
+256    L256     number                                              35
+256    M256     number                                              35
+256    N256     number                                              35
+256    O256     number                                              35
+256    P256     number                                              35
+256    Q256     number                                              35
+257    C257     text                                                Greenkeeping/Ground Maintenance Expense
+257    D257     text       Greenkeeping/Ground Maintenance Expense  Date
+257    F257     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58D9FA0>
+257    H257     number                                              35
+257    J257     number                                              35
+257    K257     number                                              35
+257    L257     number                                              35
+257    M257     number                                              35
+257    N257     number                                              35
+257    O257     number                                              35
+257    P257     number                                              35
+257    Q257     number                                              35
+258    C258     text                                                Real Estate Taxes
+258    D258     text       Real Estate Taxes                        Date
+258    F258     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58EF140>
+258    H258     number                                              35
+258    J258     number                                              35
+258    K258     number                                              35
+258    L258     number                                              35
+258    M258     number                                              35
+258    N258     number                                              35
+258    O258     number                                              35
+258    P258     number                                              35
+258    Q258     number                                              35
+259    C259     text                                                Non-Technical Asset Management
+259    D259     text       Non-Technical Asset Management           Date
+259    F259     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58ED820>
+259    H259     number                                              35
+259    J259     number                                              35
+259    K259     number                                              35
+259    L259     number                                              35
+259    M259     number                                              35
+259    N259     number                                              35
+259    O259     number                                              35
+259    P259     number                                              35
+259    Q259     number                                              35
+260    C260     text                                                Landowner Subsidy Loss
+260    D260     text       Landowner Subsidy Loss                   Date
+260    F260     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58ED8E0>
+260    H260     number                                              35
+260    J260     number                                              35
+260    K260     number                                              35
+260    L260     number                                              35
+260    M260     number                                              35
+260    N260     number                                              35
+260    O260     number                                              35
+260    P260     number                                              35
+260    Q260     number                                              35
+261    C261     text                                                Insurance on Plant & Machinery
+261    D261     text       Insurance on Plant & Machinery           Date
+261    F261     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58EE3F0>
+261    H261     number                                              35
+261    J261     number                                              35
+261    K261     number                                              35
+261    L261     number                                              35
+261    M261     number                                              35
+261    N261     number                                              35
+261    O261     number                                              35
+261    P261     number                                              35
+261    Q261     number                                              35
+262    C262     text                                                Fixed lease
+262    D262     text       Fixed lease                              Date
+262    F262     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE58EFB90>
+262    H262     number                                              35
+262    J262     number                                              35
+262    K262     number                                              35
+262    L262     number                                              35
+262    M262     number                                              35
+262    N262     number                                              35
+262    O262     number                                              35
+262    P262     number                                              35
+262    Q262     number                                              35
+263    C263     text                                                Corrective Maintenance
+263    D263     text       Corrective Maintenance                   Date
+263    F263     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE588FBC0>
+263    H263     number                                              35
+263    J263     number                                              2
+263    K263     number                                              2
+263    L263     number                                              2
+263    M263     number                                              2
+263    N263     number                                              2
+263    O263     number                                              2
+263    P263     number                                              2
+263    Q263     number                                              2
+264    C264     text                                                Technical Asset Management
+264    D264     text       Technical Asset Management               Date
+264    F264     ArrayFormula Date                                     <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE596AEA0>
+264    H264     number                                              35
+264    J264     number                                              35
+264    K264     number                                              35
+264    L264     number                                              35
+264    M264     number                                              35
+264    N264     number                                              35
+264    O264     number                                              35
+264    P264     number                                              35
+264    Q264     number                                              35
+
+266    B266     text                                                Escalation
+267    C267     formula                                             =C215
+267    D267     text                                                %
+267    F267     text       %                                        O&M - Year 3 Onwards
+267    H267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    J267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    K267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    L267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    M267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    N267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    O267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    P267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+267    Q267     text       O&M - Year 3 Onwards                     O&M - Year 3 Onwards
+268    C268     formula                                             =C216
+268    D268     text                                                %
+268    F268     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE591AD50>
+268    H268     text                                                NIL INDEXATION
+268    J268     text       NIL INDEXATION                           CPI
+268    K268     text       CPI                                      CPI
+268    L268     text       CPI                                      CPI
+268    M268     text       CPI                                      CPI
+268    N268     text       CPI                                      CPI
+268    O268     text       CPI                                      CPI
+268    P268     text       CPI                                      CPI
+268    Q268     text       CPI                                      CPI
+269    C269     formula                                             =C217
+269    D269     text                                                %
+269    F269     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE59193D0>
+269    H269     text                                                NIL INDEXATION
+269    J269     text       NIL INDEXATION                           CPI
+269    K269     text       CPI                                      CPI
+269    L269     text       CPI                                      CPI
+269    M269     text       CPI                                      CPI
+269    N269     text       CPI                                      CPI
+269    O269     text       CPI                                      CPI
+269    P269     text       CPI                                      CPI
+269    Q269     text       CPI                                      CPI
+270    C270     formula                                             =C218
+270    D270     text                                                %
+270    F270     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5919AF0>
+270    H270     text                                                NIL INDEXATION
+270    J270     text       NIL INDEXATION                           CPI
+270    K270     text       CPI                                      CPI
+270    L270     text       CPI                                      CPI
+270    M270     text       CPI                                      CPI
+270    N270     text       CPI                                      CPI
+270    O270     text       CPI                                      CPI
+270    P270     text       CPI                                      CPI
+270    Q270     text       CPI                                      CPI
+271    C271     formula                                             =C219
+271    D271     text                                                %
+271    F271     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE591B260>
+271    H271     text                                                NIL INDEXATION
+271    J271     text       NIL INDEXATION                           CPI
+271    K271     text       CPI                                      CPI
+271    L271     text       CPI                                      CPI
+271    M271     text       CPI                                      CPI
+271    N271     text       CPI                                      CPI
+271    O271     text       CPI                                      CPI
+271    P271     text       CPI                                      CPI
+271    Q271     text       CPI                                      CPI
+272    C272     formula                                             =C220
+272    D272     text                                                %
+272    F272     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE595C290>
+272    H272     text                                                NIL INDEXATION
+272    J272     text       NIL INDEXATION                           CPI
+272    K272     text       CPI                                      CPI
+272    L272     text       CPI                                      CPI
+272    M272     text       CPI                                      CPI
+272    N272     text       CPI                                      CPI
+272    O272     text       CPI                                      CPI
+272    P272     text       CPI                                      CPI
+272    Q272     text       CPI                                      CPI
+273    C273     formula                                             =C221
+273    D273     text                                                %
+273    F273     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE595DB50>
+273    H273     text                                                NIL INDEXATION
+273    J273     text       NIL INDEXATION                           CPI
+273    K273     text       CPI                                      CPI
+273    L273     text       CPI                                      CPI
+273    M273     text       CPI                                      CPI
+273    N273     text       CPI                                      CPI
+273    O273     text       CPI                                      CPI
+273    P273     text       CPI                                      CPI
+273    Q273     text       CPI                                      CPI
+274    C274     formula                                             =C222
+274    D274     text                                                %
+274    F274     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE595F410>
+274    H274     text                                                NIL INDEXATION
+274    J274     text       NIL INDEXATION                           NIL INDEXATION
+274    K274     text       NIL INDEXATION                           NIL INDEXATION
+274    L274     text       NIL INDEXATION                           NIL INDEXATION
+274    M274     text       NIL INDEXATION                           NIL INDEXATION
+274    N274     text       NIL INDEXATION                           NIL INDEXATION
+274    O274     text       NIL INDEXATION                           NIL INDEXATION
+274    P274     text       NIL INDEXATION                           NIL INDEXATION
+274    Q274     text       NIL INDEXATION                           NIL INDEXATION
+275    C275     formula                                             =C223
+275    D275     text                                                %
+275    F275     formula    %                                        =$F$168
+276    C276     formula                                             =C224
+276    D276     text                                                %
+276    F276     ArrayFormula %                                        <openpyxl.worksheet.formula.ArrayFormula object at 0x0000021DE5996990>
+276    H276     text                                                NIL INDEXATION
+277    C277     formula                                             =C225

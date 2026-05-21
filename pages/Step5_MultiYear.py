@@ -42,12 +42,16 @@ def render_step_indicator():
     steps = [
         ("1", "Setup", get_step_status(1)),
         ("2", "Rules", get_step_status(2)),
+        ("2b", "Financial Setup", get_step_status(2)),
         ("3", "Sizing", get_step_status(3)),
+        ("3a", "Financial Sweep", get_step_status(3)),
         ("4", "Results", get_step_status(4)),
         ("5", "Multi-Year", 'current'),
+        ("6", "Green Energy", get_step_status(6)),
+        ("7", "Financial", get_step_status(7)),
     ]
 
-    cols = st.columns(5)
+    cols = st.columns(len(steps))
     for i, (num, label, status) in enumerate(steps):
         with cols[i]:
             if status == 'completed':
@@ -401,7 +405,7 @@ st.divider()
 
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
-    run_projection = st.button("🚀 Run 20-Year Projection", type="primary", use_container_width=True)
+    run_projection = st.button("🚀 Run 20-Year Projection", type="primary", width='stretch')
 
 if run_projection:
     # Get profiles
@@ -591,7 +595,7 @@ if 'multiyear_yearly' in st.session_state:
 
     st.dataframe(
         ten_year_df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             'Year': st.column_config.NumberColumn('Year', format='%d'),
@@ -644,7 +648,7 @@ if 'multiyear_yearly' in st.session_state:
 
     st.dataframe(
         yearly_df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             'Year': st.column_config.NumberColumn('Year', format='%d'),
@@ -785,7 +789,7 @@ if 'multiyear_yearly' in st.session_state:
     }
 
     summary_table_df = pd.DataFrame(summary_table_data)
-    st.dataframe(summary_table_df, use_container_width=True, hide_index=True)
+    st.dataframe(summary_table_df, width='stretch', hide_index=True)
 
     # Energy balance verification
     if abs(balance_difference) < 100:
@@ -815,7 +819,7 @@ st.divider()
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Results", use_container_width=True):
+    if st.button("← Back to Results", width='stretch'):
         st.switch_page("pages/Step4_Results.py")
 
 # Sidebar

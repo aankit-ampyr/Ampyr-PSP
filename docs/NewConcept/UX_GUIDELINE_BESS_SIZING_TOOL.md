@@ -30,7 +30,7 @@ Create a tight feedback loop where analysts can:
 ### 1.3 Design Principles
 
 | Principle | Meaning |
-|-----------|---------|
+| ----------- | --------- |
 | **Constraints, not templates** | Users describe what they want. System picks the algorithm. |
 | **Three numbers matter** | Delivery %, Wastage %, BESS Size — always visible, always prominent |
 | **Progressive disclosure** | Simple first, advanced on demand |
@@ -44,7 +44,7 @@ Create a tight feedback loop where analysts can:
 ### 2.1 Primary User
 
 | Attribute | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | **Role** | Investment analyst |
 | **Frequency** | Daily use |
 | **Device** | Laptop (limited screen space) |
@@ -54,7 +54,7 @@ Create a tight feedback loop where analysts can:
 ### 2.2 User Goals
 
 | Goal | Priority |
-|------|----------|
+| ------ | ---------- |
 | Get sizing recommendation quickly | HIGH |
 | Compare different configurations | HIGH |
 | Understand why a configuration performs well/poorly | MEDIUM |
@@ -64,7 +64,7 @@ Create a tight feedback loop where analysts can:
 ### 2.3 User Frustrations (Current State)
 
 | Frustration | Impact |
-|-------------|--------|
+| ------------- | -------- |
 | "I wish I could change a number and see it update live" | Slows iteration |
 | "I have to flip between sheets constantly" | Breaks focus |
 | "I can't easily compare two setups" | Reduces confidence |
@@ -77,11 +77,13 @@ Create a tight feedback loop where analysts can:
 ### 3.1 The Shift
 
 **OLD (Engineer's Model):**
+
 ```
 Select Template → Configure Parameters → Run Simulation → View Results
 ```
 
 **NEW (User's Model):**
+
 ```
 Describe My System → Set My Rules → See What Works → Compare Options
 ```
@@ -89,7 +91,7 @@ Describe My System → Set My Rules → See What Works → Compare Options
 ### 3.2 User Language vs. System Language
 
 | User Says | System Understands |
-|-----------|-------------------|
+| ----------- | ------------------- |
 | "I have solar, battery, and a generator" | Topology C (Solar + BESS + DG) |
 | "Generator can't run at night — noise rules" | Template 5 (DG Day Charge) |
 | "Generator should only start when battery is low" | SoC-triggered DG (Templates 4, 5, 6) |
@@ -156,7 +158,7 @@ Q3b: What triggers DG? (Night only)
 ### 4.2 Screen Definitions
 
 | Screen | Purpose | Entry Points |
-|--------|---------|--------------|
+| -------- | --------- | -------------- |
 | **Step 1: Setup** | Upload/define load and solar profiles; set BESS and DG parameters | App start, "New Scenario" |
 | **Step 2: Rules** | Define dispatch constraints (→ template inference) | Step 1 completion |
 | **Step 3: Sizing** | Define sizing ranges (capacity, duration, DG sizes) | Step 2 completion |
@@ -174,6 +176,7 @@ Q3b: What triggers DG? (Night only)
 **Purpose:** Define the energy system being evaluated
 
 **Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  STEP 1 OF 4: SYSTEM SETUP                          [Next →]   │
@@ -216,7 +219,7 @@ Q3b: What triggers DG? (Night only)
 **Behavior:**
 
 | Element | Behavior |
-|---------|----------|
+| --------- | ---------- |
 | Load Profile toggle | Switches between CSV upload and Load Builder |
 | Load Builder | Modal or inline options: Constant (MW), Day Only (hours, MW), Night Only, Custom windows |
 | Solar CSV | Standard file upload; validates 8760 rows |
@@ -225,6 +228,7 @@ Q3b: What triggers DG? (Night only)
 | Next button | Validates required fields, proceeds to Step 2 |
 
 **Validation:**
+
 - Load profile: Required, 8760 values, non-negative
 - Solar profile: Required, 8760 values, non-negative
 - Solar capacity: Required, positive
@@ -238,6 +242,7 @@ Q3b: What triggers DG? (Night only)
 **Purpose:** Define constraints that determine dispatch behavior (template inference)
 
 **Layout (with DG):**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  STEP 2 OF 4: DISPATCH RULES                [← Back] [Next →]  │
@@ -286,6 +291,7 @@ Q3b: What triggers DG? (Night only)
 ```
 
 **Layout (no DG — simplified):**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  STEP 2 OF 4: DISPATCH RULES                [← Back] [Next →]  │
@@ -308,7 +314,7 @@ Q3b: What triggers DG? (Night only)
 **Behavior:**
 
 | Element | Behavior |
-|---------|----------|
+| --------- | ---------- |
 | Q1 options | Radio buttons; selecting "Custom blackout" reveals time inputs |
 | Q2 options | Radio buttons; some options reveal threshold inputs |
 | Q2 visibility | Options filtered based on Q1 (e.g., "proactive" only for night-only) |
@@ -319,7 +325,7 @@ Q3b: What triggers DG? (Night only)
 **Template Inference Matrix:**
 
 | Q1: When | Q2: Trigger | → Template |
-|----------|-------------|------------|
+| ---------- | ------------- | ------------ |
 | Anytime | Reactive | 1 (Green Priority) |
 | Anytime | SoC-based | 4 (Emergency Only) |
 | Day only | SoC-based | 5 (DG Day Charge) |
@@ -328,6 +334,7 @@ Q3b: What triggers DG? (Night only)
 | Custom blackout | Reactive | 3 (DG Blackout Window) |
 
 **Validation:**
+
 - If SoC-based: ON threshold < OFF threshold
 - If SoC-based: ON threshold ≥ BESS min_soc
 - If SoC-based: OFF threshold ≤ BESS max_soc
@@ -341,6 +348,7 @@ Q3b: What triggers DG? (Night only)
 **Purpose:** Define what configurations to simulate
 
 **Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  STEP 3 OF 4: SIZING RANGE                  [← Back] [Run →]   │
@@ -383,7 +391,7 @@ Q3b: What triggers DG? (Night only)
 **Behavior:**
 
 | Element | Behavior |
-|---------|----------|
+| --------- | ---------- |
 | Mode toggle | Switches between Sizing Mode (ranges) and Fixed Mode (single values) |
 | Capacity inputs | Three fields: min, max, step |
 | Duration checkboxes | User selects which durations to test; at least one required |
@@ -392,6 +400,7 @@ Q3b: What triggers DG? (Night only)
 | Run button | Starts simulation; shows progress indicator |
 
 **Validation:**
+
 - Capacity: min > 0, max ≥ min, step > 0
 - DG: min ≥ 0, max ≥ min, step > 0 (if DG enabled)
 - At least one duration class selected
@@ -404,6 +413,7 @@ Q3b: What triggers DG? (Night only)
 **Purpose:** Primary output view — scan, sort, filter, select for comparison
 
 **Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  RESULTS                                    [← Edit] [Export]  │
@@ -437,7 +447,7 @@ Q3b: What triggers DG? (Night only)
 **Behavior:**
 
 | Element | Behavior |
-|---------|----------|
+| --------- | ---------- |
 | Quick filters | Toggle buttons; multiple can be active; filters stack |
 | Column headers | Clickable for sort; arrow indicates direction |
 | Row checkbox | Select for comparison (max 3) |
@@ -452,6 +462,7 @@ Q3b: What triggers DG? (Night only)
 **Default Sort:** Delivery % descending, then Wastage % ascending
 
 **Additional Columns (toggleable):**
+
 - DG Runtime (hours)
 - DG Starts (count)
 - BESS Cycles
@@ -465,6 +476,7 @@ Q3b: What triggers DG? (Night only)
 **Purpose:** Deep dive on a single configuration
 
 **Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  DETAIL: 100 MWh / 2-hour / 10 MW DG             [← Results]   │
@@ -508,7 +520,7 @@ Q3b: What triggers DG? (Night only)
 **Tabs:**
 
 | Tab | Content |
-|-----|---------|
+| ----- | --------- |
 | **Summary** | Key metrics cards, energy flow breakdown, BESS/DG stats |
 | **Day View** | 24-hour stacked area chart; user can pick specific day or "worst day" |
 | **Year View** | Heatmap (365 × 24) showing SoC, delivery status, or DG runtime |
@@ -521,6 +533,7 @@ Q3b: What triggers DG? (Night only)
 **Purpose:** Side-by-side evaluation of 2-3 configurations
 
 **Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  COMPARE                                          [← Results]  │
@@ -548,7 +561,7 @@ Q3b: What triggers DG? (Night only)
 **Behavior:**
 
 | Element | Behavior |
-|---------|----------|
+| --------- | ---------- |
 | Columns | One per selected configuration (2-3 max) |
 | Metrics | Same rows across all columns; best value highlighted |
 | Day charts | Synchronized — hovering on one highlights same hour on others |
@@ -561,7 +574,7 @@ Q3b: What triggers DG? (Night only)
 ### 6.1 Navigation
 
 | Action | Result |
-|--------|--------|
+| -------- | -------- |
 | Step indicator click | Navigate to that step (with validation warning if incomplete) |
 | Back button | Return to previous step; data preserved |
 | Browser back | Same as Back button (no data loss) |
@@ -570,7 +583,7 @@ Q3b: What triggers DG? (Night only)
 ### 6.2 Data Persistence
 
 | Scenario | Behavior |
-|----------|----------|
+| ---------- | ---------- |
 | Navigate between steps | Data preserved in session |
 | Browser refresh | Data lost (MVP); saved scenarios persist |
 | Save scenario | Stores all inputs + results with user-defined name |
@@ -579,7 +592,7 @@ Q3b: What triggers DG? (Night only)
 ### 6.3 Feedback
 
 | Event | Feedback |
-|-------|----------|
+| ------- | ---------- |
 | Validation error | Inline message below field; field highlighted |
 | Simulation running | Progress bar with config count (e.g., "Running 45 of 105...") |
 | Simulation complete | Auto-navigate to Results |
@@ -592,7 +605,7 @@ Q3b: What triggers DG? (Night only)
 ### 7.1 Hierarchy
 
 | Level | Usage | Treatment |
-|-------|-------|-----------|
+| ------- | ------- | ----------- |
 | **Primary** | Delivery %, BESS Size | Large, bold, color-coded |
 | **Secondary** | Wastage %, DG metrics | Standard size, visible |
 | **Tertiary** | Cycles, throughput, starts | Available on demand |
@@ -600,7 +613,7 @@ Q3b: What triggers DG? (Night only)
 ### 7.2 Color System
 
 | Color | Meaning |
-|-------|---------|
+| ------- | --------- |
 | **Green** | Good (high delivery, low wastage, zero DG) |
 | **Yellow** | Warning (moderate, approaching limits) |
 | **Red** | Problem (low delivery, high wastage, constraint violation) |
@@ -640,6 +653,7 @@ After MVP, consider a floating/auto-hiding configuration bar:
 ### 8.2 Live Update Mode
 
 For Fixed Mode only:
+
 - Single configuration displayed
 - Changing any input triggers immediate re-simulation
 - Results update in 2-3 seconds without page navigation
@@ -647,6 +661,7 @@ For Fixed Mode only:
 ### 8.3 Scenario Comparison Across Templates
 
 Allow comparing:
+
 - Same sizing, different templates
 - Different sites (load/solar profiles)
 - What-if analysis (e.g., "what if DG fails for a week?")
@@ -656,7 +671,7 @@ Allow comparing:
 ## 9. Open Questions
 
 | Question | Status | Decision |
-|----------|--------|----------|
+| ---------- | -------- | ---------- |
 | Should dominated rows be hidden by default? | OPEN | Current: shown but marked |
 | Should we show cost estimates (even rough)? | DEFERRED | V2 feature |
 | Export format: single Excel or multiple sheets? | OPEN | Needs user input |

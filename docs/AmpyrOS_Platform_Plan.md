@@ -1,4 +1,5 @@
 # AmpyrOS Enterprise Platform
+
 ## Comprehensive Implementation Plan
 
 ---
@@ -12,7 +13,7 @@
 ### 1.2 Core Objectives
 
 | Objective | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | **Unified Access** | Single sign-on entry point for all Ampyr applications |
 | **Centralized Control** | Role-based access management across all modules |
 | **Modular Architecture** | Plug-and-play system for adding new tools |
@@ -22,7 +23,7 @@
 ### 1.3 Platform Modules
 
 | Module | Purpose | Status |
-|--------|---------|--------|
+| -------- | --------- | -------- |
 | **BESS Sizing Tool** | Battery energy storage system optimization and sizing | Existing (to be integrated) |
 | **RAG** | Hybrid Retrieval-Augmented Generation for document intelligence | Planned |
 | **Asset Dashboard** | Real-time monitoring and analytics for energy assets | Planned |
@@ -76,35 +77,45 @@
 ### 2.2 Component Description
 
 #### 2.2.1 AmpyrOS Shell
+
 The main web application that serves as the entry point for all users:
+
 - **Module Launcher**: Dashboard displaying available modules based on user permissions
 - **Navigation**: Unified header and sidebar across all modules
 - **User Profile**: Account settings, preferences, notifications
 - **Admin Console**: User management, access control (for admins)
 
 #### 2.2.2 Authentication Service
+
 Centralized identity management:
+
 - **SSO Integration**: Microsoft Entra ID or Google Workspace
 - **Token Management**: JWT-based session handling
 - **Session Control**: Login, logout, session timeout
 - **Audit Logging**: All authentication events tracked
 
 #### 2.2.3 Access Control (RBAC)
+
 Fine-grained permission system:
+
 - **Platform Roles**: Platform Admin, Standard User
 - **Module Roles**: Each module defines its own roles (Admin, Engineer, Viewer, etc.)
 - **Permission Grants**: Users assigned roles per module
 - **Access Validation**: Middleware checks permissions on every request
 
 #### 2.2.4 Module Registry
+
 Dynamic module management:
+
 - **Module Catalog**: List of all available modules
 - **Manifest System**: Each module describes its capabilities
 - **Activation Control**: Enable/disable modules per user or organization
 - **Version Management**: Track module versions and updates
 
 #### 2.2.5 Shared Services
+
 Common utilities available to all modules:
+
 - **File Storage**: Upload, download, manage files
 - **Notifications**: In-app and email notifications
 - **Audit Trail**: Activity logging across all modules
@@ -157,7 +168,7 @@ Module Level (Example: BESS Sizing)
 ### 3.3 Permission Matrix
 
 | Action | Platform Admin | Module Admin | Engineer | Viewer |
-|--------|----------------|--------------|----------|--------|
+| -------- | ---------------- | -------------- | ---------- | -------- |
 | Access Platform Settings | ✅ | ❌ | ❌ | ❌ |
 | Manage All Users | ✅ | ❌ | ❌ | ❌ |
 | Manage Module Users | ✅ | ✅ | ❌ | ❌ |
@@ -264,18 +275,21 @@ resources:
 ### 4.3 Integration Patterns
 
 #### Pattern 1: Embedded Module (Recommended)
+
 - Module UI renders within AmpyrOS shell
 - Shares header, sidebar, and navigation
 - Full access to platform SDK
 - Best for: New modules built for AmpyrOS
 
 #### Pattern 2: Iframe Module
+
 - Existing application embedded in iframe
 - Token passed via URL or postMessage
 - Limited platform integration
 - Best for: Legacy applications
 
 #### Pattern 3: External Link
+
 - SSO redirect to external application
 - Opens in new tab/window
 - Minimal integration
@@ -366,6 +380,7 @@ CREATE INDEX idx_user_module_access_user ON user_module_access(user_id);
 ## 6. Platform APIs
 
 ### 6.1 Authentication APIs
+
 ```
 POST   /api/v1/auth/login           # Initiate SSO login
 GET    /api/v1/auth/callback        # SSO callback handler
@@ -375,6 +390,7 @@ POST   /api/v1/auth/refresh         # Refresh access token
 ```
 
 ### 6.2 User Management APIs
+
 ```
 GET    /api/v1/users                # List all users (admin)
 POST   /api/v1/users                # Create user (admin)
@@ -384,6 +400,7 @@ DELETE /api/v1/users/{id}           # Deactivate user
 ```
 
 ### 6.3 Module Registry APIs
+
 ```
 GET    /api/v1/modules              # List all modules
 GET    /api/v1/modules/{id}         # Get module details
@@ -391,6 +408,7 @@ GET    /api/v1/modules/{id}/roles   # Get module roles
 ```
 
 ### 6.4 Access Management APIs
+
 ```
 GET    /api/v1/access/users/{id}/modules    # Get user's module access
 POST   /api/v1/access/grant                 # Grant module access
@@ -405,7 +423,7 @@ GET    /api/v1/access/modules/{id}/users    # Get module's users
 ### 7.1 Recommended Stack
 
 | Layer | Technology | Rationale |
-|-------|------------|-----------|
+| ------- | ------------ | ----------- |
 | **Frontend** | Next.js 14 + TypeScript | Modern React framework, SSR support |
 | **UI Components** | Tailwind CSS + shadcn/ui | Rapid development, consistent design |
 | **Backend** | FastAPI (Python 3.13) | Async support, automatic API docs |
@@ -623,24 +641,28 @@ volumes:
 ### 9.2 Phase Details
 
 #### Phase 1: Platform Foundation (Week 1-2)
+
 - PostgreSQL database with platform schema
 - SSO integration (Microsoft Entra ID)
 - User authentication flow
 - Basic session management
 
 #### Phase 2: Platform Core (Week 3)
+
 - RBAC system
 - Module registry
 - Audit logging
 - AmpyrOS SDK v1
 
 #### Phase 3: Platform UI (Week 4)
+
 - Next.js shell application
 - Module launcher
 - Admin console
 - User settings
 
 #### Phase 4: Deployment (Week 7)
+
 - Docker configuration
 - CI/CD pipeline
 - Documentation
@@ -652,7 +674,7 @@ volumes:
 ### 10.1 Platform Success Metrics
 
 | Metric | Target | Measurement |
-|--------|--------|-------------|
+| -------- | -------- | ------------- |
 | Login Success Rate | > 99% | Auth logs |
 | Page Load Time | < 3 seconds | Performance monitoring |
 | API Response Time | < 500ms | API metrics |
@@ -674,7 +696,7 @@ volumes:
 ## 11. Risk Assessment
 
 | Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
+| ------ | -------- | ------------- | ------------ |
 | SSO integration delays | High | Medium | Start early, have fallback |
 | Performance issues | Medium | Low | Load testing, caching |
 | Data migration errors | High | Low | Thorough testing, backups |

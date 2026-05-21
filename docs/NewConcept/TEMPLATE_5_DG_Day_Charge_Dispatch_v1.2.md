@@ -10,11 +10,13 @@
 ## 1. Overview
 
 ### 1.1 Description
+
 SoC-triggered day charging strategy with silent nights. DG is **disabled** during night hours to maintain quiet operation (residential areas, noise restrictions). During day, DG activates when BESS SoC drops below threshold, serving load and charging BESS alongside solar. This is the **inverse of Template 6** (which has reactive DG at night, disabled during day).
 
 **Critical Design Note:** DG is **SoC-triggered, not load-triggered**. DG will run to recover BESS even during zero-load periods if SoC is below the ON threshold.
 
 ### 1.2 Use Case
+
 - Sites near residential areas requiring silent night operation
 - Sites with daytime noise tolerance (industrial neighbors, remote)
 - Sites where solar alone cannot maintain SoC during cloudy days
@@ -25,11 +27,13 @@ SoC-triggered day charging strategy with silent nights. DG is **disabled** durin
 **Day Hours (DG Allowed):**
 
 *When DG is OFF:*
+
 1. Solar direct to load
 2. BESS discharge to load
 3. Unserved energy (triggers DG if SoC drops to threshold)
 
 *When DG is ON (SoC triggered):*
+
 1. Solar direct to load
 2. DG to remaining load (DG takes priority)
 3. **IF DG < remaining load:** BESS assists — "Assist Mode"
@@ -37,13 +41,16 @@ SoC-triggered day charging strategy with silent nights. DG is **disabled** durin
 5. Unserved energy (only if all insufficient)
 
 **Night Hours (DG Disabled):**
+
 1. Solar direct to load (minimal/zero at night)
 2. BESS discharge to load
 3. Emergency DG (if enabled and SoC critical)
 4. Unserved energy
 
 ### 1.4 Cycle Limit Policy
+
 **Template 5 uses monitor-only cycle counting.**
+
 - `bess_enforce_cycle_limit` is forced to `False`
 - Cycles are tracked and reported
 - Rationale: Night blackout is predictable; users can size BESS appropriately
@@ -53,15 +60,16 @@ SoC-triggered day charging strategy with silent nights. DG is **disabled** durin
 ## 2. Input Parameters
 
 ### 2.1 Profiles (8760 hourly values)
+
 | Parameter | Description | Unit |
-|-----------|-------------|------|
+| ----------- | ------------- | ------ |
 | `load_profile[t]` | Hourly load demand | MW |
 | `solar_profile[t]` | Hourly solar generation | MW |
 
 ### 2.2 BESS Parameters
 
 | Parameter | Description | Unit | Default | Fixed Mode | Sizing Mode |
-|-----------|-------------|------|---------|------------|-------------|
+| ----------- | ------------- | ------ | --------- | ------------ | ------------- |
 | `bess_capacity` | Total energy capacity | MWh | Required | User input | Iterated (range) |
 | `bess_charge_power` | Max charge rate | MW | Required | User input | **Auto-calculated** |
 | `bess_discharge_power` | Max discharge rate | MW | Required | User input | **Auto-calculated** |
@@ -75,31 +83,36 @@ SoC-triggered day charging strategy with silent nights. DG is **disabled** durin
 | `bess_enforce_cycle_limit` | Enforce limit? | Boolean | **False** | **Forced False** | **Forced False** |
 
 ### 2.3 DG Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `dg_capacity` | Rated power output | MW | Required |
 | `dg_charges_bess` | Can DG charge BESS? | Boolean | True |
 
 ### 2.4 Time Window Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `day_window_mode` | How day is defined | Fixed / Dynamic | Fixed |
 | `day_start_hour` | Day begins (if Fixed) | Hour (0-23) | 6 |
 | `day_end_hour` | Day ends (if Fixed) | Hour (0-23) | 18 |
 
 **Day Window Modes:**
+
 - **Fixed:** User specifies start/end hours (e.g., 06:00 - 18:00)
 - **Dynamic:** Day = hours within the solar production window
 
 ### 2.5 DG SoC Trigger Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `dg_soc_on_threshold` | SoC at/below which DG turns ON | % | 30 |
 | `dg_soc_off_threshold` | SoC at/above which DG turns OFF | % | 80 |
 
 ### 2.6 Emergency DG Parameters (Night)
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `allow_emergency_dg_night` | Allow DG during night if SoC critical? | Boolean | False |
 | `emergency_soc_threshold` | SoC at/below which emergency DG activates | % | 15 |
 
@@ -108,6 +121,7 @@ SoC-triggered day charging strategy with silent nights. DG is **disabled** durin
 In **Sizing Mode**, the simulation engine iterates through multiple configurations.
 
 **User Inputs (Sizing Mode):**
+
 - `bess_capacity_min`, `bess_capacity_max`, `bess_capacity_step` (MWh range)
 - `dg_capacity_min`, `dg_capacity_max`, `dg_capacity_step` (MW range)
 
@@ -115,7 +129,7 @@ In **Sizing Mode**, the simulation engine iterates through multiple configuratio
 For each BESS capacity value, the system automatically tests 7 duration classes:
 
 | Duration | C-Rate | Power Calculation |
-|----------|--------|-------------------|
+| ---------- | -------- | ------------------- |
 | 1-hour | 1C | `power = capacity ÷ 1` |
 | 2-hour | 0.5C | `power = capacity ÷ 2` |
 | 3-hour | 0.33C | `power = capacity ÷ 3` |
@@ -125,6 +139,7 @@ For each BESS capacity value, the system automatically tests 7 duration classes:
 | 10-hour | 0.1C | `power = capacity ÷ 10` |
 
 **Power Derivation:**
+
 ```
 bess_charge_power = bess_capacity ÷ duration_hours
 bess_discharge_power = bess_capacity ÷ duration_hours
@@ -252,7 +267,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 5. State Variables
 
 | Variable | Description | Initial Value | Resets |
-|----------|-------------|---------------|--------|
+| ---------- | ------------- | --------------- | -------- |
 | `soc` | Current BESS state of charge (MWh) | `bess_capacity × initial_soc / 100` | Never |
 | `daily_discharge` | BESS energy discharged today (MWh) | 0 | Daily |
 | `daily_cycles` | BESS cycles consumed today | 0 | Daily |
@@ -262,8 +277,9 @@ soc = bess_capacity × bess_initial_soc / 100
 | `dg_mode` | Current DG mode | "OFF" | Never |
 
 **Per-Day Tracking Arrays:**
+
 | Variable | Description | Size |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `max_daily_cycles_per_day[]` | Peak cycles reached each day | 365 |
 
 ---
@@ -271,7 +287,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 6. Hourly Output Variables
 
 | Variable | Description | Unit |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `solar_to_load` | Solar energy serving load directly | MWh |
 | `solar_to_bess` | Solar energy charging BESS | MWh |
 | `solar_curtailed` | Excess solar wasted | MWh |
@@ -294,7 +310,7 @@ soc = bess_capacity × bess_initial_soc / 100
 When run in Sizing Mode, the simulation produces a **comparison table**:
 
 | Column | Description | Unit |
-|--------|-------------|------|
+| -------- | ------------- | ------ |
 | `capacity` | BESS energy capacity | MWh |
 | `duration` | Duration class | hours |
 | `power` | Calculated charge/discharge power | MW |
@@ -311,6 +327,7 @@ When run in Sizing Mode, the simulation produces a **comparison table**:
 | `is_dominated` | True if strictly dominated | Boolean |
 
 **Template-Specific Columns:**
+
 - `hours_emergency_dg` — Night hours where emergency DG ran
 - `pct_night_silent` — Key metric for noise-sensitive sites
 
@@ -327,7 +344,7 @@ The dispatch logic steps remain identical. Only the initialization of power limi
 ## 9. Edge Cases
 
 | Scenario | Expected Behavior |
-|----------|-------------------|
+| ---------- | ------------------- |
 | Day start == Day end | No day window (0 hours), DG always disabled |
 | Day spans midnight (e.g., 22-06) | Handled by is_day_hour[] logic |
 | Solar available at night | Rare but handled - solar serves load |
@@ -343,7 +360,7 @@ The dispatch logic steps remain identical. Only the initialization of power limi
 ## 10. Assumptions and Simplifications
 
 | Assumption | Description |
-|------------|-------------|
+| ------------ | ------------- |
 | **Hourly resolution** | Δt = 1 hour; MW values represent MWh |
 | **365-day year** | 8760 hours; leap years not handled |
 | **No DG fuel/emissions** | Fuel consumption not tracked |
@@ -363,29 +380,35 @@ The dispatch logic steps remain identical. Only the initialization of power limi
 Before marking implementation complete, verify:
 
 **Sizing Mode:**
+
 - [ ] Sizing Mode correctly derives power from capacity and duration
 - [ ] All 7 duration classes tested for each capacity × DG combination
 - [ ] Output comparison table includes `hours_emergency_dg` and `pct_night_silent`
 
 **Time Window Handling:**
+
 - [ ] Time window calculation handles all cases (normal, midnight crossing, no window)
 - [ ] `is_day_hour[]` array pre-calculated correctly
 - [ ] Dynamic window uses epsilon (0.01 MW) to filter noise
 
 **Day Hours Logic:**
+
 - [ ] DG triggers on SoC threshold (SoC-triggered, not load-triggered)
 - [ ] DG runs even with zero load if SoC below ON threshold
 - [ ] Deadband hysteresis prevents rapid cycling
 
 **Night Hours Logic:**
+
 - [ ] DG strictly disabled at night (unless emergency)
 - [ ] Emergency DG only activates when enabled AND SoC ≤ emergency threshold
 
 **Transitions:**
+
 - [ ] **Sunset Cut:** DG forced OFF immediately when night starts
 - [ ] **Morning Carryover:** Emergency DG transitions to NORMAL mode
 
 **Assist Mode & Recovery Mode:**
+
 - [ ] **Assist Mode:** When DG ON and DG < Load, BESS assists
 - [ ] **Recovery Mode:** When DG ON and DG ≥ Load, BESS rests and charges
 - [ ] BESS never charges and discharges in same hour

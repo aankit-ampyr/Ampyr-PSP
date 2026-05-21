@@ -1,5 +1,16 @@
 # PROJECT CONTEXT & CORE DIRECTIVES
 
+## GUARDRAILS (read first)
+
+These four principles override anything below when they conflict. Full text in the *KARPATHY SKILLS* section at the end of this file.
+
+1. **Think Before Coding** — state assumptions, surface tradeoffs, ask when unclear.
+2. **Simplicity First** — minimum code that solves the problem; nothing speculative.
+3. **Surgical Changes** — touch only what the request requires; clean up only your own orphans.
+4. **Goal-Driven Execution** — define a verifiable success criterion before coding; loop until verified.
+5. **Project IRR Excel Fidelity** — for the Project IRR module, do not add any factor, variable, or calculation that is not present in the provided Excel workbook (`Financial Model/Off-Grid Solution v8.xlsm`). No calibration constants, ownership multipliers, or invented adjustments. If the Python output diverges from the Excel, fix it by replicating an Excel mechanism — never by introducing a fudge factor.
+6. **Project IRR Decisions Log Discipline** — any decision, reversal, or fork related to the Project IRR module (scope, engine logic, audit target, assumption defaults, validation tolerances, UI placement, etc.) must be recorded in [docs/Project_IRR_Integration_Decisions.md](docs/Project_IRR_Integration_Decisions.md) at the time it is made. Add a row to the Revisions log with date and reason; update or supersede the relevant `A*` section. Do not silently change behaviour without logging the decision. The companion [docs/Financial_Assumptions_Spec.md](docs/Financial_Assumptions_Spec.md) holds the current locked state — keep both in sync.
+
 ## Project Overview
 **BESS Sizing Tool** - Battery Energy Storage System optimization application for solar+storage systems. Simulates year-long battery operations with binary delivery constraints, cycle limits, and SOC management to determine optimal battery capacity for maximizing delivery hours while respecting technical limitations.
 
@@ -22,6 +33,13 @@ When encountering complex requirements:
 3. **Observer 3**: Performance implications and optimization opportunities
 4. **Observer 4**: Integration points and dependency management
 5. **Synthesis**: Merge observations into unified implementation strategy
+
+> **Precedence note**: When the principles in this section conflict with the
+> *KARPATHY SKILLS — CODING BEHAVIORAL GUIDELINES* section at the bottom of
+> this file, Karpathy wins. Specifically: *DIRECT IMPLEMENTATION ONLY* and
+> *NO PARTIAL IMPLEMENTATIONS* apply only when the spec is unambiguous —
+> otherwise stop and ask. *Hedging language* may be used to surface real
+> tradeoffs.
 
 ## ANTI-PATTERN ELIMINATION
 
@@ -270,6 +288,29 @@ Execute simultaneously when operations:
 - Cache effectiveness for repeated simulations
 - User error patterns for UX improvements
 
+### Streamlit Cloud — known gotchas (logged 2026-05-16)
+
+The PSP app is hosted on the free Streamlit Cloud tier at `psp-pirr.streamlit.app`. Two failure modes hit during the v1 SME-handoff deploy:
+
+**1. `runtime.txt` is canonical, NOT the dashboard "Python version" setting.** Earlier guidance (and an older memory note) said the dashboard overrides — incorrect. Streamlit Cloud reads `runtime.txt` from the repo as the source of truth. If you change the version in the Streamlit Cloud dashboard but `runtime.txt` says something different, the deploy uses `runtime.txt`. To pin the Python version, edit `runtime.txt` in the repo and push.
+
+**2. Python 3.14 is too new for the pinned data-stack wheels (as of 2026-05-16).** `streamlit==1.51.0` pulls in `pyarrow==21.0.0` which has Linux wheels for cpython 3.10–3.13 only. On Python 3.14, pip/uv falls back to building pyarrow from source (sdist) which needs CMake (not in Streamlit Cloud's build env) and fails with `error: command 'cmake' failed: No such file or directory`. Other big C-extension packages (pandas, numpy) will hit the same path eventually. **Pin `runtime.txt` to `python-3.13`** (or 3.12 as a safer fallback) until pyarrow / pandas / numpy publish 3.14 wheels.
+
+**3. `width='stretch'` in `st.button` / `st.dataframe` requires Streamlit ≥ 1.50.** Commit `2a19311` swept `use_container_width=True → width='stretch'` across 9 pages. If `requirements.txt` pins an older Streamlit (e.g. `==1.41.0`), every page that uses `width='stretch'` will TypeError on first interaction. Pin `streamlit>=1.51.0` in `requirements.txt` to match local dev.
+
+**Decision pinning** (do not amend without explicit user approval — these are tested + working):
+
+- `runtime.txt`: **`python-3.13`** (commit `5c478f4`, 2026-05-16). Bumping to 3.14 broke the pyarrow build; reverted.
+- `requirements.txt`: streamlit==**1.51.0** (commit `9064b78`, 2026-05-16); pandas==2.2.3, numpy==2.1.3, plotly==5.24.1, openpyxl==3.1.5 unchanged.
+- `.streamlit/config.toml`: theme + server (headless=true, CORS=true, XSRF=true) + browser.gatherUsageStats=false. Do not modify.
+
+**If a future deploy breaks**, check in this order:
+
+1. Latest Streamlit Cloud build log: look for the failing package name + the Python version line ("Using Python X.Y.Z environment at /home/adminuser/venv").
+2. If `cmake failed: No such file or directory` — you're on a too-new Python that lacks wheels for one of the pinned deps. Bump `runtime.txt` DOWN to a Python version with wheels.
+3. If `TypeError` on a Streamlit API call — `requirements.txt` Streamlit pin is too old for an API the code uses. Bump UP.
+4. If neither — paste the log here.
+
 ## CUSTOM PROJECT INSTRUCTIONS
 
 ### BESS Domain Knowledge
@@ -438,3 +479,75 @@ if 'last_simulation' not in st.session_state:
 - Systematic approach to battery simulation and optimization
 
 The precise domain terminology and operational constraints are intentional to enable sophisticated reasoning about energy storage systems and their optimization.
+
+---
+
+## KARPATHY SKILLS — CODING BEHAVIORAL GUIDELINES
+
+> Source: <https://raw.githubusercontent.com/forrestchang/andrej-karpathy-skills/main/CLAUDE.md>
+> Merged: 2026-04-27. Behavioural guardrails to reduce common LLM coding mistakes.
+> **Tradeoff**: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+> **Precedence**: When these guidelines conflict with the *DIRECT IMPLEMENTATION ONLY* / *NO PARTIAL IMPLEMENTATIONS* rules in the System-Level Operating Principles above, the Karpathy guidelines win — clarify ambiguity before generating code, ship the smallest correct change, and verify against an explicit success criterion.
+
+### 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+### 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```text
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+**These guidelines are working if**: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

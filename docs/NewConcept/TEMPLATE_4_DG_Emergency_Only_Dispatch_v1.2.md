@@ -10,9 +10,11 @@
 ## 1. Overview
 
 ### 1.1 Description
+
 SoC-triggered DG backup with no time restrictions. DG acts as a **"Range Extender"** or **"Recovery"** asset. DG is off by default and only activates when BESS SoC drops below a configurable threshold. Once triggered, DG takes priority for serving load to allow BESS recovery, but BESS will **assist** if DG capacity is insufficient ("Assist Mode"). DG runs until SoC recovers to upper threshold. This template minimizes DG runtime while providing reliable backup.
 
 ### 1.2 Use Case
+
 - Sites where DG should be true last resort (minimize runtime/fuel)
 - Sites with no time-based operational constraints
 - Cost-conscious operations (run DG only when absolutely necessary)
@@ -20,8 +22,9 @@ SoC-triggered DG backup with no time restrictions. DG acts as a **"Range Extende
 - Sites with undersized DG that needs BESS assist capability
 
 ### 1.3 Key Difference from Template 1
+
 | Aspect | Template 1 (Green Priority) | Template 4 (DG Emergency Only) |
-|--------|----------------------------|-------------------------------|
+| -------- | ---------------------------- | ------------------------------- |
 | DG trigger | Load deficit (BESS at min SoC) | SoC threshold (configurable) |
 | DG off trigger | Load met (immediate) | SoC threshold (configurable) |
 | Deadband | No (can cycle rapidly) | Yes (prevents short cycling) |
@@ -31,11 +34,13 @@ SoC-triggered DG backup with no time restrictions. DG acts as a **"Range Extende
 ### 1.4 Merit Order
 
 **When DG is OFF (normal green operation):**
+
 1. Solar direct to load
 2. BESS discharge to load
 3. Unserved energy (if BESS depleted)
 
 **When DG is ON (triggered by SoC threshold):**
+
 1. Solar direct to load
 2. DG to remaining load (DG takes priority)
 3. **IF DG < remaining load:** BESS assists (covers deficit only) — "Assist Mode"
@@ -43,7 +48,9 @@ SoC-triggered DG backup with no time restrictions. DG acts as a **"Range Extende
 5. Unserved energy (only if Solar + DG + BESS all insufficient)
 
 ### 1.5 Cycle Limit Policy
+
 **Template 4 does NOT support cycle limit enforcement.**
+
 - `bess_enforce_cycle_limit` is forced to `False` at initialization
 - Cycles are tracked and reported (monitor-only mode)
 - Days exceeding nominal limit are flagged in metrics
@@ -54,15 +61,16 @@ SoC-triggered DG backup with no time restrictions. DG acts as a **"Range Extende
 ## 2. Input Parameters
 
 ### 2.1 Profiles (8760 hourly values)
+
 | Parameter | Description | Unit |
-|-----------|-------------|------|
+| ----------- | ------------- | ------ |
 | `load_profile[t]` | Hourly load demand | MW |
 | `solar_profile[t]` | Hourly solar generation | MW |
 
 ### 2.2 BESS Parameters
 
 | Parameter | Description | Unit | Default | Fixed Mode | Sizing Mode |
-|-----------|-------------|------|---------|------------|-------------|
+| ----------- | ------------- | ------ | --------- | ------------ | ------------- |
 | `bess_capacity` | Total energy capacity | MWh | Required | User input | Iterated (range) |
 | `bess_charge_power` | Max charge rate | MW | Required | User input | **Auto-calculated** |
 | `bess_discharge_power` | Max discharge rate | MW | Required | User input | **Auto-calculated** |
@@ -78,18 +86,21 @@ SoC-triggered DG backup with no time restrictions. DG acts as a **"Range Extende
 **Note:** `bess_enforce_cycle_limit` is forced to `False` for Template 4. See Section 1.5.
 
 ### 2.3 DG Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `dg_capacity` | Rated power output | MW | Required |
 | `dg_charges_bess` | Can DG charge BESS? | Boolean | True |
 
 ### 2.4 DG SoC Trigger Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `dg_soc_on_threshold` | SoC at/below which DG turns ON | % | 30 |
 | `dg_soc_off_threshold` | SoC at/above which DG turns OFF | % | 80 |
 
 **Deadband Behavior:**
+
 - DG turns ON when SoC drops to or below `dg_soc_on_threshold`
 - DG turns OFF when SoC rises to or above `dg_soc_off_threshold`
 - Between thresholds: DG maintains previous state (hysteresis)
@@ -99,6 +110,7 @@ SoC-triggered DG backup with no time restrictions. DG acts as a **"Range Extende
 In **Sizing Mode**, the simulation engine iterates through multiple configurations.
 
 **User Inputs (Sizing Mode):**
+
 - `bess_capacity_min`, `bess_capacity_max`, `bess_capacity_step` (MWh range)
 - `dg_capacity_min`, `dg_capacity_max`, `dg_capacity_step` (MW range)
 
@@ -106,7 +118,7 @@ In **Sizing Mode**, the simulation engine iterates through multiple configuratio
 For each BESS capacity value, the system automatically tests 7 duration classes:
 
 | Duration | C-Rate | Power Calculation |
-|----------|--------|-------------------|
+| ---------- | -------- | ------------------- |
 | 1-hour | 1C | `power = capacity ÷ 1` |
 | 2-hour | 0.5C | `power = capacity ÷ 2` |
 | 3-hour | 0.33C | `power = capacity ÷ 3` |
@@ -116,6 +128,7 @@ For each BESS capacity value, the system automatically tests 7 duration classes:
 | 10-hour | 0.1C | `power = capacity ÷ 10` |
 
 **Power Derivation:**
+
 ```
 bess_charge_power = bess_capacity ÷ duration_hours
 bess_discharge_power = bess_capacity ÷ duration_hours
@@ -217,7 +230,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 5. State Variables
 
 | Variable | Description | Initial Value | Resets |
-|----------|-------------|---------------|--------|
+| ---------- | ------------- | --------------- | -------- |
 | `soc` | Current BESS state of charge (MWh) | `bess_capacity × initial_soc / 100` | Never |
 | `daily_discharge` | BESS energy discharged today (MWh) | 0 | Daily |
 | `daily_cycles` | BESS cycles consumed today | 0 | Daily |
@@ -226,8 +239,9 @@ soc = bess_capacity × bess_initial_soc / 100
 | `bess_discharged_this_hour` | BESS discharged flag | False | Hourly |
 
 **Per-Day Tracking Arrays:**
+
 | Variable | Description | Size |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `max_daily_cycles_per_day[]` | Peak cycles reached each day | 365 |
 
 ---
@@ -235,7 +249,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 6. Hourly Output Variables
 
 | Variable | Description | Unit |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `solar_to_load` | Solar energy serving load directly | MWh |
 | `solar_to_bess` | Solar energy charging BESS | MWh |
 | `solar_curtailed` | Excess solar wasted | MWh |
@@ -256,7 +270,7 @@ soc = bess_capacity × bess_initial_soc / 100
 When run in Sizing Mode, the simulation produces a **comparison table**:
 
 | Column | Description | Unit |
-|--------|-------------|------|
+| -------- | ------------- | ------ |
 | `capacity` | BESS energy capacity | MWh |
 | `duration` | Duration class | hours |
 | `power` | Calculated charge/discharge power | MW |
@@ -286,7 +300,7 @@ The dispatch logic steps remain identical. Only the initialization of power limi
 ## 9. Edge Cases
 
 | Scenario | Expected Behavior |
-|----------|-------------------|
+| ---------- | ------------------- |
 | SoC starts above OFF threshold | DG stays OFF, BESS serves load |
 | SoC drops to exactly ON threshold | DG turns ON |
 | SoC rises to exactly OFF threshold | DG turns OFF |
@@ -304,7 +318,7 @@ The dispatch logic steps remain identical. Only the initialization of power limi
 ## 10. Assumptions and Simplifications
 
 | Assumption | Description |
-|------------|-------------|
+| ------------ | ------------- |
 | **Hourly resolution** | Δt = 1 hour; MW values represent MWh |
 | **365-day year** | 8760 hours; leap years not handled |
 | **No DG fuel/emissions** | Fuel consumption not tracked |
@@ -324,11 +338,13 @@ The dispatch logic steps remain identical. Only the initialization of power limi
 Before marking implementation complete, verify:
 
 **Sizing Mode:**
+
 - [ ] Sizing Mode correctly derives power from capacity and duration
 - [ ] All 7 duration classes tested for each capacity × DG combination
 - [ ] Output comparison table includes `hours_dg_assist`
 
 **Core Logic:**
+
 - [ ] Input validation catches threshold ordering errors
 - [ ] `bess_enforce_cycle_limit` is forced to `False`
 - [ ] Deadband logic correctly maintains DG state between thresholds
