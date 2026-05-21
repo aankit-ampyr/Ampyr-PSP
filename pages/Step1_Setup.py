@@ -582,23 +582,27 @@ st.divider()
 
 
 # =============================================================================
-# MARKET PRICE CURVE SECTION (placeholder per A48 — viz + upload only)
+# NOMINAL MERCHANT CURVE SECTION (A49: engine-wired)
 # =============================================================================
-# Engine wiring (replacing the locked _DEFAULT_MERCHANT_PRICES_MONTHLY in
-# src/project_irr.py with the user's curve) is deferred until the scope
-# question is settled. For now this panel:
-#   1. Visualises the engine's current default merchant curve, so users see
-#      what PIRR is actually using.
-#   2. Accepts a CSV upload (year, month, price_gbp_mwh) and stores it in
-#      wizard['setup']['merchant_price_curve'] for a future engine pass.
+# Post-PPA merchant electricity price curve. Uploaded values feed
+# `PirrInputs.merchant_prices_monthly` directly via the engine adapter
+# `pirr_inputs_from_wizard_state`. Treated as **nominal £/MWh** — passed to
+# the engine verbatim, no inflation applied. Real-terms uploads + variable
+# CPI curve handling are deferred to v2; see
+# docs/future_improvements/v2_price_and_inflation_curves.md.
 # =============================================================================
 
-st.subheader("💰 Market Price Curve")
+# Grab financial state for the coverage validator (post-PPA window depends
+# on construction_start, construction_months, ppa_tenor_years, project_life_years).
+financial = state.get('financial', {})
+
+st.subheader("💰 Nominal Merchant Curve")
 st.caption(
-    "Post-PPA merchant electricity price (£/MWh, monthly). The engine uses "
-    "this curve for years after the PPA tenor ends. **Placeholder for now** "
-    "— engine still reads its locked Burton Leonard default; uploading a "
-    "custom curve stores it for a future release."
+    "Post-PPA merchant electricity price (£/MWh, monthly, **nominal terms "
+    "— inflation already applied**). Sourced from the locked Burton-Leonard "
+    "Excel export `Solar&BESS Operation!row 66`. Upload a custom curve to "
+    "override; values are passed to the engine verbatim, so they must "
+    "already include your inflation assumption."
 )
 
 # Load the engine's current default curve for visualisation.
@@ -609,8 +613,8 @@ except ImportError:
 
 price_source_options = ['default', 'upload']
 price_source_labels = {
-    'default': "Use engine default (locked Burton Leonard curve)",
-    'upload': "Upload custom curve (CSV)",
+    'default': "Use engine default (Burton-Leonard `Solar&BESS Operation!r66`)",
+    'upload': "Upload custom nominal curve (CSV)",
 }
 current_price_source = setup.get('merchant_price_curve_source', 'default')
 if current_price_source not in price_source_options:
@@ -686,20 +690,84 @@ def _render_price_curve_chart(curve_dict, title):
     c4.metric("Months", f"{len(df):,}")
 
 
+def _compute_post_ppa_range(fin_dict):
+    """Returns (first_key, last_key) for the post-PPA window as (year, month)
+    tuples. Uses wizard financial state; falls back to engine D13 defaults
+    when fields are missing (e.g. user hasn't visited Step 2b yet).
+    """
+    from datetime import date as _date
+
+    cod = fin_dict.get('cod_date')
+    if cod is None:
+        cstart = fin_dict.get('construction_start')
+        cmonths = int(fin_dict.get('construction_months') or 9)
+        if cstart is not None:
+            total = cstart.month - 1 + cmonths
+            cod = _date(cstart.year + total // 12, total % 12 + 1, 1)
+        else:
+            cod = _date(2027, 7, 1)  # D13 engine default
+
+    ppa_tenor = int(fin_dict.get('ppa_tenor_years') or 10)
+    proj_life = int(fin_dict.get('project_life_years') or 35)
+    first = (cod.year + ppa_tenor, cod.month)
+    last = (cod.year + proj_life - 1, 12)
+    return first, last
+
+
+def _validate_curve_coverage(curve_dict, fin_dict):
+    """Check curve_dict covers every (year, month) in the post-PPA window.
+
+    Returns: (ok: bool, missing_count: int, first_missing_str: str | None,
+              range_str: str)
+    """
+    first, last = _compute_post_ppa_range(fin_dict)
+    first_y, first_m = first
+    last_y, last_m = last
+
+    missing = []
+    y, m = first_y, first_m
+    while (y, m) <= (last_y, last_m):
+        if (y, m) not in curve_dict:
+            missing.append((y, m))
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+
+    range_str = f"{first_y}-{first_m:02d} through {last_y}-{last_m:02d}"
+    if not missing:
+        return True, 0, None, range_str
+    first_missing_str = f"{missing[0][0]}-{missing[0][1]:02d}"
+    return False, len(missing), first_missing_str, range_str
+
+
+# Compute the required coverage range upfront for the help text + validator.
+_required_first, _required_last = _compute_post_ppa_range(financial)
+_required_range_str = (
+    f"{_required_first[0]}-{_required_first[1]:02d} through "
+    f"{_required_last[0]}-{_required_last[1]:02d}"
+)
+
+
 if price_source == 'default':
     _render_price_curve_chart(
         _ENGINE_DEFAULT_CURVE,
-        "Engine default merchant curve (Burton Leonard, locked)"
+        "Engine default merchant curve (Burton-Leonard, locked)"
     )
     # Clear any stored upload if user toggled back to default
     update_wizard_state('setup', 'merchant_price_curve', None)
 
 else:
     uploaded_price = st.file_uploader(
-        "Upload Market Price Curve CSV",
+        "Upload Nominal Merchant Curve CSV",
         type=['csv'],
-        help="CSV with columns: `year`, `month` (1-12), `price_gbp_mwh`. "
-        "One row per month. Covers post-PPA years (typically COD+10 to COD+34).",
+        help=(
+            "CSV with columns: `year`, `month` (1-12), `price_gbp_mwh` "
+            "(nominal £/MWh — must include inflation; engine does not "
+            "escalate this curve). One row per month. Required coverage: "
+            f"**{_required_range_str}** (post-PPA window for current "
+            "project timeline)."
+        ),
         key='merchant_price_csv_uploader',
     )
 
@@ -729,9 +797,27 @@ else:
                         (int(r.year), int(r.month)): float(r.price_gbp_mwh)
                         for r in df_upload.itertuples()
                     }
-                    update_wizard_state('setup', 'merchant_price_curve', curve_dict)
-                    st.success(f"Loaded {len(curve_dict)} monthly price points.")
-                    _render_price_curve_chart(curve_dict, "Uploaded merchant curve")
+                    # A49: reject incomplete coverage of the post-PPA window
+                    # to avoid silent default-substitution surprises (engine's
+                    # _merchant_price would fall back per-month to its locked
+                    # default, mixing user data with Burton-Leonard values).
+                    ok, n_missing, first_miss, range_str = _validate_curve_coverage(
+                        curve_dict, financial
+                    )
+                    if not ok:
+                        st.error(
+                            f"Curve must cover **{range_str}** (post-PPA "
+                            f"window for current project timeline). Missing "
+                            f"{n_missing} months — first: {first_miss}. "
+                            "Stored curve unchanged."
+                        )
+                    else:
+                        update_wizard_state('setup', 'merchant_price_curve', curve_dict)
+                        st.success(
+                            f"Loaded {len(curve_dict)} monthly price points "
+                            f"(covers {range_str} + extras)."
+                        )
+                        _render_price_curve_chart(curve_dict, "Uploaded merchant curve")
         except Exception as e:
             st.error(f"Error reading CSV: {e}")
     else:
@@ -741,14 +827,17 @@ else:
             _render_price_curve_chart(stored, "Uploaded merchant curve")
         else:
             st.info(
-                "Upload a CSV to set a custom merchant price curve. "
-                "Engine will fall back to the default until upload."
+                f"Upload a CSV to set a custom merchant price curve. "
+                f"Required coverage: {_required_range_str}. "
+                "Engine uses the default curve until upload."
             )
 
 st.caption(
-    "ℹ️ Placeholder — uploaded curves are stored but not yet read by the "
-    "PIRR engine. Engine wiring + per-line escalation curves (CPI / balancing "
-    "/ PPA) coming in a follow-up release."
+    "Upload-only feeds the engine for post-PPA years; PPA-tenor revenue "
+    "comes from your PPA tariff (configured in Step 2b). Real-terms uploads "
+    "+ customisable inflation curve are planned for v2 — see "
+    "[`docs/future_improvements/v2_price_and_inflation_curves.md`]"
+    "(docs/future_improvements/v2_price_and_inflation_curves.md)."
 )
 
 

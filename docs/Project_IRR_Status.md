@@ -1,12 +1,36 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-21 (A48 — wizard reorg: financial setup moved Step 7 → new Step 2b; Step 7 slimmed to outputs only; Step 1 gets Market Price Curve placeholder panel)
+**Last updated:** 2026-05-21 (A49 — Nominal Merchant Curve upload wired to engine; A48 placeholder closed)
 
-**Status: v1 AUDIT CLOSED + A48 WIZARD REORG LANDED LOCALLY (uncommitted).** Engine state unchanged — d13 still **8.84%** / S+B **9.00%** / Gas **13.07%** / CAPEX **£101.4m** post-A44+A45. **All 50 tests pass** (was 49 — added one new wizard-state schema guard for A48 price-curve keys). 4-row SME audit matrix unchanged at ±0.5 pp v1 tolerance. **Working tree NOT yet committed** — user explicitly said "don't push to GitHub till we validate everything working"; automated + e2e tests have validated; awaiting user's manual browser walk-through + commit decision.
+**Status: v1 AUDIT CLOSED + A48 + A49 LANDED.** Engine state unchanged — d13 still **8.84%** / S+B **9.00%** / Gas **13.07%** / CAPEX **£101.4m** post-A44+A45. **52 tests pass** (was 50 — A49 added 2 wizard-state-path tests for the new adapter branch). 4-row SME audit matrix unchanged at ±0.5 pp v1 tolerance. A48 (wizard reorg + Step 1 price-curve placeholder) committed and pushed `5fa5e5f`; A49 (engine wiring + coverage validator + relabel) is the current uncommitted work on branch `Financial`.
 
-## A48 wizard reorg (this session — 2026-05-21)
+## A49 (this session — 2026-05-21)
 
-Architectural fix for the A28/A43 bug class — by moving financial setup *before* Step 3a (Financial Sweep), users naturally configure assumptions in flow rather than discovering Step 7 after their sweep runs with broken defaults.
+Closes the A48 placeholder. Step 1's price-curve panel now drives `PirrInputs.merchant_prices_monthly` through the engine adapter `pirr_inputs_from_wizard_state`. Re-labelled to **"💰 Nominal Merchant Curve"** to make the units explicit — uploaded values are passed verbatim to `_merchant_price`, must already be inflated to match Excel `Solar&BESS Operation!row 66` convention. No transformation, no calibration constant (G5).
+
+**Files changed (5)**:
+
+| File | Change |
+|---|---|
+| `src/project_irr.py` | +15 lines in `pirr_inputs_from_wizard_state` — single adapter branch reading `setup['merchant_price_curve_source']` + `setup['merchant_price_curve']`. Engine core untouched. |
+| `pages/Step1_Setup.py` | Panel relabel + 2 new helper functions (`_compute_post_ppa_range`, `_validate_curve_coverage`). Coverage validator rejects uploads missing months in the post-PPA window. Placeholder caption replaced with v2 forward-pointer. |
+| `tests/test_wizard_state_path.py` | +2 tests: `test_default_curve_preserves_d13_audit` (locks default branch) + `test_uploaded_nominal_curve_feeds_engine` (doubled-curve sanity that proves wiring). |
+| `docs/Project_IRR_Integration_Decisions.md` | A49 Revisions row + full `### A49.` section above A47. |
+| `docs/Project_IRR_Status.md` | This rewrite. |
+
+**Out of scope** — preserved in [docs/future_improvements/v2_price_and_inflation_curves.md](future_improvements/v2_price_and_inflation_curves.md) (committed in `5fa5e5f`):
+
+- Real-terms uploads with a base-year picker
+- Uploadable CPI curve on Step 2b
+- Real→nominal transformation in the adapter (`_apply_inflation_to_real_curve`)
+- 3-line preview chart (uploaded curve / inflation factor / resulting nominal)
+- Future API integration
+
+A separate focused session lands all five. Estimated 1-2 days.
+
+## A48 (prior session — 2026-05-21, committed `5fa5e5f`)
+
+Architectural fix for the A28/A43 fresh-session bug class — by moving financial setup *before* Step 3a (Financial Sweep), users naturally configure assumptions in flow rather than discovering Step 7 after their sweep runs with broken defaults.
 
 **Files changed (16 — net -890 lines):**
 
@@ -49,30 +73,35 @@ That's the architectural property A48 was meant to deliver: the save-button loca
 
 ## Next session start — pick up from here
 
-**A. Commit + push A48 (if user confirms manual browser walk-through is clean)**
+**A. Commit + push A49** (current session work — uncommitted on branch `Financial`)
 
-The A48 changes are landed locally but uncommitted. Suggested commit structure (one PR per user instruction, but the work can split into logical commits if preferred):
+A49 closes the A48 placeholder. 5 files changed: `src/project_irr.py` (adapter branch), `pages/Step1_Setup.py` (relabel + coverage validator), `tests/test_wizard_state_path.py` (+2 tests), `docs/Project_IRR_Integration_Decisions.md` (A49 entry), this file. 52 pass / 0 xfail. D13 invariant preserved.
 
-- Bundled: `PSP A48: wizard reorg — financial setup moved Step 7 → Step 2b + Step 1 price-curve placeholder`
-- Or split into: utils + Step 2b create; Step 7 slim; Step 1 curve panel; indicators + label sweep; tests rename + new key guard; docs (decisions log + playbook + status)
+Suggested commit message: `PSP A49: A48 placeholder closed — Nominal Merchant Curve upload wired to engine + coverage validator`.
 
-Streamlit is serving locally on `http://localhost:8512` for the user's walk-through.
+**B. v2 — Real-terms uploads + uploadable CPI curve** (separate session, plan archived)
 
-**B. v2 — DSCR sculpting + Equity IRR (if user wants to start that thread)**
+Per [docs/future_improvements/v2_price_and_inflation_curves.md](future_improvements/v2_price_and_inflation_curves.md). Adds:
+
+1. Real-terms upload toggle on Step 1 + base-year picker
+2. New "Inflation (CPI) Curve" expander on Step 2b (uploadable curve + steady-state input)
+3. New helper `_apply_inflation_to_real_curve` in `src/project_irr.py`
+4. Adapter applies real→nominal transformation when user marks upload as real-terms
+5. 3-line preview chart on Step 1 (uploaded / inflation factor / resulting nominal)
+
+Estimated 1-2 days. G5-compliant — replicates Excel `Curves and D&T!r30` indexation mechanism.
+
+**C. v2 — DSCR sculpting + Equity IRR** (separate session, ~1-2 weeks)
 
 1. **DSCR-driven gearing convergence** — iterate senior gearing down until `min(DSCR over debt schedule) ≥ 1.40`, recompute SHL principal as `(1 − senior_effective) × total_capex`, re-run CIR cap. Excel does this via `Solve_P1` VBA. v1 holds senior at 80% flat. **Primary v2 deliverable.**
 2. **Cash sweep mechanism** — excess cash above DSCR-required level amortises debt early.
 3. **Equity IRR computation** — ungeared FCFF − net debt service = equity FCF; XIRR gives Equity IRR (typically 12-18% on 9% Project IRR). Free byproduct once DSCR sculpting lands.
 4. **Gearing as a sweep dimension** — currently fixed PirrInputs field; v2 makes iterable.
 
-**C. Price curve engine wiring (if user wants to close the A48 placeholder)**
-
-User deferred the curve-scope question. When ready, decide which curves the panel should cover (merchant only, or also CPI / balancing / PPA escalation) and wire `wizard['setup']['merchant_price_curve']` through `pirr_inputs_from_wizard_state` into the engine. Currently the engine still reads its locked `_DEFAULT_MERCHANT_PRICES_MONTHLY`.
-
 ## Remaining v1 loose ends (unchanged since 2026-05-16)
 
-- **Ankit's TODO**: redeploy Streamlit Cloud pointed at `origin/Financial` (current HEAD + the A48 commits about to land); send Anchal the handoff message (drafted at end of session, not yet sent).
-- **Skipped intentionally**: browser smoke test §A re-run pre-handoff — Anchal's SME testing will surface any UI bugs. Playbook §A is current through A48.
+- **Ankit's TODO**: send Anchal the handoff message (drafted at end of session, not yet sent).
+- **Skipped intentionally**: browser smoke test §A re-run pre-handoff — Anchal's SME testing will surface any UI bugs. Playbook §A is current through A48 (A49 is engine wiring, no new UI smoke surface beyond the panel relabel + validator error path).
 
 ## State at handover
 

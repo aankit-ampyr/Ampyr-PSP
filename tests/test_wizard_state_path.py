@@ -502,6 +502,115 @@ def test_default_wizard_state_has_price_curve_keys():
     )
 
 
+# =============================================================================
+# A49 ADAPTER BRANCH GUARDS (nominal merchant curve upload wiring)
+# =============================================================================
+# A49 (2026-05-21): the placeholder Step 1 panel introduced in A48 is now
+# wired through `pirr_inputs_from_wizard_state`. When the user uploads a
+# nominal merchant curve via the Step 1 CSV uploader, the adapter passes it
+# to `PirrInputs.merchant_prices_monthly` verbatim (no transformation —
+# real-terms/CPI conversion is deferred to v2). Two regression tests below:
+#
+#   1. Explicit default-source path produces D13 audit (covers the new
+#      adapter branch on the false side; existing tests already exercise
+#      this implicitly, but a named test makes the branch coverage clear).
+#   2. Uploaded curve (doubled vs default) shifts Combined PIRR measurably
+#      upward — proves the upload is actually wired, not silently ignored.
+
+
+def _run_d13_with_explicit_default_curve() -> dict:
+    """D13 wizard state with explicit `merchant_price_curve_source='default'`
+    and `merchant_price_curve=None`. Covers the False side of the new A49
+    adapter branch (`price_source == 'upload' and uploaded_curve`).
+    """
+    setup, fin = _build_d13_wizard_state()
+    setup['merchant_price_curve_source'] = 'default'
+    setup['merchant_price_curve'] = None
+
+    raw = get_active_solar_profile(setup)
+    target_dc_mwp = float(fin['solar_capacity_mwp'])
+    solar_mw = raw * (target_dc_mwp / target_dc_mwp)
+
+    hourly = run_hourly_dispatch(
+        solar_mw,
+        load_mw=float(setup['load_mw']),
+        bess_mwh=250.0, bess_mw=62.5, rte=0.87,
+    )
+    monthly = aggregate_to_monthly(hourly, solar_mw)
+
+    pi = pirr_inputs_from_wizard_state(fin, setup, monthly)
+    pi.solar_dc_mwp = 82.0
+    pi.bess_mwh = 250.0
+    pi.bess_mw = 62.5
+
+    res = run_pirr(pi)
+    return {
+        'combined': res.project_irr,
+        'sb': res.project_irr_solar_bess,
+        'gas': res.project_irr_gas,
+    }
+
+
+def test_default_curve_preserves_d13_audit():
+    """Explicit `merchant_price_curve_source='default'` reproduces D13 audit.
+
+    Locks the A49 adapter branch's False side: when source is 'default' (or
+    upload dict is empty/None), the dataclass default for
+    `merchant_prices_monthly` wins. If the adapter accidentally writes its
+    `effective_merchant_prices` even on the default path with the wrong
+    value, this test catches it.
+    """
+    r = _run_d13_with_explicit_default_curve()
+    msg = (f"Default-curve path Combined: {r['combined']*100:.2f}% vs "
+           f"{EXPECTED_COMBINED*100:.2f}% "
+           f"(delta {(r['combined']-EXPECTED_COMBINED)*100:+.2f} pp)")
+    print(msg)
+    assert abs(r['combined'] - EXPECTED_COMBINED) <= TOLERANCE_PP, msg
+    assert abs(r['sb'] - EXPECTED_SB) <= TOLERANCE_PP, (
+        f"S+B drift: {r['sb']*100:.2f}% vs {EXPECTED_SB*100:.2f}%"
+    )
+
+
+def test_uploaded_nominal_curve_feeds_engine():
+    """A nominal-terms upload that doubles every month vs default shifts
+    Combined PIRR measurably upward (≥ 0.5 pp). Proves the A49 adapter wiring
+    works: if `merchant_prices_monthly` were still hard-coded, the
+    upload would have no effect and the assertion would fail.
+    """
+    from src.project_irr import _DEFAULT_MERCHANT_PRICES_MONTHLY
+
+    setup, fin = _build_d13_wizard_state()
+    doubled_curve = {k: v * 2.0 for k, v in _DEFAULT_MERCHANT_PRICES_MONTHLY.items()}
+    setup['merchant_price_curve_source'] = 'upload'
+    setup['merchant_price_curve'] = doubled_curve
+
+    raw = get_active_solar_profile(setup)
+    target_dc_mwp = float(fin['solar_capacity_mwp'])
+    solar_mw = raw * (target_dc_mwp / target_dc_mwp)
+
+    hourly = run_hourly_dispatch(
+        solar_mw,
+        load_mw=float(setup['load_mw']),
+        bess_mwh=250.0, bess_mw=62.5, rte=0.87,
+    )
+    monthly = aggregate_to_monthly(hourly, solar_mw)
+
+    pi = pirr_inputs_from_wizard_state(fin, setup, monthly)
+    pi.solar_dc_mwp = 82.0
+    pi.bess_mwh = 250.0
+    pi.bess_mw = 62.5
+
+    res = run_pirr(pi)
+    combined_doubled = res.project_irr
+
+    delta_pp = (combined_doubled - EXPECTED_COMBINED) * 100
+    msg = (f"Doubled-curve Combined: {combined_doubled*100:.2f}% vs default "
+           f"{EXPECTED_COMBINED*100:.2f}% (delta {delta_pp:+.2f} pp). "
+           "Expected ≥ +0.5 pp uplift from doubled post-PPA merchant prices.")
+    print(msg)
+    assert combined_doubled > EXPECTED_COMBINED + 0.005, msg
+
+
 if __name__ == "__main__":
     r = _run_d13_via_wizard_state()
     print("D13 via wizard-state path (minimal fin):")

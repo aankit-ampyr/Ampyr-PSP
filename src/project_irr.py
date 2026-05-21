@@ -1814,6 +1814,20 @@ def pirr_inputs_from_wizard_state(
 
     # Defaults for monthly arrays: use zeros if dispatch hasn't run yet
     z = np.zeros(12)
+
+    # A49: pass through uploaded nominal merchant curve when user has
+    # uploaded one via Step 1's "Nominal Merchant Curve" panel. Default-
+    # source path falls back to the engine default, preserving the D13 audit
+    # invariant (no behaviour change when both setup keys are absent or set
+    # to 'default'). Step 1 validates full post-PPA coverage at upload time,
+    # so the adapter trusts whatever it receives here.
+    price_source = setup.get('merchant_price_curve_source', 'default')
+    uploaded_curve = setup.get('merchant_price_curve')
+    if price_source == 'upload' and uploaded_curve:
+        effective_merchant_prices = dict(uploaded_curve)
+    else:
+        effective_merchant_prices = dict(_DEFAULT_MERCHANT_PRICES_MONTHLY)
+
     return PirrInputs(
         # --- Capacity (D8: DC MWp for capex, AC profile peak ≈ grid limit) ---
         solar_dc_mwp=f("solar_capacity_mwp", 82.0),
@@ -1843,6 +1857,12 @@ def pirr_inputs_from_wizard_state(
         ppa_tariff_gbp_mwh=f("ppa_tariff_gbp_mwh", 170.0),
         ppa_tenor_years=i("ppa_tenor_years", 10),
         ppa_escalation_rate=f("ppa_escalation_pct", 0.0) / 100.0,
+
+        # --- Merchant prices (A49: wizard-state-overridable via Step 1) ---
+        # Nominal GBP/MWh, monthly. Default = Burton-Leonard locked curve
+        # (Solar&BESS Operation!row 66). Step 1 upload validation guarantees
+        # full post-PPA coverage when source == 'upload'.
+        merchant_prices_monthly=effective_merchant_prices,
 
         # --- REGOs ---
         rego_switch=i("rego_switch", 1),
