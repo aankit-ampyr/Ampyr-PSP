@@ -64,6 +64,7 @@ def render_step_indicator():
     steps = [
         ("1", "Setup", get_step_status(1)),
         ("2", "Rules", get_step_status(2)),
+        ("2b", "Financial Setup", get_step_status(2)),
         ("3", "Sizing", get_step_status(3)),
         ("3a", "Financial Sweep", "current"),
         ("4", "Results", get_step_status(4)),

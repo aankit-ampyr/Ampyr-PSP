@@ -146,19 +146,23 @@ Verifies the engine produces the post-A44 numbers via the wizard-state path AND 
 | A.8.4 | In Step 4, set BESS = 250, Duration = 4, DG = 25, click "See Results" | Page renders |
 | A.8.5 | Confirm **no "£ Financial Metrics" subheader** appears and **no info banner** appears | Pre-A41 UX preserved |
 
-### A.9 — A42 / A47 verification (wizard_state cleanup) + Step 7 visual check
+### A.9 — A42 / A47 / A48 verification (wizard_state cleanup + Step 7 reader split) + Step 7 visual check
 
-A42 dropped the dead `wizard['results']['simulation_results']` slot; A47 dropped the rest of the dead `wizard['results']` dict + 5 helper functions. Both should be invisible to the user (cleanup only).
+A42 dropped the dead `wizard['results']['simulation_results']` slot; A47 dropped the rest of the dead `wizard['results']` dict + 5 helper functions; **A48 (2026-05-21) moved financial inputs from Step 7 to a new Step 2b**, leaving Step 7 as a read-only deep-dive. Cleanup is invisible to the user; the A48 move is visible (Step 7 no longer has input forms).
 
 | Step | Action | Pass criteria |
 | --- | --- | --- |
 | A.9.1 | After §A.5 (Step 3a ran successfully), Step 3a's sweep used `sizing_results` as input | Sweep ran; PIRRs computed |
 | A.9.2 | §A.6 (Step 4 happy path) also worked off `sizing_results` (via `find_cached_result`) + `financial_results` (via the new `find_cached_financial`) | Step 4 metrics tiles rendered |
 | A.9.3 | Navigate to Step 7 (sidebar). It should NOT show a "Step 3 sizing run is required" warning since we ran Step 3. | Step 7 prerequisite check passes (the A42 comment update went here) |
-| A.9.4 | In Step 7, click "Save Financial Inputs" + "Run Financial Analysis" with D13-default inputs | Engine runs; results appear in Summary block |
+| A.9.4 (A48) | In Step 7, confirm **no input forms** appear (only Summary + charts + Excel export). An info banner points to Step 2b for assumption edits. Click "Run Financial Analysis" (no Save button here anymore — financial inputs are saved in Step 2b). | Engine runs using `wizard['financial']` (populated either by Step 2b or by DEFAULT_WIZARD_STATE); results appear in Summary block. Step 7 line count ~500 (was 1605 pre-A48). |
 | A.9.5 | **v1 polish caption**: above the "Summary" subheader, a blue info banner reads "v1 reports Project IRR ~0.3-0.5 pp lower than Excel..." | Banner visible |
 | A.9.6 | Summary block has **5 metric tiles** (was 4 pre-A46): Project IRR (Combined), Project NPV (GBPm), Total CAPEX (GBPm), **MOIC** (A46), Payback | All 5 visible; MOIC ≈ 2.22x |
 | A.9.7 | MOIC tile help-icon tooltip reads same as A.6.9 | Tooltip visible |
+| A.9.8 (A48) | Navigate to **Step 2b** (sidebar). Sections 1–9 (Timing / Solar / BESS / Revenue / CAPEX / OPEX / Land / Tax / Working Capital) render. "Save Financial Inputs" button at the bottom. Step indicator shows 9 cells with Step 2b highlighted. | Step 2b loads; Save button visible. |
+| A.9.9 (A48) | On Step 2b, leave defaults and click "Save Financial Inputs". Return to Step 7 + click "Run Financial Analysis". | Combined / S+B / Gas PIRR matches D13 audit (8.88% / 9.05% / 13.07%) — same as A.9.4 pre-A48. |
+| A.9.10 (A48) | On Step 1, scroll to the new "💰 Market Price Curve" section (between Solar Profile and Storable Solar Analysis). Default radio shows the engine's locked Burton Leonard curve as a chart. | Chart renders monthly + yearly-avg lines; min/mean/max/months metrics tiles populate. |
+| A.9.11 (A48) | On Step 1, switch the price-curve radio to "Upload custom curve". Upload a 3-row CSV `year,month,price_gbp_mwh` (e.g. `2030,1,75.5`). | Success message + chart renders the uploaded curve. Caption reminds user that engine doesn't read this yet. |
 
 ### A.10 — Wrap-up
 

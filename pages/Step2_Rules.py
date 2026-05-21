@@ -53,15 +53,17 @@ def render_step_indicator():
     """Render the step progress indicator."""
     steps = [
         ("1", "Setup", get_step_status(1)),
-        ("2", "Rules", get_step_status(2)),
+        ("2", "Rules", 'current'),
+        ("2b", "Financial Setup", get_step_status(2)),
         ("3", "Sizing", get_step_status(3)),
+        ("3a", "Financial Sweep", get_step_status(3)),
         ("4", "Results", get_step_status(4)),
         ("5", "Multi-Year", get_step_status(5)),
         ("6", "Green Energy", get_step_status(6)),
         ("7", "Financial", get_step_status(7)),
     ]
 
-    cols = st.columns(7)
+    cols = st.columns(len(steps))
     for i, (num, label, status) in enumerate(steps):
         with cols[i]:
             if status == 'completed':
@@ -125,7 +127,7 @@ def render_template_card(template_id: int, dg_charges_bess: bool = False, dg_loa
 # =============================================================================
 
 st.title("📋 Dispatch Rules")
-st.markdown("### Step 2 of 4: Define How Your System Operates")
+st.markdown("### Step 2 of 7: Define How Your System Operates")
 
 render_step_indicator()
 

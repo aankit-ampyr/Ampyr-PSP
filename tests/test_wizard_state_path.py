@@ -10,11 +10,27 @@ Four pre-existing UI bugs surfaced by the Step 3a smoke-test loop
 A27 loader row-count discrepancy + per-page loader fragmentation) would
 all have been caught by this kind of test had it existed earlier.
 
-This test constructs the same wizard state Step 1 produces, calls the
+This module constructs the same wizard state Step 1 produces, calls the
 same downstream functions Step 3a + Step 7 call, and asserts the PIRR
 output matches the D13 audit numbers within tolerance.
 
-See decisions log A27.
+Three end-to-end paths are exercised:
+
+1. **Minimal-fin path** — Step 1 + an almost-empty `financial` dict; the
+   engine adapter fills the rest from its own defaults.
+2. **Step 2b-saved path** (A48) — the user walks Step 1 → Step 2 →
+   Step 2b → clicks "Save Financial Inputs" → Step 3 → Step 3a. The
+   `fin` dict matches what Step 2b's save block writes. Pre-A48 this
+   was Step 7's path; the test was renamed when the save button moved.
+3. **Fresh-session / DEFAULT_WIZARD_STATE path** (A43) — the user never
+   visits Step 2b at all; the adapter receives the financial dict as
+   initialized by `DEFAULT_WIZARD_STATE`.
+
+All three paths must produce the same D13 audit numbers; any drift means
+either the wizard-state defaults, Step 2b's save payload, or the engine
+adapter has shifted out of sync with the engine's Excel-anchored defaults.
+
+See decisions log A27, A28, A43, A48.
 """
 
 from __future__ import annotations
@@ -174,21 +190,25 @@ def test_get_active_solar_profile_returns_numpy_array():
 
 
 # =============================================================================
-# STEP 7 "SAVE FINANCIAL INPUTS" SIMULATION (A28 lock-in)
+# STEP 2b "SAVE FINANCIAL INPUTS" SIMULATION (A28 lock-in, A48-renamed)
 # =============================================================================
+# A48 (2026-05-21): the save-button writer moved from Step 7 to Step 2b. The
+# payload shape is identical (Step 2b was built by lifting sections 1-9 of
+# Step 7 verbatim), so the lock-in test below still validates the same
+# regression class — it now guards Step 2b's defaults rather than Step 7's.
 
-def _step7_saved_fin_with_current_defaults() -> dict:
-    """Construct the exact fin state Step 7's 'Save Financial Inputs' button
-    would write with current Step 7 UI defaults (no user modifications).
+def _step2b_saved_fin_with_current_defaults() -> dict:
+    """Construct the exact fin state Step 2b's 'Save Financial Inputs' button
+    would write with current Step 2b UI defaults (no user modifications).
 
     Mirrors the `financial_data` payload built in
-    `pages/Step7_Financial.py` lines ~1071-1195. This test variant locks the
-    alignment between Step 7's UI defaults and the engine's D13-correct
-    defaults — added after A28 to catch the regression class where Step 7
-    defaults silently disagreed with the engine (smoke test §13's £65m
-    CAPEX bug).
+    `pages/Step2b_FinancialSetup.py` (previously `pages/Step7_Financial.py`
+    pre-A48). This test variant locks the alignment between Step 2b's UI
+    defaults and the engine's D13-correct defaults — added after A28 to
+    catch the regression class where the save-page defaults silently
+    disagreed with the engine (smoke test §13's £65m CAPEX bug).
 
-    If Step 7's UI defaults drift away from engine defaults again, this
+    If Step 2b's UI defaults drift away from engine defaults again, this
     test fails because the engine's D13 numbers no longer reproduce.
     """
     return {
@@ -295,11 +315,12 @@ def _step7_saved_fin_with_current_defaults() -> dict:
     }
 
 
-def _run_d13_with_step7_saved_state() -> dict:
-    """End-to-end: simulate user visited Step 7, clicked Save, navigated to
-    Step 3a, ran sweep, inspected 250/4 row."""
+def _run_d13_with_step2b_saved_state() -> dict:
+    """End-to-end: simulate user walked Step 1 → Step 2 → Step 2b (clicked
+    Save Financial Inputs) → Step 3 → Step 3a, inspected 250/4 row. Per A48,
+    Step 2b is the save-button page; pre-A48 this was Step 7."""
     setup, _ = _build_d13_wizard_state()
-    fin = _step7_saved_fin_with_current_defaults()
+    fin = _step2b_saved_fin_with_current_defaults()
 
     raw = get_active_solar_profile(setup)
     target_dc_mwp = float(fin['solar_capacity_mwp'])
@@ -326,36 +347,38 @@ def _run_d13_with_step7_saved_state() -> dict:
     }
 
 
-def test_step7_saved_defaults_produce_audit_capex():
-    """With Step 7's CURRENT UI defaults, total CAPEX matches D13 audit.
+def test_step2b_saved_defaults_produce_audit_capex():
+    """With Step 2b's CURRENT UI defaults, total CAPEX matches D13 audit.
 
-    Pre-A28: Step 7 defaults gave CAPEX £65.0m (capex_bess unit mismatch,
+    Pre-A28: save-page defaults gave CAPEX £65.0m (capex_bess unit mismatch,
     plus many silent capex_* drifts). After A28 alignment: £101.6m, matching
-    D13 audit.
+    D13 audit. A48 (2026-05-21) moved the save button from Step 7 to Step
+    2b; the lock-in shape is unchanged.
     """
-    r = _run_d13_with_step7_saved_state()
-    msg = f"Step 7-saved CAPEX: £{r['capex_gbpm']:.2f}m vs expected £101.6m"
+    r = _run_d13_with_step2b_saved_state()
+    msg = f"Step 2b-saved CAPEX: £{r['capex_gbpm']:.2f}m vs expected £101.6m"
     print(msg)
     assert abs(r['capex_gbpm'] - 101.6) < 0.5, msg
 
 
-def test_step7_saved_defaults_produce_audit_sb_pirr():
-    """With Step 7's CURRENT UI defaults, S+B PIRR matches D13 audit (8.93%).
+def test_step2b_saved_defaults_produce_audit_sb_pirr():
+    """With Step 2b's CURRENT UI defaults, S+B PIRR matches D13 audit (9.00%).
 
     Pre-A28: S+B PIRR drifted to ~30% (wrong tax rate, wrong BESS revenue
-    switches, etc.). After A28 alignment: 8.93%, matching D13 audit.
+    switches, etc.). After A28 alignment + A44 Insurance schedule: 9.00%,
+    matching D13 audit.
     """
-    r = _run_d13_with_step7_saved_state()
-    msg = (f"Step 7-saved S+B: {r['sb']*100:.2f}% vs expected "
+    r = _run_d13_with_step2b_saved_state()
+    msg = (f"Step 2b-saved S+B: {r['sb']*100:.2f}% vs expected "
            f"{EXPECTED_SB*100:.2f}% (delta {(r['sb']-EXPECTED_SB)*100:+.2f} pp)")
     print(msg)
     assert abs(r['sb'] - EXPECTED_SB) <= TOLERANCE_PP, msg
 
 
-def test_step7_saved_defaults_produce_audit_combined_pirr():
-    """With Step 7's CURRENT UI defaults, Combined PIRR matches D13 audit."""
-    r = _run_d13_with_step7_saved_state()
-    msg = (f"Step 7-saved Combined: {r['combined']*100:.2f}% vs expected "
+def test_step2b_saved_defaults_produce_audit_combined_pirr():
+    """With Step 2b's CURRENT UI defaults, Combined PIRR matches D13 audit."""
+    r = _run_d13_with_step2b_saved_state()
+    msg = (f"Step 2b-saved Combined: {r['combined']*100:.2f}% vs expected "
            f"{EXPECTED_COMBINED*100:.2f}% "
            f"(delta {(r['combined']-EXPECTED_COMBINED)*100:+.2f} pp)")
     print(msg)
@@ -445,6 +468,40 @@ def test_default_wizard_state_produces_audit_sb():
     assert abs(r['sb'] - EXPECTED_SB) <= TOLERANCE_PP, msg
 
 
+# =============================================================================
+# A48 WIZARD-STATE SCHEMA GUARDS (price-curve placeholder keys)
+# =============================================================================
+
+def test_default_wizard_state_has_price_curve_keys():
+    """DEFAULT_WIZARD_STATE['setup'] must carry the A48 price-curve keys.
+
+    Step 1's Market Price Curve panel reads/writes
+    `setup['merchant_price_curve_source']` (radio state) and
+    `setup['merchant_price_curve']` (uploaded curve dict, or None when
+    using the engine default). If these keys are removed accidentally,
+    Step 1's panel will KeyError on first interaction.
+    """
+    from src.wizard_state import DEFAULT_WIZARD_STATE
+    setup_defaults = DEFAULT_WIZARD_STATE['setup']
+    assert 'merchant_price_curve_source' in setup_defaults, (
+        "Missing wizard-state key 'merchant_price_curve_source' — A48 panel "
+        "in Step 1 will break. Re-add to DEFAULT_WIZARD_STATE['setup'] in "
+        "src/wizard_state.py."
+    )
+    assert setup_defaults['merchant_price_curve_source'] == 'default', (
+        f"Unexpected default for 'merchant_price_curve_source': "
+        f"{setup_defaults['merchant_price_curve_source']!r} (expected 'default')"
+    )
+    assert 'merchant_price_curve' in setup_defaults, (
+        "Missing wizard-state key 'merchant_price_curve' — A48 panel in "
+        "Step 1 will break."
+    )
+    assert setup_defaults['merchant_price_curve'] is None, (
+        "Default 'merchant_price_curve' must be None (engine uses its "
+        "locked Burton Leonard curve until user uploads)."
+    )
+
+
 if __name__ == "__main__":
     r = _run_d13_via_wizard_state()
     print("D13 via wizard-state path (minimal fin):")
@@ -453,9 +510,16 @@ if __name__ == "__main__":
     print(f"  Gas:      {r['gas']*100:.2f}% (expected {EXPECTED_GAS*100:.2f}%)")
     print(f"  CAPEX:    £{r['total_capex_gbpk']/1000:.1f}m (expected £101.6m)")
     print()
-    r2 = _run_d13_with_step7_saved_state()
-    print("D13 via Step 7 'Save Financial Inputs' path (A28 alignment):")
+    r2 = _run_d13_with_step2b_saved_state()
+    print("D13 via Step 2b 'Save Financial Inputs' path (A28 alignment, A48 rename):")
     print(f"  Combined: {r2['combined']*100:.2f}% (expected {EXPECTED_COMBINED*100:.2f}%)")
     print(f"  S+B:      {r2['sb']*100:.2f}% (expected {EXPECTED_SB*100:.2f}%)")
     print(f"  Gas:      {r2['gas']*100:.2f}% (expected {EXPECTED_GAS*100:.2f}%)")
     print(f"  CAPEX:    £{r2['capex_gbpm']:.1f}m (expected £101.6m)")
+    print()
+    r3 = _run_d13_via_default_wizard_state()
+    print("D13 via DEFAULT_WIZARD_STATE path (fresh session, no Step 2b visit):")
+    print(f"  Combined: {r3['combined']*100:.2f}% (expected {EXPECTED_COMBINED*100:.2f}%)")
+    print(f"  S+B:      {r3['sb']*100:.2f}% (expected {EXPECTED_SB*100:.2f}%)")
+    print(f"  Gas:      {r3['gas']*100:.2f}% (expected {EXPECTED_GAS*100:.2f}%)")
+    print(f"  CAPEX:    £{r3['capex_gbpm']:.1f}m (expected £101.6m)")

@@ -43,6 +43,15 @@ DEFAULT_WIZARD_STATE = {
         'solar_selected_file': None,  # Selected filename from Inputs folder
         'solar_csv_data': None,  # numpy array if CSV uploaded
 
+        # Market price curve (A48, 2026-05-21):
+        # Placeholder for Step 1's price-curve panel. None = use the engine
+        # default (_DEFAULT_MERCHANT_PRICES_MONTHLY in src/project_irr.py).
+        # When user uploads a CSV, this holds the parsed curve dict
+        # {(year, month): price_gbp_per_mwh}. Engine wiring is a follow-up;
+        # for now the engine ignores this field and uses its locked default.
+        'merchant_price_curve_source': 'default',  # 'default' or 'upload'
+        'merchant_price_curve': None,
+
         # BESS parameters
         'bess_container_types': ['5mwh_2.5mw', '5mwh_1.25mw'],  # List of container types to evaluate
         'bess_efficiency': 87.0,  # %

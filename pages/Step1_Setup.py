@@ -54,16 +54,18 @@ set_current_step(1)
 def render_step_indicator():
     """Render the step progress indicator."""
     steps = [
-        ("1", "Setup", get_step_status(1)),
+        ("1", "Setup", 'current'),
         ("2", "Rules", get_step_status(2)),
+        ("2b", "Financial Setup", get_step_status(2)),
         ("3", "Sizing", get_step_status(3)),
+        ("3a", "Financial Sweep", get_step_status(3)),
         ("4", "Results", get_step_status(4)),
         ("5", "Multi-Year", get_step_status(5)),
         ("6", "Green Energy", get_step_status(6)),
         ("7", "Financial", get_step_status(7)),
     ]
 
-    cols = st.columns(7)
+    cols = st.columns(len(steps))
     for i, (num, label, status) in enumerate(steps):
         with cols[i]:
             if status == 'completed':
@@ -173,7 +175,7 @@ def create_monthly_generation_chart(solar: np.ndarray) -> go.Figure:
 # =============================================================================
 
 st.title("🚀 BESS & DG Sizing Tool")
-st.markdown("### Step 1 of 4: System Setup")
+st.markdown("### Step 1 of 7: System Setup")
 
 render_step_indicator()
 
@@ -574,6 +576,180 @@ if active_solar_profile is not None and len(active_solar_profile) > 0:
     update_wizard_state('setup', 'solar_profile_array', active_array.tolist())
 else:
     st.warning("⚠️ No valid solar profile available. Simulation requires a solar profile.")
+
+
+st.divider()
+
+
+# =============================================================================
+# MARKET PRICE CURVE SECTION (placeholder per A48 — viz + upload only)
+# =============================================================================
+# Engine wiring (replacing the locked _DEFAULT_MERCHANT_PRICES_MONTHLY in
+# src/project_irr.py with the user's curve) is deferred until the scope
+# question is settled. For now this panel:
+#   1. Visualises the engine's current default merchant curve, so users see
+#      what PIRR is actually using.
+#   2. Accepts a CSV upload (year, month, price_gbp_mwh) and stores it in
+#      wizard['setup']['merchant_price_curve'] for a future engine pass.
+# =============================================================================
+
+st.subheader("💰 Market Price Curve")
+st.caption(
+    "Post-PPA merchant electricity price (£/MWh, monthly). The engine uses "
+    "this curve for years after the PPA tenor ends. **Placeholder for now** "
+    "— engine still reads its locked Burton Leonard default; uploading a "
+    "custom curve stores it for a future release."
+)
+
+# Load the engine's current default curve for visualisation.
+try:
+    from src.project_irr import _DEFAULT_MERCHANT_PRICES_MONTHLY as _ENGINE_DEFAULT_CURVE
+except ImportError:
+    _ENGINE_DEFAULT_CURVE = {}
+
+price_source_options = ['default', 'upload']
+price_source_labels = {
+    'default': "Use engine default (locked Burton Leonard curve)",
+    'upload': "Upload custom curve (CSV)",
+}
+current_price_source = setup.get('merchant_price_curve_source', 'default')
+if current_price_source not in price_source_options:
+    current_price_source = 'default'
+
+price_source = st.radio(
+    "Curve source:",
+    options=price_source_options,
+    format_func=lambda x: price_source_labels[x],
+    horizontal=True,
+    index=price_source_options.index(current_price_source),
+    key='merchant_price_source_radio',
+)
+update_wizard_state('setup', 'merchant_price_curve_source', price_source)
+
+
+def _curve_to_dataframe(curve_dict):
+    """Convert {(year, month): price} to a DataFrame sorted by date."""
+    if not curve_dict:
+        return pd.DataFrame(columns=['date', 'year', 'month', 'price'])
+    rows = []
+    for (yr, mo), price in curve_dict.items():
+        rows.append({
+            'date': pd.Timestamp(year=int(yr), month=int(mo), day=1),
+            'year': int(yr),
+            'month': int(mo),
+            'price': float(price),
+        })
+    df = pd.DataFrame(rows).sort_values('date').reset_index(drop=True)
+    return df
+
+
+def _render_price_curve_chart(curve_dict, title):
+    """Render a monthly + yearly-average price-curve chart."""
+    df = _curve_to_dataframe(curve_dict)
+    if df.empty:
+        st.info("No price curve data to display.")
+        return
+
+    yearly_avg = df.groupby('year')['price'].mean().reset_index()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df['date'], y=df['price'],
+        mode='lines', name='Monthly',
+        line=dict(color='#3498db', width=1),
+        opacity=0.6,
+    ))
+    fig.add_trace(go.Scatter(
+        x=pd.to_datetime(yearly_avg['year'].astype(str) + '-07-01'),
+        y=yearly_avg['price'],
+        mode='lines+markers', name='Yearly avg',
+        line=dict(color='#e74c3c', width=2),
+        marker=dict(size=5),
+    ))
+    fig.update_layout(
+        height=320,
+        margin=dict(l=40, r=20, t=40, b=40),
+        title=dict(text=title, font=dict(size=14)),
+        xaxis_title="Date",
+        yaxis_title="£/MWh (nominal)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1),
+        hovermode='x unified',
+    )
+    st.plotly_chart(fig, width='stretch')
+
+    # Summary stats
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Min £/MWh", f"{df['price'].min():.1f}")
+    c2.metric("Mean £/MWh", f"{df['price'].mean():.1f}")
+    c3.metric("Max £/MWh", f"{df['price'].max():.1f}")
+    c4.metric("Months", f"{len(df):,}")
+
+
+if price_source == 'default':
+    _render_price_curve_chart(
+        _ENGINE_DEFAULT_CURVE,
+        "Engine default merchant curve (Burton Leonard, locked)"
+    )
+    # Clear any stored upload if user toggled back to default
+    update_wizard_state('setup', 'merchant_price_curve', None)
+
+else:
+    uploaded_price = st.file_uploader(
+        "Upload Market Price Curve CSV",
+        type=['csv'],
+        help="CSV with columns: `year`, `month` (1-12), `price_gbp_mwh`. "
+        "One row per month. Covers post-PPA years (typically COD+10 to COD+34).",
+        key='merchant_price_csv_uploader',
+    )
+
+    if uploaded_price is not None:
+        try:
+            df_upload = pd.read_csv(uploaded_price)
+            df_upload.columns = [c.strip().lower() for c in df_upload.columns]
+            required = {'year', 'month', 'price_gbp_mwh'}
+            if not required.issubset(set(df_upload.columns)):
+                st.error(
+                    f"CSV must have columns: {', '.join(sorted(required))}. "
+                    f"Got: {', '.join(df_upload.columns)}"
+                )
+            else:
+                df_upload = df_upload.dropna(subset=['year', 'month', 'price_gbp_mwh'])
+                df_upload['year'] = df_upload['year'].astype(int)
+                df_upload['month'] = df_upload['month'].astype(int)
+                df_upload['price_gbp_mwh'] = df_upload['price_gbp_mwh'].astype(float)
+
+                bad_months = df_upload[(df_upload['month'] < 1) | (df_upload['month'] > 12)]
+                if not bad_months.empty:
+                    st.error(f"Month values must be 1-12. Found: {bad_months['month'].tolist()[:5]}")
+                elif (df_upload['price_gbp_mwh'] < 0).any():
+                    st.error("Price values must be non-negative.")
+                else:
+                    curve_dict = {
+                        (int(r.year), int(r.month)): float(r.price_gbp_mwh)
+                        for r in df_upload.itertuples()
+                    }
+                    update_wizard_state('setup', 'merchant_price_curve', curve_dict)
+                    st.success(f"Loaded {len(curve_dict)} monthly price points.")
+                    _render_price_curve_chart(curve_dict, "Uploaded merchant curve")
+        except Exception as e:
+            st.error(f"Error reading CSV: {e}")
+    else:
+        stored = setup.get('merchant_price_curve')
+        if stored:
+            st.info(f"Using previously uploaded curve: {len(stored)} months.")
+            _render_price_curve_chart(stored, "Uploaded merchant curve")
+        else:
+            st.info(
+                "Upload a CSV to set a custom merchant price curve. "
+                "Engine will fall back to the default until upload."
+            )
+
+st.caption(
+    "ℹ️ Placeholder — uploaded curves are stored but not yet read by the "
+    "PIRR engine. Engine wiring + per-line escalation curves (CPI / balancing "
+    "/ PPA) coming in a follow-up release."
+)
 
 
 st.divider()

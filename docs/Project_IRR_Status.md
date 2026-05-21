@@ -1,16 +1,78 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-16 (v1 CLOSED at ±0.5 pp tolerance per A45; SME-handoff polish A46-A47 landed; Anchal acknowledged path 1)
+**Last updated:** 2026-05-21 (A48 — wizard reorg: financial setup moved Step 7 → new Step 2b; Step 7 slimmed to outputs only; Step 1 gets Market Price Curve placeholder panel)
 
-**Status: v1 AUDIT CLOSED. SME HANDOFF UNBLOCKED.** Path 1 decision taken 2026-05-16 by Ankit. Engine reproduces Excel within ±0.5 pp across all 4 audit rows (gaps: -0.36 / -0.48 / -0.23 / -0.23 pp; uniform direction; range 0.25 pp; config ranking preserved). Tests: 49 passed, 0 xfailed. **Anchal acknowledged the path-1 framing via Teams; v1 is ready for him to test.** Deployment: Streamlit Cloud (Ankit creating a new app version pointing at `origin/Financial` branch).
+**Status: v1 AUDIT CLOSED + A48 WIZARD REORG LANDED LOCALLY (uncommitted).** Engine state unchanged — d13 still **8.84%** / S+B **9.00%** / Gas **13.07%** / CAPEX **£101.4m** post-A44+A45. **All 50 tests pass** (was 49 — added one new wizard-state schema guard for A48 price-curve keys). 4-row SME audit matrix unchanged at ±0.5 pp v1 tolerance. **Working tree NOT yet committed** — user explicitly said "don't push to GitHub till we validate everything working"; automated + e2e tests have validated; awaiting user's manual browser walk-through + commit decision.
 
-**v1 framing**: pre-IC screening, what-ifs, sizing comparisons. Excel remains the source-of-truth IRR for IC-pack until v2 closes the residual gap. Production Doublu handoff unblocked. UI captions on Step 3a + Step 4 + Step 7 disclose the "v1 reports IRR ~0.3-0.5 pp lower than Excel" so testers see the offset in-context (shipped in commit `ae48f49`).
+## A48 wizard reorg (this session — 2026-05-21)
 
-**v2 — COMMITTED, not deferred.** ±0.5 pp tolerance is a v1 carve-out, NOT a permanent settlement. v2 work (DSCR-driven gearing convergence + cash sweep + Equity IRR + gearing-as-sweep-dimension) is required to close the audit to ±0.1 pp and let the engine replace Excel as source-of-truth. Estimated 1-2 weeks engineering. Anchal acknowledged this framing.
+Architectural fix for the A28/A43 bug class — by moving financial setup *before* Step 3a (Financial Sweep), users naturally configure assumptions in flow rather than discovering Step 7 after their sweep runs with broken defaults.
 
-**Remaining v1 loose ends**: Anchal handoff message (drafted; Ankit to send post-deployment); browser smoke test §A re-run (skipped pre-handoff — Anchal's testing will surface any UI bugs).
+**Files changed (16 — net -890 lines):**
 
-**A40 (this session) — time-varying CPI curve shipped (Excel-faithful, null-result for IRR).** Excel `Curves and D&T!r10` curve wired into `_esc_factor` via new `_build_cpi_factor_lookup` + `cpi_curve_by_calendar_year` PirrInputs field. Audit unchanged at 2-decimal precision (d13 8.88% / S+B 9.05% / Gas 13.07%) because the curve's early-year deviation (2.1-2.2% in years 1-3 vs A39's flat 2.0%) is small and steady state covers 31 of 35 ops years. Curve infrastructure now in place for future SME variants (e.g. per-line CPI overrides if Anchal clarifies Insurance).
+| File | Change |
+|---|---|
+| `pages/Step2b_FinancialSetup.py` | **NEW** — sections 1-9 (Timing/Solar/BESS/Revenue/CAPEX/OPEX/Land/Tax/WorkingCapital) + "Save Financial Inputs" button. Lifted verbatim from Step 7's pre-A48 input UI. |
+| `pages/Step7_Financial.py` | Slimmed 1605 → 539 lines. Outputs only (Section 10 Results + Section 11 Excel Export). Reader-only banner points to Step 2b. |
+| `pages/Step1_Setup.py` | New "💰 Market Price Curve" panel (between Solar Profile and Storable Solar Analysis). Viz of engine's default `_DEFAULT_MERCHANT_PRICES_MONTHLY` + CSV upload widget. **Placeholder** — engine wiring deferred. |
+| `pages/Step1-Step5 + Step3a` | Step indicator: 7 cells → 9 cells (1, 2, 2b, 3, 3a, 4, 5, 6, 7). Stale "Step X of 4" labels fixed to "Step X of 7" on Step 1 + Step 2. |
+| `utils/financial_inputs.py` | **NEW** — shared helpers (`pct_to_display`, `display_to_pct`, `get_financial_state`, `save_financial_inputs`, `MONTH_NAMES`). Used by Step 2b (writer) and Step 7 (reader). |
+| `src/wizard_state.py` | Added `merchant_price_curve_source` + `merchant_price_curve` to `DEFAULT_WIZARD_STATE['setup']`. No financial defaults touched. |
+| `tests/test_wizard_state_path.py` | Renamed 3 `test_step7_saved_*` → `test_step2b_saved_*` + their helpers. Module docstring + `__main__` block updated. **New test**: `test_default_wizard_state_has_price_curve_keys`. 12 → 13 tests. |
+| `docs/Project_IRR_Integration_Decisions.md` | A48 entry added to Revisions log (Guardrail 6). |
+| `docs/Step3a_Smoke_Test_Playbook.md` | §A.9 updated — A.9.4 (no Save button in Step 7), A.9.8/9 (Step 2b walk), A.9.10/11 (price curve panel). |
+
+**Architecture (A48)**: Step 2b = WRITER of `wizard['financial']`; Step 3a + Step 7 = READERS. `DEFAULT_WIZARD_STATE['financial']` (A43-aligned) is the audit-correct fallback. **No engine changes** — `src/project_irr.py` untouched.
+
+**E2E verification — three paths produce identical D13 numbers:**
+
+```
+                              Combined    S+B     Gas    CAPEX
+Minimal-fin (Step 1 only):    8.84%       9.00%   13.07%  £101.4m
+Step 2b-saved (full UI flow): 8.84%       9.00%   13.07%  £101.4m
+Fresh-session (no Step 2b):   8.84%       9.00%   13.07%  £101.4m
+```
+
+That's the architectural property A48 was meant to deliver: the save-button location is independent of the data path.
+
+## v1 audit state (unchanged since A45)
+
+- d13 Combined **8.84%** / S+B **9.00%** / Gas **13.07%** vs target 9.20% — gap **-0.36 pp** (within ±0.5 pp v1 tolerance)
+- m82_160 **-0.48 pp** / m115_170 **-0.23 pp** / m115_160 **-0.23 pp** — all within ±0.5 pp
+- Tests: **50 pass, 0 xfail** (was 49 — A48 added `test_default_wizard_state_has_price_curve_keys`)
+- v1 framing: pre-IC screening, what-ifs, sizing comparisons. Excel remains source-of-truth IRR for IC-pack.
+- v1 captions on Step 3a + Step 4 + Step 7: "v1 reports IRR ~0.3-0.5 pp lower than Excel" disclosure.
+
+## v2 — COMMITTED, not deferred
+
+±0.5 pp tolerance is a v1 carve-out, NOT a permanent settlement. v2 work (DSCR-driven gearing convergence + cash sweep + Equity IRR + gearing-as-sweep-dimension) is required to close the audit to ±0.1 pp and let the engine replace Excel as source-of-truth. Estimated 1-2 weeks engineering. Anchal acknowledged this framing.
+
+## Next session start — pick up from here
+
+**A. Commit + push A48 (if user confirms manual browser walk-through is clean)**
+
+The A48 changes are landed locally but uncommitted. Suggested commit structure (one PR per user instruction, but the work can split into logical commits if preferred):
+
+- Bundled: `PSP A48: wizard reorg — financial setup moved Step 7 → Step 2b + Step 1 price-curve placeholder`
+- Or split into: utils + Step 2b create; Step 7 slim; Step 1 curve panel; indicators + label sweep; tests rename + new key guard; docs (decisions log + playbook + status)
+
+Streamlit is serving locally on `http://localhost:8512` for the user's walk-through.
+
+**B. v2 — DSCR sculpting + Equity IRR (if user wants to start that thread)**
+
+1. **DSCR-driven gearing convergence** — iterate senior gearing down until `min(DSCR over debt schedule) ≥ 1.40`, recompute SHL principal as `(1 − senior_effective) × total_capex`, re-run CIR cap. Excel does this via `Solve_P1` VBA. v1 holds senior at 80% flat. **Primary v2 deliverable.**
+2. **Cash sweep mechanism** — excess cash above DSCR-required level amortises debt early.
+3. **Equity IRR computation** — ungeared FCFF − net debt service = equity FCF; XIRR gives Equity IRR (typically 12-18% on 9% Project IRR). Free byproduct once DSCR sculpting lands.
+4. **Gearing as a sweep dimension** — currently fixed PirrInputs field; v2 makes iterable.
+
+**C. Price curve engine wiring (if user wants to close the A48 placeholder)**
+
+User deferred the curve-scope question. When ready, decide which curves the panel should cover (merchant only, or also CPI / balancing / PPA escalation) and wire `wizard['setup']['merchant_price_curve']` through `pirr_inputs_from_wizard_state` into the engine. Currently the engine still reads its locked `_DEFAULT_MERCHANT_PRICES_MONTHLY`.
+
+## Remaining v1 loose ends (unchanged since 2026-05-16)
+
+- **Ankit's TODO**: redeploy Streamlit Cloud pointed at `origin/Financial` (current HEAD + the A48 commits about to land); send Anchal the handoff message (drafted at end of session, not yet sent).
+- **Skipped intentionally**: browser smoke test §A re-run pre-handoff — Anchal's SME testing will surface any UI bugs. Playbook §A is current through A48.
 
 ## State at handover
 
