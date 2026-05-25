@@ -52,6 +52,7 @@ Each Revisions entry: date, what changed, why. Each `A*` decision: keep original
 | 2026-05-13 | **A24 follow-up: data_loader gap discovered by browser smoke test; fixed.** Browser smoke test of Step 3a (playbook §9) revealed `src/data_loader.py::list_solar_profiles()` filter (`'solar' in filename.lower()`) hid the canonical Burton Leonard audit profiles (`Burton_Leonard_*.csv`) — their filenames contain no "solar" substring. This is an A14-era loose end: when the canonical profiles were renamed/relocated in May 2026, the enumerator was never updated. Side effect: D13 PIRR via the UI fell back to "Burton Solar Profile.csv" (8 MW peak) and produced Combined 11.56% / S+B 6.52% instead of the audit's 8.77% / 8.93%. **Engine itself verified correct via the fixture path** — issue was wrong solar profile feeding right engine. Fix: broadened filter to `'solar' or 'burton' in filename.lower()`. All 4 Inputs/*.csv profiles now surface; tests still pass (34 + 4 xfail). | Smoke-test-driven fix; unblocks D13-via-UI verification. |
 | 2026-05-13 | **A25 added: D8 spec violation — solar profile DC/AC rescaling in Step 3a + Step 7 fixed.** Smoke test §10 follow-up (canonical profile selected) revealed both Step 3a and Step 7 were rescaling the AC + grid-capped solar profile by `target_dc_mwp / profile_peak` (= 82/58.36 = 1.405× for D13). This pushed 19 GWh of phantom solar through the dispatch, producing Combined 24.72% / S+B 32.23% (vs audit 8.77% / 8.93%). Per spec D8: *"capex scales on DC MWp; revenue uses the AC + grid-limit-capped hourly profile as supplied."* The canonical Burton Leonard files ARE the AC output — they shouldn't be rescaled. Fix (Option C): defaulted `profile_ref_mwp` fallback chain to `target_dc_mwp` instead of `profile_peak` → scaling factor = 1.0 when no explicit override. Users with per-unit profiles can still set `profile_reference_mwp` explicitly. Plus soft sanity warning when `profile_peak / target_dc_mwp` outside [0.5, 1.1]. Wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). | Second pre-existing UI bug surfaced by Step 3a smoke testing (after A24's merchant curve). Step 7 had this bug since A19. |
 | 2026-05-13 | **A26 added: data_loader filename-vs-display-name mismatch fixed.** Smoke test §11 (Option C verified in code but D13 still failed at the UI) traced the residual gap to a wizard-state protocol mismatch: Step 1 stores display name (e.g. `'Burton_Leonard_82MWp_DC_58MW_AC'`, no `.csv`) in `setup['solar_selected_file']`, but `load_solar_profile_by_name` opens `INPUTS_FOLDER / filename` literally — file not found → returns None → Step 3 + Step 3a fall through to default `Burton Solar Profile.csv` (peak 8 MW). The 8 MW profile feeding a 25 MW load made gas do all the work → Combined 24.72%. Fix (Option A): `load_solar_profile_by_name` now appends `.csv` if missing — defensive guard at the filesystem boundary. Affects Step 3 operational sweep (which has been silently using the wrong profile too) + Step 3a financial sweep. End-to-end wizard-state path now reproduces audit exactly (Combined 8.77% / S+B 8.93% / Gas 13.65%). Tests still pass. **Step 7 has a separate independent bug**: it uses `SOLAR_PROFILE_PATH` config constant instead of Step 1's selection — flagged for follow-up, not fixed here. *Footnote (corrected by A27)*: Step 1 actually stores filenames WITH `.csv` (Step1_Setup.py line 466 selectbox uses filenames from `list_solar_profiles()` tuples). The §11 diagnosis was incorrect. A26's defensive guard is harmless but didn't fix the actual smoke-test failure. The real bug was A27's loader row-count discrepancy. | Third pre-existing UI bug surfaced by Step 3a smoke testing. Operational sweep correctness restored too. |
+| 2026-05-25 | **A50 added: Step 1 restructure + raw vendor curve pipeline (Baringa / Aurora → Nominal Merchant).** Split into **A50a** (UI reorg — Step 1 now grouped under `## ⚙️ Operational` and `## 💼 Commercial` headers; solar profile default switched to `Inputs/Solar Profile.csv` from canonical Burton-Leonard; Nominal Merchant Curve panel moved from between Solar/Storable to the END of Step 1 under Commercial) and **A50b** (Commercial section expanded with three subsections: 📈 Raw Price Curve [Baringa + Aurora panels in `st.expander` + 3-way selector for `baringa | aurora | average`], 💸 Inflation Curve [default Excel curve OR uploadable CPI dict + steady-state input], 💰 Nominal Merchant Curve [extended from A49's 2 modes to **3 modes**: default / **computed** / upload]). Engine helpers `_apply_inflation_to_real_curve` + `_select_raw_curve` added as pure functions (G5-compliant — replicate Excel `Curves and D&T!r30 = real × (1 + cpi)^(year − base)`); defaults `_DEFAULT_BARINGA_CURVE_REAL` (506 entries) + `_DEFAULT_AURORA_CURVE_REAL` (519 entries) extracted from Excel `Baringa and Aurora!r114 / r194` ("Applied" Fixed Tilt). Adapter `pirr_inputs_from_wizard_state` extended to compute nominal merchant via the helpers when `merchant_price_curve_source == 'computed'`. Uploaded CPI curve now flows **engine-wide** (opex/tax escalation + computed-mode merchant conversion) via PirrInputs.cpi_curve_by_calendar_year + cpi_steady_state_rate kwargs. Step 2b OPEX section gets a read-only banner surfacing active CPI configuration with link back to Step 1. **D13 audit invariant preserved**: Combined 8.84% / S+B 9.00% / Gas 13.07% / CAPEX £101.4m on the `'default'` path (4 wizard-state-path tests still pass). Tests: **73 pass, 0 xfail** (was 52 — +16 CP2 helper unit tests + 5 new CP4 e2e adapter tests). Out of scope: vendor scenarios (Base/Low/High) and tracker types (FT/SAT) — assumes user pre-selects in Excel before upload; future API integration not scaffolded. | User-directed restructure of Step 1; closes the v2 (real→nominal + uploadable CPI) ambition that was archived in `docs/future_improvements/v2_price_and_inflation_curves.md`. |
 | 2026-05-21 | **A49 added: A48 placeholder closed — Nominal Merchant Curve upload wired to engine.** Step 1's price curve panel (introduced as placeholder in A48) now drives `PirrInputs.merchant_prices_monthly`. Re-labelled *"Nominal Merchant Curve"* — uploaded CSVs pass through to `_merchant_price` verbatim (no transformation; values must already be inflated, matching Excel `Solar&BESS Operation!row 66` convention). Adapter `pirr_inputs_from_wizard_state` gains a single branch: if `setup['merchant_price_curve_source'] == 'upload'` and a populated dict is present, pass it through; otherwise the dataclass default wins. Engine core unchanged (`_merchant_price`, A30 nominal contract, `_DEFAULT_MERCHANT_PRICES_MONTHLY`). Step 1 coverage validator rejects uploads missing any month in the post-PPA window — required range computed from `construction_start + construction_months + ppa_tenor_years` through `cod_year + project_life_years - 1`, falling back to engine D13 defaults if wizard financial state is empty. **D13 audit invariant preserved**: Combined 8.84% / S+B 9.00% / Gas 13.07% / CAPEX £101.4m (verified by 4 existing wizard-state-path tests on the default-source branch + 2 new tests on the upload branch). Tests: **52 pass, 0 xfail** (was 50). **Out of scope** (captured in [docs/future_improvements/v2_price_and_inflation_curves.md](../docs/future_improvements/v2_price_and_inflation_curves.md)): real-terms uploads, variable CPI curve editing, real→nominal transformation, future API integration. | Closes the curve-scope question parked in A48; minimum-viable engine wiring without touching the v2-deferred inflation work. |
 | 2026-05-21 | **A48 added: wizard reorg — financial inputs moved from Step 7 to new Step 2b; Step 7 slimmed to outputs only; Step 1 gets a Market Price Curve placeholder panel.** Architectural fix for the A28/A43 bug class — by moving financial setup *before* Step 3a (Financial Sweep), users naturally configure assumptions in flow rather than discovering Step 7 after their sweep runs with broken defaults. **Files changed**: (1) New `pages/Step2b_FinancialSetup.py` — sections 1-9 (Timing / Solar / BESS / Revenue / CAPEX / OPEX / Land / Tax / Working Capital + Advanced expander) lifted verbatim from Step 7's pre-A48 input UI; owns the "Save Financial Inputs" button. (2) `pages/Step7_Financial.py` slimmed from 1605 → ~500 lines; keeps only Section 10 (Results) + Section 11 (Excel Export) + Run Financial Analysis button. Reader-only banner points to Step 2b for edits. (3) New `utils/financial_inputs.py` — shared helpers (`pct_to_display`, `display_to_pct`, `get_financial_state`, `save_financial_inputs`, `MONTH_NAMES`) used by both Step 2b (writer) and Step 7 (reader). (4) `pages/Step1_Setup.py` — new "💰 Market Price Curve" panel (between Solar Profile and Storable Solar Analysis) with viz of engine's current default merchant curve + CSV upload widget. Stored in `wizard['setup']['merchant_price_curve']`. **Engine wiring deferred** — uploads are stashed but engine still uses `_DEFAULT_MERCHANT_PRICES_MONTHLY`. (5) `src/wizard_state.py` — added `merchant_price_curve_source` + `merchant_price_curve` keys to `setup`. (6) All 7 wizard pages' step indicators updated from 7 cells → 9 cells (1, 2, 2b, 3, 3a, 4, 5, 6, 7) for consistent visual flow. (7) Stale "Step X of 4" labels on Step 1 and Step 2 fixed to "Step X of 7". (8) Smoke-test playbook §A.9 updated with new A.9.4 (no Save button in Step 7), A.9.8/9 (Step 2b walk), A.9.10/11 (price curve panel). **Architecture (A48)**: Step 2b = WRITER; Step 3a + Step 7 = READERS; `DEFAULT_WIZARD_STATE['financial']` (A43-aligned) is the audit-correct fallback. No engine changes; PIRR engine + wizard-state adapter are untouched. **Expected test impact**: 49 pass + 0 xfail unchanged. A28's `test_step7_saved_defaults_produce_audit_capex` + A43's `test_default_wizard_state_produces_audit_*` tests are engine-level (write same `fin` dict shape to `wizard['financial']` via `update_wizard_section`), independent of which page hosts the save button — should pass without modification. | User-requested wizard reorg (one PR, local validation before push). Closes the A28/A43 "fresh-session-path can be broken" concern structurally by making Step 2b a natural stop in the wizard flow. |
 | 2026-05-16 | **A47 added: dead `wizard['results']` dict + 5 helper functions removed (committed `8d5f248`).** A42 dropped the dead `simulation_results` slot but left the rest of `wizard['results']` in place. Removed in A47: 7 dict keys (`selected_configs`, `sort_column`, `sort_ascending`, `filters`, `detail_view_config`, `ranked_recommendations`, `recommendation_generated`) and 5 helper functions (`add_comparison_config`, `remove_comparison_config`, `clear_comparison_selection`, `set_results_filter`, `toggle_results_filter`). None imported by any page (verified via grep). Net -50 lines. Tests 49 pass; Streamlit boots clean. | Code hygiene; pre-existing dead code per Karpathy "clean up only your own orphans" was deferred to nice-to-have. |
@@ -262,6 +263,106 @@ Standard solar PV finance convention. Made explicit because the SME flagged it d
 | [Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv](../Inputs/Burton_Leonard_115MWp_DC_82MW_AC.csv) | Secondary regression — matches A10 row 3 |
 
 Asset is **Burton Leonard** (real UK site name). "Burton Top" was the Excel case label. Both files moved from `Inputs/Answers/` (originals deleted, folder removed). Test/ folder duplicates flagged for cleanup during audit work — see A9.
+
+### A50. Step 1 restructure + raw vendor curve pipeline (Baringa / Aurora → Nominal Merchant) (NEW 2026-05-25)
+
+Closes the v2 ambition archived in [docs/future_improvements/v2_price_and_inflation_curves.md](../docs/future_improvements/v2_price_and_inflation_curves.md). The full real→nominal pipeline that A49 deferred is now wired through, with a small but meaningful extension: instead of a single real-terms upload + base-year picker, the user gets **two vendor slots** (Baringa + Aurora) and a 3-way selector to pick one, the other, or their average.
+
+User-directed scope per 2026-05-25 conversation. Phased into two commits — A50a (UI reorg only, low risk) and A50b (pipeline, engine adapter, tests).
+
+#### A50a. Step 1 reorganised into Operational + Commercial sections
+
+Step 1 was a long flat list of 5 operational widgets with the A48 price-curve placeholder injected between Solar Profile and Storable Solar Analysis. A50a:
+
+| Change | Detail |
+|---|---|
+| New `## ⚙️ Operational` header (Step 1, line ~188) | Wraps the existing 5 widgets in display order: Load → Solar → Storable → Battery → DG. Caption: "Physical system configuration — what's being built, how it dispatches." |
+| Nominal Merchant Curve relocated | Moved from between Solar Profile (line 415) and Storable Solar (line 855) to the END of Step 1, after the DG section. Was a visual interruption mid-Operational; now lives where it belongs (with the financial inputs). |
+| New `## 💼 Commercial` header (Step 1, line ~920) | Wraps the Nominal Merchant Curve panel (and will wrap A50b's Raw + Inflation subsections). Caption: "Market price assumptions that drive financial outcomes." |
+| Solar profile default | `DEFAULT_WIZARD_STATE['setup']['solar_selected_file']` changed from `None` (which fell through to alphabetical-first = `Burton Solar Profile.csv`) to `'Solar Profile.csv'` (the canonical UK forecast file the user prefers as default). |
+
+No functional changes. The audit tests load profiles explicitly so they're immune. **52 tests pass unchanged.**
+
+#### A50b. Commercial section expanded — Raw + Inflation + 3-mode Nominal
+
+##### Engine helpers (`src/project_irr.py`)
+
+Two pure functions added near `_build_cpi_factor_lookup`:
+
+`_apply_inflation_to_real_curve(real_curve, cpi_curve, steady_state_rate, base_year)` — anchored at user-selected `base_year` (factor = 1.0), compounds forward year-by-year using `cpi_curve[y]` (falling back to `steady_state_rate` for years not in dict). Replicates Excel `Curves and D&T!r30 = real × (1 + cpi)^(year − base)`. G5-compliant — no calibration constant. Handles deflation backward when base year is mid-curve.
+
+`_select_raw_curve(baringa, aurora, selector)` — selector ∈ `{'baringa', 'aurora', 'average'}`. Returns the chosen vendor's curve, the other vendor as fallback if the chosen is None, or element-wise mean over shared (year, month) keys for `'average'` (if only one vendor present, returns it as-is). Unknown selector returns None.
+
+##### Engine defaults extracted from Excel
+
+New data module `src/_baringa_aurora_defaults.py` carries `BARINGA_REAL` (506 monthly entries, 2025-12 through 2068-01) and `AURORA_REAL` (519 entries, 2025-12 through 2069-02). Both extracted from `Baringa and Aurora!row 114` and `row 194` ("Applied" Fixed Tilt) using col F=Jan 2025 anchor. Aliased in `src/project_irr.py` as `_DEFAULT_BARINGA_CURVE_REAL` + `_DEFAULT_AURORA_CURVE_REAL`. Spot-checked: Baringa Jan 2030 = 50.9761 ✓ matches Excel; Aurora Jul 2031 = 85.84 ✓.
+
+##### Wizard state schema (`src/wizard_state.py`)
+
+**setup**: `baringa_curve` / `aurora_curve` (None or dict[(y,m), real_£/MWh]), `baringa_curve_base_year` / `aurora_curve_base_year` (default 2024), `raw_curve_selector` (default `'baringa'`). `merchant_price_curve_source` enum extended: `'default' | 'upload' | 'computed'`.
+
+**financial**: `cpi_curve_source` (default `'default'`), `cpi_curve_by_calendar_year` (None or dict[int, float decimal]), `cpi_steady_state_rate` (None or float decimal).
+
+All additive — no renames, no removals. Stored sessions without the new keys still work via `.get(key, default)` reads in adapter + UI.
+
+##### Step 1 Commercial UI expansion
+
+Inserted before the (relocated) Nominal Merchant Curve subsection:
+
+- **📈 Raw Price Curve** — two `st.expander` panels rendered via a shared `_render_vendor_panel` helper. Each: default/upload radio + base-year `number_input` + viz of active curve. Coverage validator runs at upload time using the same post-PPA window check from A49 (since inflation is 1:1 on (year, month) keys, coverage of raw = coverage of computed). 3-way `st.radio` selector below drives the computed-mode pipeline.
+- **💸 Inflation Curve** — default/upload radio. Default = Excel locked `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR` (bar chart preview). Upload accepts `year, rate_pct` CSV (display % e.g. 2.2 for 2.2%); converted to decimal at parse. Steady-state rate also editable (display %, default 2.0).
+- **💰 Nominal Merchant Curve** — radio extended to 3 options: `🔒 Default` / `🧮 Computed (Raw × Inflation)` / `📤 Upload custom`. The `'computed'` branch lives-renders the result by calling the same helpers the adapter uses (preview consistency); writes nothing to state — the adapter recomputes at PIRR call time so curve edits propagate immediately.
+
+##### Engine adapter (`pirr_inputs_from_wizard_state`)
+
+Extended to three-mode price-source handling:
+
+```python
+if price_source == 'upload':
+    effective_merchant_prices = dict(setup['merchant_price_curve']) or default
+elif price_source == 'computed':
+    baringa = setup['baringa_curve'] or _DEFAULT_BARINGA_CURVE_REAL
+    aurora  = setup['aurora_curve']  or _DEFAULT_AURORA_CURVE_REAL
+    selected_real = _select_raw_curve(baringa, aurora, setup['raw_curve_selector'])
+    base_year = setup[f'{selector}_curve_base_year']  # or min(...) for average
+    effective_merchant_prices = _apply_inflation_to_real_curve(
+        selected_real, effective_cpi_curve, effective_cpi_steady, base_year,
+    )
+else:  # 'default'
+    effective_merchant_prices = dict(_DEFAULT_MERCHANT_PRICES_MONTHLY)
+```
+
+**Critical behavioural change**: when `fin['cpi_curve_source'] == 'upload'`, the adapter now writes `PirrInputs.cpi_curve_by_calendar_year` + `cpi_steady_state_rate` from the user's curve. This means uploaded CPI affects **engine-wide opex/tax escalation**, not just the computed-mode merchant conversion. Documented in adapter comment + the new Step 2b read-only banner (below). When source = `'default'`, the dataclass defaults are passed explicitly (identical values), preserving D13 invariant.
+
+##### Step 2b read-only CPI banner (`pages/Step2b_FinancialSetup.py`)
+
+Inserted at the top of Section 6 OPEX (just before the "Solar OPEX" expander): `st.info(...)` surfacing the active CPI source (Excel default vs custom + N years) and steady-state rate, with link back to **Step 1 → Commercial → Inflation Curve**. Avoids the "I set my opex but didn't realise CPI was at 5%" surprise.
+
+##### Tests
+
+- `tests/test_a50_helpers.py` — **16 unit tests** for the two helpers + the bundled defaults (load + shape + reasonable nominal magnitudes when default Baringa is inflated by default CPI).
+- `tests/test_wizard_state_path.py` — **5 new e2e tests** via `_run_d13_with_computed_curve` helper:
+  - `test_computed_mode_baringa_default_produces_reasonable_pirr` — engine sees a curve different from default; PIRR ∈ [3%, 20%]
+  - `test_computed_mode_aurora_differs_from_baringa` — selector switch changes engine input
+  - `test_computed_mode_average_lies_between_vendors` — average blends element-wise
+  - `test_computed_mode_higher_cpi_lifts_pirr` — doubling CPI raises PIRR
+  - `test_uploaded_cpi_flows_engine_wide` — uploaded CPI reaches `PirrInputs.cpi_*` fields
+- D13 invariant locks all preserved: 4 audit tests + 3 Step 2b-saved + 3 fresh-session paths all green.
+
+**Total: 73 pass, 0 xfail** (was 52 — net +21 new).
+
+#### Out of scope (preserved for further iteration)
+
+- Vendor **scenarios** (Reference / Low commodities / High commodities) — Excel has 3 per vendor. A50b assumes user pre-selects in their own Excel before uploading the "Applied" curve. Could be exposed via per-panel scenario selector.
+- Vendor **tracker types** (Fixed Tilt / Single Axis Tracker) — Excel has separate Applied rows. Same as above — user pre-selects.
+- API-based forecast retrieval — schema stays `'default' | 'upload' | 'computed'`; no `'api'` enum reserved. Future addition can be additive.
+- **DSCR sculpting + Equity IRR** — still v2 deliverable per A45 (1-2 weeks engineering).
+
+#### G6 compliance
+
+This entry + the Revisions log row above are the canonical record of A50. Companion spec [docs/Financial_Assumptions_Spec.md](Financial_Assumptions_Spec.md) doesn't change scope (PIRR engine still ungeared, monthly, 35-yr).
+
+---
 
 ### A49. Nominal Merchant Curve upload wired to engine — A48 placeholder closed (NEW 2026-05-21)
 

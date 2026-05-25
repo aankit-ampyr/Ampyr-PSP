@@ -40,17 +40,27 @@ DEFAULT_WIZARD_STATE = {
         # Solar profile
         'solar_capacity_mw': 100.0,
         'solar_source': 'inputs',  # 'inputs' (from folder) or 'upload' (custom CSV)
-        'solar_selected_file': None,  # Selected filename from Inputs folder
+        'solar_selected_file': 'Solar Profile.csv',  # Default first-time selection (A50a)
         'solar_csv_data': None,  # numpy array if CSV uploaded
 
-        # Market price curve (A48, 2026-05-21):
-        # Placeholder for Step 1's price-curve panel. None = use the engine
-        # default (_DEFAULT_MERCHANT_PRICES_MONTHLY in src/project_irr.py).
-        # When user uploads a CSV, this holds the parsed curve dict
-        # {(year, month): price_gbp_per_mwh}. Engine wiring is a follow-up;
-        # for now the engine ignores this field and uses its locked default.
-        'merchant_price_curve_source': 'default',  # 'default' or 'upload'
-        'merchant_price_curve': None,
+        # Market price curve (A48 placeholder; A49 engine-wired; A50b extended).
+        # 'default' = use engine's locked _DEFAULT_MERCHANT_PRICES_MONTHLY.
+        # 'upload' = user uploaded a pre-computed nominal curve (stored in
+        #            merchant_price_curve dict[(year,month), float]).
+        # 'computed' = engine adapter computes nominal at runtime from the
+        #              raw Baringa/Aurora curves + inflation curve below.
+        'merchant_price_curve_source': 'default',  # 'default' | 'upload' | 'computed'
+        'merchant_price_curve': None,              # dict[(y,m), nominal_£/MWh] when source='upload'
+
+        # Raw vendor price curves (A50b, 2026-05-21):
+        # Real-terms £/MWh by (year, month). The engine applies the inflation
+        # curve (in wizard['financial']) to convert real → nominal when
+        # merchant_price_curve_source == 'computed'.
+        'baringa_curve': None,                     # dict[(y,m), real_£/MWh] or None
+        'baringa_curve_base_year': 2024,           # year at which 1 real £ = 1 nominal £
+        'aurora_curve': None,                      # dict[(y,m), real_£/MWh] or None
+        'aurora_curve_base_year': 2024,
+        'raw_curve_selector': 'baringa',           # 'baringa' | 'aurora' | 'average'
 
         # BESS parameters
         'bess_container_types': ['5mwh_2.5mw', '5mwh_1.25mw'],  # List of container types to evaluate
@@ -306,6 +316,17 @@ DEFAULT_WIZARD_STATE = {
         'wc_creditors_days': 30,
         'project_discount_rate': 6.5,  # A43: was 8.0
         'cost_of_capital': 6.0,        # display %
+
+        # --- Inflation Curve (A50b, 2026-05-21) ---
+        # Step 1 Commercial → Inflation Curve panel writes these via
+        # update_wizard_section('financial', ...). Read by the engine adapter
+        # for opex/tax CPI escalation and (when merchant_price_curve_source=='computed')
+        # for the real→nominal conversion of Baringa/Aurora uploads.
+        # 'default' = use engine's locked `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR`.
+        # 'upload'  = use the dict + steady-state below.
+        'cpi_curve_source': 'default',          # 'default' | 'upload'
+        'cpi_curve_by_calendar_year': None,     # dict[int, float decimal] when uploaded
+        'cpi_steady_state_rate': None,          # float decimal (None = engine default 0.020)
 
         # --- Advanced (A43: SHL + depreciation, Excel-locked per A21/A28) ---
         # These keys were missing from DEFAULT_WIZARD_STATE pre-A43 but the

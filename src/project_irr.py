@@ -25,6 +25,14 @@ from datetime import date
 from pathlib import Path
 import numpy as np
 
+# A50b (2026-05-21): default Baringa + Aurora real-terms curves extracted from
+# Excel `Baringa and Aurora` sheet (rows 114 + 194, "Applied" FT). Kept in a
+# separate data module to keep this file readable (~500 + 519 entries).
+from src._baringa_aurora_defaults import (
+    BARINGA_REAL as _DEFAULT_BARINGA_CURVE_REAL,
+    AURORA_REAL as _DEFAULT_AURORA_CURVE_REAL,
+)
+
 
 # =============================================================================
 # INDEXATION
@@ -230,6 +238,87 @@ def _build_cpi_factor_lookup(curve: dict[int, float],
         rate = curve.get(cal_year, steady_state) if curve else steady_state
         out.append(out[-1] * (1.0 + rate))
     return out
+
+
+# A50b (2026-05-21): pure helpers for the Baringa/Aurora raw-curve pipeline.
+# `_apply_inflation_to_real_curve`: real-terms £/MWh × cumulative CPI factor
+# (anchored at base_year) → nominal £/MWh. Replicates Excel `Curves and D&T!r30`
+# indexation mechanism. G5-compliant — no calibration constants.
+# `_select_raw_curve`: blend two vendor curves into one real-terms curve per
+# the user's selector ('baringa' | 'aurora' | 'average').
+
+def _apply_inflation_to_real_curve(real_curve: dict,
+                                    cpi_curve: dict,
+                                    steady_state_rate: float,
+                                    base_year: int) -> dict:
+    """Convert {(year, month): real_£/MWh} to nominal by year-by-year compounding.
+
+    Anchor: nominal(base_year) = real(base_year). For each year y past base,
+    nominal_factor[y] = product over k in (base_year, y] of (1 + cpi[k]),
+    using `steady_state_rate` for k not present in `cpi_curve`. For y < base,
+    deflate by the inverse (rarely used; main path is base ≤ earliest year).
+
+    Replicates Excel `Curves and D&T!r30 = real × (1 + cpi)^(year - base)`.
+    """
+    if not real_curve:
+        return {}
+
+    years_needed = {y for (y, _) in real_curve.keys()}
+    min_year = min(years_needed)
+    max_year = max(years_needed)
+    span_low = min(min_year, base_year)
+    span_high = max(max_year, base_year)
+
+    factor_by_year: dict[int, float] = {base_year: 1.0}
+    f = 1.0
+    for y in range(base_year + 1, span_high + 1):
+        rate = cpi_curve.get(y, steady_state_rate) if cpi_curve else steady_state_rate
+        f *= (1.0 + rate)
+        factor_by_year[y] = f
+    f = 1.0
+    for y in range(base_year - 1, span_low - 1, -1):
+        rate = cpi_curve.get(y + 1, steady_state_rate) if cpi_curve else steady_state_rate
+        f /= (1.0 + rate)
+        factor_by_year[y] = f
+
+    return {
+        (y, m): real_curve[(y, m)] * factor_by_year[y]
+        for (y, m) in real_curve.keys()
+    }
+
+
+def _select_raw_curve(baringa: dict | None,
+                       aurora: dict | None,
+                       selector: str) -> dict | None:
+    """Pick or blend two real-terms vendor curves into one.
+
+    Args:
+        baringa: dict[(year, month), real_£/MWh] or None
+        aurora: dict[(year, month), real_£/MWh] or None
+        selector: 'baringa' | 'aurora' | 'average'
+
+    Returns:
+        The selected/blended curve, or None if no usable input.
+
+    Behaviour:
+        - 'baringa' → returns baringa (or aurora if baringa is None, with no error)
+        - 'aurora' → returns aurora (or baringa if aurora is None)
+        - 'average' → element-wise mean over keys present in BOTH; if only one
+          is present, returns it as-is.
+    """
+    if selector == 'baringa':
+        return baringa if baringa else aurora
+    if selector == 'aurora':
+        return aurora if aurora else baringa
+    if selector == 'average':
+        if baringa and aurora:
+            shared = set(baringa.keys()) & set(aurora.keys())
+            if not shared:
+                # No overlap: fall back to baringa (arbitrary; both vendors usually overlap)
+                return baringa
+            return {k: (baringa[k] + aurora[k]) / 2.0 for k in shared}
+        return baringa if baringa else aurora
+    return None
 
 
 # A32 (2026-05-15): post-PPA merchant balancing rate £/MWh by engine ops_year.
@@ -1815,17 +1904,62 @@ def pirr_inputs_from_wizard_state(
     # Defaults for monthly arrays: use zeros if dispatch hasn't run yet
     z = np.zeros(12)
 
-    # A49: pass through uploaded nominal merchant curve when user has
-    # uploaded one via Step 1's "Nominal Merchant Curve" panel. Default-
-    # source path falls back to the engine default, preserving the D13 audit
-    # invariant (no behaviour change when both setup keys are absent or set
-    # to 'default'). Step 1 validates full post-PPA coverage at upload time,
-    # so the adapter trusts whatever it receives here.
-    price_source = setup.get('merchant_price_curve_source', 'default')
-    uploaded_curve = setup.get('merchant_price_curve')
-    if price_source == 'upload' and uploaded_curve:
-        effective_merchant_prices = dict(uploaded_curve)
+    # A49 / A50b: three-mode price-source handling.
+    #   - 'default'  : engine's locked Burton-Leonard curve. D13 invariant.
+    #   - 'upload'   : user-uploaded pre-computed nominal curve (A49).
+    #   - 'computed' : adapter computes nominal = selected raw vendor curve
+    #                  (Baringa or Aurora or average) × cumulative CPI factor
+    #                  (A50b). Defaults available for every input so this
+    #                  branch never returns None.
+    # Step 1 validates full post-PPA coverage at upload time, so the adapter
+    # trusts whatever it receives here.
+
+    # Resolve effective CPI curve + steady-state. Read from wizard['financial']
+    # when source = 'upload'; engine defaults otherwise. Used both for the
+    # 'computed' merchant mode AND passed to PirrInputs for engine-wide
+    # opex/tax escalation (A50b — uploaded CPI now flows engine-wide).
+    cpi_source = fin.get('cpi_curve_source', 'default')
+    if cpi_source == 'upload' and fin.get('cpi_curve_by_calendar_year'):
+        effective_cpi_curve = dict(fin['cpi_curve_by_calendar_year'])
     else:
+        effective_cpi_curve = dict(_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR)
+    if cpi_source == 'upload' and fin.get('cpi_steady_state_rate') is not None:
+        effective_cpi_steady = float(fin['cpi_steady_state_rate'])
+    else:
+        effective_cpi_steady = 0.020
+
+    price_source = setup.get('merchant_price_curve_source', 'default')
+
+    if price_source == 'upload':
+        uploaded_curve = setup.get('merchant_price_curve')
+        if uploaded_curve:
+            effective_merchant_prices = dict(uploaded_curve)
+        else:
+            effective_merchant_prices = dict(_DEFAULT_MERCHANT_PRICES_MONTHLY)
+    elif price_source == 'computed':
+        # Resolve raw curve via selector. Defaults always available, so this
+        # branch never returns None from `_select_raw_curve`.
+        baringa = setup.get('baringa_curve') or _DEFAULT_BARINGA_CURVE_REAL
+        aurora = setup.get('aurora_curve') or _DEFAULT_AURORA_CURVE_REAL
+        selector = setup.get('raw_curve_selector', 'baringa')
+        selected_real = _select_raw_curve(baringa, aurora, selector)
+        if selected_real:
+            if selector == 'aurora':
+                base_year = int(setup.get('aurora_curve_base_year', 2024))
+            elif selector == 'average':
+                base_year = min(
+                    int(setup.get('baringa_curve_base_year', 2024)),
+                    int(setup.get('aurora_curve_base_year', 2024)),
+                )
+            else:  # baringa or unknown → baringa
+                base_year = int(setup.get('baringa_curve_base_year', 2024))
+            effective_merchant_prices = _apply_inflation_to_real_curve(
+                selected_real, effective_cpi_curve, effective_cpi_steady, base_year,
+            )
+        else:
+            # Defensive: unknown selector → fall back to engine default
+            effective_merchant_prices = dict(_DEFAULT_MERCHANT_PRICES_MONTHLY)
+    else:  # 'default' or unknown
         effective_merchant_prices = dict(_DEFAULT_MERCHANT_PRICES_MONTHLY)
 
     return PirrInputs(
@@ -1858,11 +1992,18 @@ def pirr_inputs_from_wizard_state(
         ppa_tenor_years=i("ppa_tenor_years", 10),
         ppa_escalation_rate=f("ppa_escalation_pct", 0.0) / 100.0,
 
-        # --- Merchant prices (A49: wizard-state-overridable via Step 1) ---
+        # --- Merchant prices (A49 + A50b: wizard-state-overridable via Step 1) ---
         # Nominal GBP/MWh, monthly. Default = Burton-Leonard locked curve
         # (Solar&BESS Operation!row 66). Step 1 upload validation guarantees
-        # full post-PPA coverage when source == 'upload'.
+        # full post-PPA coverage when source == 'upload' or 'computed'.
         merchant_prices_monthly=effective_merchant_prices,
+
+        # --- CPI escalation curve (A50b: wizard-state-overridable via Step 1 → Inflation) ---
+        # Used for engine-wide opex/tax escalation AND (when applicable) the
+        # computed-mode real→nominal conversion above. Defaults to the
+        # locked Excel curve when user hasn't customised.
+        cpi_curve_by_calendar_year=effective_cpi_curve,
+        cpi_steady_state_rate=effective_cpi_steady,
 
         # --- REGOs ---
         rego_switch=i("rego_switch", 1),

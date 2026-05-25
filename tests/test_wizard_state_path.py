@@ -571,6 +571,156 @@ def test_default_curve_preserves_d13_audit():
     )
 
 
+def _run_d13_with_computed_curve(
+    selector: str = 'baringa',
+    baringa_override: dict | None = None,
+    aurora_override: dict | None = None,
+    cpi_override: dict | None = None,
+    cpi_steady_override: float | None = None,
+    base_year_override: int | None = None,
+) -> dict:
+    """End-to-end via wizard-state with merchant_price_curve_source = 'computed'.
+
+    Used by the A50b adapter branch tests below.
+    """
+    setup, fin = _build_d13_wizard_state()
+    setup['merchant_price_curve_source'] = 'computed'
+    setup['raw_curve_selector'] = selector
+    if baringa_override is not None:
+        setup['baringa_curve'] = baringa_override
+    if aurora_override is not None:
+        setup['aurora_curve'] = aurora_override
+    if base_year_override is not None:
+        setup['baringa_curve_base_year'] = base_year_override
+        setup['aurora_curve_base_year'] = base_year_override
+    if cpi_override is not None:
+        fin['cpi_curve_source'] = 'upload'
+        fin['cpi_curve_by_calendar_year'] = cpi_override
+    if cpi_steady_override is not None:
+        fin['cpi_curve_source'] = 'upload'
+        fin['cpi_steady_state_rate'] = cpi_steady_override
+
+    raw = get_active_solar_profile(setup)
+    target_dc_mwp = float(fin['solar_capacity_mwp'])
+    solar_mw = raw * (target_dc_mwp / target_dc_mwp)
+    hourly = run_hourly_dispatch(
+        solar_mw, load_mw=float(setup['load_mw']),
+        bess_mwh=250.0, bess_mw=62.5, rte=0.87,
+    )
+    monthly = aggregate_to_monthly(hourly, solar_mw)
+    pi = pirr_inputs_from_wizard_state(fin, setup, monthly)
+    pi.solar_dc_mwp = 82.0
+    pi.bess_mwh = 250.0
+    pi.bess_mw = 62.5
+    res = run_pirr(pi)
+    return {
+        'combined': res.project_irr,
+        'sb': res.project_irr_solar_bess,
+        'gas': res.project_irr_gas,
+        'effective_merchant_prices': dict(pi.merchant_prices_monthly),
+    }
+
+
+def test_computed_mode_baringa_default_produces_reasonable_pirr():
+    """Computed mode with defaults (Baringa real × Excel CPI) should produce
+    a sensible Combined PIRR — not the D13 audit number (since underlying
+    real curve + CPI differ from `Solar&BESS Operation!r66`), but within a
+    plausible range and DIFFERENT from the default-source result. Proves
+    the adapter branch wiring works."""
+    from src.project_irr import _DEFAULT_MERCHANT_PRICES_MONTHLY
+    r = _run_d13_with_computed_curve(selector='baringa')
+    msg = (f"Computed (Baringa) Combined: {r['combined']*100:.2f}%. "
+           "Expected to differ from default-path 8.84% but stay within "
+           "[3%, 20%] for plausibility.")
+    print(msg)
+    # PIRR must be a finite, sensible number (not NaN, not absurd)
+    import math
+    assert math.isfinite(r['combined']), f"Non-finite PIRR: {r['combined']}"
+    assert 0.03 <= r['combined'] <= 0.20, msg
+    # Confirm the engine actually saw a different curve from the default
+    assert r['effective_merchant_prices'] != _DEFAULT_MERCHANT_PRICES_MONTHLY, (
+        "Computed mode produced engine-default merchant prices — "
+        "adapter computed-mode branch is not wired."
+    )
+
+
+def test_computed_mode_aurora_differs_from_baringa():
+    """Switching the raw-curve selector from Baringa to Aurora should change
+    the engine's effective merchant curve (different vendor forecasts)."""
+    rb = _run_d13_with_computed_curve(selector='baringa')
+    ra = _run_d13_with_computed_curve(selector='aurora')
+    # Curves should be DIFFERENT dicts (different vendor inputs)
+    assert rb['effective_merchant_prices'] != ra['effective_merchant_prices'], (
+        "Baringa and Aurora computed merchant curves are identical — "
+        "selector logic in adapter is broken."
+    )
+    # IRRs likely differ too
+    print(f"  Baringa Combined: {rb['combined']*100:.2f}%  vs  Aurora: {ra['combined']*100:.2f}%")
+
+
+def test_computed_mode_average_lies_between_vendors():
+    """Average selector should produce values between Baringa and Aurora at
+    each month. Spot-check one month."""
+    rb = _run_d13_with_computed_curve(selector='baringa')
+    ra = _run_d13_with_computed_curve(selector='aurora')
+    rav = _run_d13_with_computed_curve(selector='average')
+    # Spot-check a post-PPA month (2040, 6)
+    sample_key = (2040, 6)
+    if sample_key in rb['effective_merchant_prices'] and sample_key in ra['effective_merchant_prices']:
+        b_val = rb['effective_merchant_prices'][sample_key]
+        a_val = ra['effective_merchant_prices'][sample_key]
+        av_val = rav['effective_merchant_prices'][sample_key]
+        lo, hi = min(b_val, a_val), max(b_val, a_val)
+        assert lo <= av_val <= hi, (
+            f"Average ({av_val:.2f}) not between Baringa ({b_val:.2f}) "
+            f"and Aurora ({a_val:.2f}) at {sample_key}"
+        )
+
+
+def test_computed_mode_higher_cpi_lifts_pirr():
+    """Doubling the CPI steady-state should produce HIGHER nominal merchant
+    prices in the post-PPA window, lifting Combined PIRR."""
+    r_low = _run_d13_with_computed_curve(
+        selector='baringa', cpi_steady_override=0.020,
+    )
+    r_high = _run_d13_with_computed_curve(
+        selector='baringa', cpi_steady_override=0.040,
+    )
+    assert r_high['combined'] > r_low['combined'], (
+        f"Higher CPI should raise PIRR; got low={r_low['combined']*100:.2f}% "
+        f"vs high={r_high['combined']*100:.2f}%"
+    )
+
+
+def test_uploaded_cpi_flows_engine_wide():
+    """A50b: when the user uploads a custom CPI curve via Step 1 → Inflation,
+    the adapter should pass it through to PirrInputs.cpi_curve_by_calendar_year
+    (engine-wide opex/tax escalation), not just use it for the computed-mode
+    merchant path. Test by upload-mode CPI + default merchant — PIRR shifts
+    because opex now escalates at the new rate."""
+    setup, fin = _build_d13_wizard_state()
+    # Default merchant; uploaded CPI at flat 5% (vs Excel default ~2%)
+    fin['cpi_curve_source'] = 'upload'
+    fin['cpi_steady_state_rate'] = 0.05
+    fin['cpi_curve_by_calendar_year'] = {2025: 0.05, 2026: 0.05, 2027: 0.05}
+    raw = get_active_solar_profile(setup)
+    target_dc_mwp = float(fin['solar_capacity_mwp'])
+    solar_mw = raw * (target_dc_mwp / target_dc_mwp)
+    hourly = run_hourly_dispatch(
+        solar_mw, load_mw=float(setup['load_mw']),
+        bess_mwh=250.0, bess_mw=62.5, rte=0.87,
+    )
+    monthly = aggregate_to_monthly(hourly, solar_mw)
+    pi = pirr_inputs_from_wizard_state(fin, setup, monthly)
+    # Assert the engine receives the uploaded CPI (not its dataclass default)
+    assert pi.cpi_steady_state_rate == 0.05, (
+        f"Adapter ignored uploaded CPI steady-state; got {pi.cpi_steady_state_rate}"
+    )
+    assert pi.cpi_curve_by_calendar_year == {2025: 0.05, 2026: 0.05, 2027: 0.05}, (
+        "Adapter ignored uploaded CPI curve dict"
+    )
+
+
 def test_uploaded_nominal_curve_feeds_engine():
     """A nominal-terms upload that doubles every month vs default shifts
     Combined PIRR measurably upward (≥ 0.5 pp). Proves the A49 adapter wiring

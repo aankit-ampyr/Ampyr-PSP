@@ -187,6 +187,14 @@ setup = state['setup']
 
 
 # =============================================================================
+# OPERATIONAL SECTION (Load / Solar / Storable / Battery / DG)
+# =============================================================================
+
+st.markdown("## ⚙️ Operational")
+st.caption("Physical system configuration — what's being built, how it dispatches.")
+
+
+# =============================================================================
 # LOAD PROFILE SECTION
 # =============================================================================
 
@@ -582,269 +590,6 @@ st.divider()
 
 
 # =============================================================================
-# NOMINAL MERCHANT CURVE SECTION (A49: engine-wired)
-# =============================================================================
-# Post-PPA merchant electricity price curve. Uploaded values feed
-# `PirrInputs.merchant_prices_monthly` directly via the engine adapter
-# `pirr_inputs_from_wizard_state`. Treated as **nominal £/MWh** — passed to
-# the engine verbatim, no inflation applied. Real-terms uploads + variable
-# CPI curve handling are deferred to v2; see
-# docs/future_improvements/v2_price_and_inflation_curves.md.
-# =============================================================================
-
-# Grab financial state for the coverage validator (post-PPA window depends
-# on construction_start, construction_months, ppa_tenor_years, project_life_years).
-financial = state.get('financial', {})
-
-st.subheader("💰 Nominal Merchant Curve")
-st.caption(
-    "Post-PPA merchant electricity price (£/MWh, monthly, **nominal terms "
-    "— inflation already applied**). Sourced from the locked Burton-Leonard "
-    "Excel export `Solar&BESS Operation!row 66`. Upload a custom curve to "
-    "override; values are passed to the engine verbatim, so they must "
-    "already include your inflation assumption."
-)
-
-# Load the engine's current default curve for visualisation.
-try:
-    from src.project_irr import _DEFAULT_MERCHANT_PRICES_MONTHLY as _ENGINE_DEFAULT_CURVE
-except ImportError:
-    _ENGINE_DEFAULT_CURVE = {}
-
-price_source_options = ['default', 'upload']
-price_source_labels = {
-    'default': "Use engine default (Burton-Leonard `Solar&BESS Operation!r66`)",
-    'upload': "Upload custom nominal curve (CSV)",
-}
-current_price_source = setup.get('merchant_price_curve_source', 'default')
-if current_price_source not in price_source_options:
-    current_price_source = 'default'
-
-price_source = st.radio(
-    "Curve source:",
-    options=price_source_options,
-    format_func=lambda x: price_source_labels[x],
-    horizontal=True,
-    index=price_source_options.index(current_price_source),
-    key='merchant_price_source_radio',
-)
-update_wizard_state('setup', 'merchant_price_curve_source', price_source)
-
-
-def _curve_to_dataframe(curve_dict):
-    """Convert {(year, month): price} to a DataFrame sorted by date."""
-    if not curve_dict:
-        return pd.DataFrame(columns=['date', 'year', 'month', 'price'])
-    rows = []
-    for (yr, mo), price in curve_dict.items():
-        rows.append({
-            'date': pd.Timestamp(year=int(yr), month=int(mo), day=1),
-            'year': int(yr),
-            'month': int(mo),
-            'price': float(price),
-        })
-    df = pd.DataFrame(rows).sort_values('date').reset_index(drop=True)
-    return df
-
-
-def _render_price_curve_chart(curve_dict, title):
-    """Render a monthly + yearly-average price-curve chart."""
-    df = _curve_to_dataframe(curve_dict)
-    if df.empty:
-        st.info("No price curve data to display.")
-        return
-
-    yearly_avg = df.groupby('year')['price'].mean().reset_index()
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df['date'], y=df['price'],
-        mode='lines', name='Monthly',
-        line=dict(color='#3498db', width=1),
-        opacity=0.6,
-    ))
-    fig.add_trace(go.Scatter(
-        x=pd.to_datetime(yearly_avg['year'].astype(str) + '-07-01'),
-        y=yearly_avg['price'],
-        mode='lines+markers', name='Yearly avg',
-        line=dict(color='#e74c3c', width=2),
-        marker=dict(size=5),
-    ))
-    fig.update_layout(
-        height=320,
-        margin=dict(l=40, r=20, t=40, b=40),
-        title=dict(text=title, font=dict(size=14)),
-        xaxis_title="Date",
-        yaxis_title="£/MWh (nominal)",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                    xanchor="right", x=1),
-        hovermode='x unified',
-    )
-    st.plotly_chart(fig, width='stretch')
-
-    # Summary stats
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Min £/MWh", f"{df['price'].min():.1f}")
-    c2.metric("Mean £/MWh", f"{df['price'].mean():.1f}")
-    c3.metric("Max £/MWh", f"{df['price'].max():.1f}")
-    c4.metric("Months", f"{len(df):,}")
-
-
-def _compute_post_ppa_range(fin_dict):
-    """Returns (first_key, last_key) for the post-PPA window as (year, month)
-    tuples. Uses wizard financial state; falls back to engine D13 defaults
-    when fields are missing (e.g. user hasn't visited Step 2b yet).
-    """
-    from datetime import date as _date
-
-    cod = fin_dict.get('cod_date')
-    if cod is None:
-        cstart = fin_dict.get('construction_start')
-        cmonths = int(fin_dict.get('construction_months') or 9)
-        if cstart is not None:
-            total = cstart.month - 1 + cmonths
-            cod = _date(cstart.year + total // 12, total % 12 + 1, 1)
-        else:
-            cod = _date(2027, 7, 1)  # D13 engine default
-
-    ppa_tenor = int(fin_dict.get('ppa_tenor_years') or 10)
-    proj_life = int(fin_dict.get('project_life_years') or 35)
-    first = (cod.year + ppa_tenor, cod.month)
-    last = (cod.year + proj_life - 1, 12)
-    return first, last
-
-
-def _validate_curve_coverage(curve_dict, fin_dict):
-    """Check curve_dict covers every (year, month) in the post-PPA window.
-
-    Returns: (ok: bool, missing_count: int, first_missing_str: str | None,
-              range_str: str)
-    """
-    first, last = _compute_post_ppa_range(fin_dict)
-    first_y, first_m = first
-    last_y, last_m = last
-
-    missing = []
-    y, m = first_y, first_m
-    while (y, m) <= (last_y, last_m):
-        if (y, m) not in curve_dict:
-            missing.append((y, m))
-        m += 1
-        if m > 12:
-            m = 1
-            y += 1
-
-    range_str = f"{first_y}-{first_m:02d} through {last_y}-{last_m:02d}"
-    if not missing:
-        return True, 0, None, range_str
-    first_missing_str = f"{missing[0][0]}-{missing[0][1]:02d}"
-    return False, len(missing), first_missing_str, range_str
-
-
-# Compute the required coverage range upfront for the help text + validator.
-_required_first, _required_last = _compute_post_ppa_range(financial)
-_required_range_str = (
-    f"{_required_first[0]}-{_required_first[1]:02d} through "
-    f"{_required_last[0]}-{_required_last[1]:02d}"
-)
-
-
-if price_source == 'default':
-    _render_price_curve_chart(
-        _ENGINE_DEFAULT_CURVE,
-        "Engine default merchant curve (Burton-Leonard, locked)"
-    )
-    # Clear any stored upload if user toggled back to default
-    update_wizard_state('setup', 'merchant_price_curve', None)
-
-else:
-    uploaded_price = st.file_uploader(
-        "Upload Nominal Merchant Curve CSV",
-        type=['csv'],
-        help=(
-            "CSV with columns: `year`, `month` (1-12), `price_gbp_mwh` "
-            "(nominal £/MWh — must include inflation; engine does not "
-            "escalate this curve). One row per month. Required coverage: "
-            f"**{_required_range_str}** (post-PPA window for current "
-            "project timeline)."
-        ),
-        key='merchant_price_csv_uploader',
-    )
-
-    if uploaded_price is not None:
-        try:
-            df_upload = pd.read_csv(uploaded_price)
-            df_upload.columns = [c.strip().lower() for c in df_upload.columns]
-            required = {'year', 'month', 'price_gbp_mwh'}
-            if not required.issubset(set(df_upload.columns)):
-                st.error(
-                    f"CSV must have columns: {', '.join(sorted(required))}. "
-                    f"Got: {', '.join(df_upload.columns)}"
-                )
-            else:
-                df_upload = df_upload.dropna(subset=['year', 'month', 'price_gbp_mwh'])
-                df_upload['year'] = df_upload['year'].astype(int)
-                df_upload['month'] = df_upload['month'].astype(int)
-                df_upload['price_gbp_mwh'] = df_upload['price_gbp_mwh'].astype(float)
-
-                bad_months = df_upload[(df_upload['month'] < 1) | (df_upload['month'] > 12)]
-                if not bad_months.empty:
-                    st.error(f"Month values must be 1-12. Found: {bad_months['month'].tolist()[:5]}")
-                elif (df_upload['price_gbp_mwh'] < 0).any():
-                    st.error("Price values must be non-negative.")
-                else:
-                    curve_dict = {
-                        (int(r.year), int(r.month)): float(r.price_gbp_mwh)
-                        for r in df_upload.itertuples()
-                    }
-                    # A49: reject incomplete coverage of the post-PPA window
-                    # to avoid silent default-substitution surprises (engine's
-                    # _merchant_price would fall back per-month to its locked
-                    # default, mixing user data with Burton-Leonard values).
-                    ok, n_missing, first_miss, range_str = _validate_curve_coverage(
-                        curve_dict, financial
-                    )
-                    if not ok:
-                        st.error(
-                            f"Curve must cover **{range_str}** (post-PPA "
-                            f"window for current project timeline). Missing "
-                            f"{n_missing} months — first: {first_miss}. "
-                            "Stored curve unchanged."
-                        )
-                    else:
-                        update_wizard_state('setup', 'merchant_price_curve', curve_dict)
-                        st.success(
-                            f"Loaded {len(curve_dict)} monthly price points "
-                            f"(covers {range_str} + extras)."
-                        )
-                        _render_price_curve_chart(curve_dict, "Uploaded merchant curve")
-        except Exception as e:
-            st.error(f"Error reading CSV: {e}")
-    else:
-        stored = setup.get('merchant_price_curve')
-        if stored:
-            st.info(f"Using previously uploaded curve: {len(stored)} months.")
-            _render_price_curve_chart(stored, "Uploaded merchant curve")
-        else:
-            st.info(
-                f"Upload a CSV to set a custom merchant price curve. "
-                f"Required coverage: {_required_range_str}. "
-                "Engine uses the default curve until upload."
-            )
-
-st.caption(
-    "Upload-only feeds the engine for post-PPA years; PPA-tenor revenue "
-    "comes from your PPA tariff (configured in Step 2b). Real-terms uploads "
-    "+ customisable inflation curve are planned for v2 — see "
-    "[`docs/future_improvements/v2_price_and_inflation_curves.md`]"
-    "(docs/future_improvements/v2_price_and_inflation_curves.md)."
-)
-
-
-st.divider()
-
-
-# =============================================================================
 # STORABLE SOLAR CHART (Dynamic based on Load & Solar profiles)
 # =============================================================================
 
@@ -1167,6 +912,666 @@ if dg_enabled:
 
 else:
     st.info("No generator in this configuration. System will be Solar + BESS only.")
+
+
+st.divider()
+
+
+# =============================================================================
+# COMMERCIAL SECTION (Price curves + inflation — feeds PIRR engine)
+# =============================================================================
+
+st.markdown("## 💼 Commercial")
+st.caption(
+    "Market price assumptions that drive financial outcomes. The PIRR engine "
+    "consumes the **Nominal Merchant Curve**; vendor forecast curves "
+    "(Baringa / Aurora) and the inflation curve compute into it. Real-terms "
+    "uploads + variable CPI editing are planned for v2 — see "
+    "[`docs/future_improvements/v2_price_and_inflation_curves.md`]"
+    "(docs/future_improvements/v2_price_and_inflation_curves.md)."
+)
+
+
+# =============================================================================
+# COMMERCIAL HELPERS + SHARED STATE (used by Raw, Inflation, Nominal panels)
+# =============================================================================
+
+financial = state.get('financial', {})
+
+# Engine defaults — locked Burton-Leonard snapshots, used as the
+# baseline display in each panel's 'default' mode.
+try:
+    from src.project_irr import (
+        _DEFAULT_MERCHANT_PRICES_MONTHLY as _ENGINE_DEFAULT_CURVE,
+        _DEFAULT_BARINGA_CURVE_REAL,
+        _DEFAULT_AURORA_CURVE_REAL,
+        _DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR,
+        _apply_inflation_to_real_curve,
+        _select_raw_curve,
+    )
+except ImportError:
+    _ENGINE_DEFAULT_CURVE = {}
+    _DEFAULT_BARINGA_CURVE_REAL = {}
+    _DEFAULT_AURORA_CURVE_REAL = {}
+    _DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR = {}
+    _apply_inflation_to_real_curve = lambda r, c, s, b: r
+    _select_raw_curve = lambda b, a, sel: b or a
+
+
+def _curve_to_dataframe(curve_dict):
+    """Convert {(year, month): price} to a DataFrame sorted by date."""
+    if not curve_dict:
+        return pd.DataFrame(columns=['date', 'year', 'month', 'price'])
+    rows = []
+    for (yr, mo), price in curve_dict.items():
+        rows.append({
+            'date': pd.Timestamp(year=int(yr), month=int(mo), day=1),
+            'year': int(yr),
+            'month': int(mo),
+            'price': float(price),
+        })
+    df = pd.DataFrame(rows).sort_values('date').reset_index(drop=True)
+    return df
+
+
+def _render_price_curve_chart(curve_dict, title, y_label="£/MWh"):
+    """Render a monthly + yearly-average price-curve chart."""
+    df = _curve_to_dataframe(curve_dict)
+    if df.empty:
+        st.info("No price curve data to display.")
+        return
+
+    yearly_avg = df.groupby('year')['price'].mean().reset_index()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=df['date'], y=df['price'],
+        mode='lines', name='Monthly',
+        line=dict(color='#3498db', width=1),
+        opacity=0.6,
+    ))
+    fig.add_trace(go.Scatter(
+        x=pd.to_datetime(yearly_avg['year'].astype(str) + '-07-01'),
+        y=yearly_avg['price'],
+        mode='lines+markers', name='Yearly avg',
+        line=dict(color='#e74c3c', width=2),
+        marker=dict(size=5),
+    ))
+    fig.update_layout(
+        height=320,
+        margin=dict(l=40, r=20, t=40, b=40),
+        title=dict(text=title, font=dict(size=14)),
+        xaxis_title="Date",
+        yaxis_title=y_label,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                    xanchor="right", x=1),
+        hovermode='x unified',
+    )
+    st.plotly_chart(fig, width='stretch')
+
+    # Summary stats
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Min", f"{df['price'].min():.1f}")
+    c2.metric("Mean", f"{df['price'].mean():.1f}")
+    c3.metric("Max", f"{df['price'].max():.1f}")
+    c4.metric("Months", f"{len(df):,}")
+
+
+def _compute_post_ppa_range(fin_dict):
+    """Returns (first_key, last_key) for the post-PPA window as (year, month)
+    tuples. Uses wizard financial state; falls back to engine D13 defaults
+    when fields are missing (e.g. user hasn't visited Step 2b yet).
+    """
+    from datetime import date as _date
+
+    cod = fin_dict.get('cod_date')
+    if cod is None:
+        cstart = fin_dict.get('construction_start')
+        cmonths = int(fin_dict.get('construction_months') or 9)
+        if cstart is not None:
+            total = cstart.month - 1 + cmonths
+            cod = _date(cstart.year + total // 12, total % 12 + 1, 1)
+        else:
+            cod = _date(2027, 7, 1)  # D13 engine default
+
+    ppa_tenor = int(fin_dict.get('ppa_tenor_years') or 10)
+    proj_life = int(fin_dict.get('project_life_years') or 35)
+    first = (cod.year + ppa_tenor, cod.month)
+    last = (cod.year + proj_life - 1, 12)
+    return first, last
+
+
+def _validate_curve_coverage(curve_dict, fin_dict):
+    """Check curve_dict covers every (year, month) in the post-PPA window.
+
+    Returns: (ok: bool, missing_count: int, first_missing_str: str | None,
+              range_str: str)
+    """
+    first, last = _compute_post_ppa_range(fin_dict)
+    first_y, first_m = first
+    last_y, last_m = last
+
+    missing = []
+    y, m = first_y, first_m
+    while (y, m) <= (last_y, last_m):
+        if (y, m) not in curve_dict:
+            missing.append((y, m))
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+
+    range_str = f"{first_y}-{first_m:02d} through {last_y}-{last_m:02d}"
+    if not missing:
+        return True, 0, None, range_str
+    first_missing_str = f"{missing[0][0]}-{missing[0][1]:02d}"
+    return False, len(missing), first_missing_str, range_str
+
+
+# Compute the required coverage range upfront for the help text + validator.
+_required_first, _required_last = _compute_post_ppa_range(financial)
+_required_range_str = (
+    f"{_required_first[0]}-{_required_first[1]:02d} through "
+    f"{_required_last[0]}-{_required_last[1]:02d}"
+)
+
+
+def _parse_real_curve_csv(uploaded_file, vendor_label):
+    """Parse a real-terms vendor CSV. Returns dict[(y,m), float] or None on
+    error (with st.error rendered)."""
+    try:
+        df_u = pd.read_csv(uploaded_file)
+        df_u.columns = [c.strip().lower() for c in df_u.columns]
+        # Accept either price_gbp_mwh_real or price_gbp_mwh as the value column
+        if 'price_gbp_mwh_real' in df_u.columns:
+            value_col = 'price_gbp_mwh_real'
+        elif 'price_gbp_mwh' in df_u.columns:
+            value_col = 'price_gbp_mwh'
+        else:
+            st.error(
+                f"{vendor_label} CSV must have a value column named "
+                "`price_gbp_mwh_real` (preferred) or `price_gbp_mwh`. "
+                f"Got: {', '.join(df_u.columns)}"
+            )
+            return None
+        if 'year' not in df_u.columns or 'month' not in df_u.columns:
+            st.error(f"{vendor_label} CSV must have `year` and `month` columns.")
+            return None
+        df_u = df_u.dropna(subset=['year', 'month', value_col])
+        df_u['year'] = df_u['year'].astype(int)
+        df_u['month'] = df_u['month'].astype(int)
+        df_u[value_col] = df_u[value_col].astype(float)
+        if ((df_u['month'] < 1) | (df_u['month'] > 12)).any():
+            st.error(f"{vendor_label}: month values must be 1-12.")
+            return None
+        if (df_u[value_col] < 0).any():
+            st.error(f"{vendor_label}: price values must be non-negative.")
+            return None
+        return {
+            (int(r.year), int(r.month)): float(getattr(r, value_col))
+            for r in df_u.itertuples()
+        }
+    except Exception as e:
+        st.error(f"{vendor_label}: error reading CSV: {e}")
+        return None
+
+
+# =============================================================================
+# RAW PRICE CURVE SUBSECTION (A50b — Baringa + Aurora real-terms)
+# =============================================================================
+
+st.subheader("📈 Raw Price Curve")
+st.caption(
+    "Vendor forecasts of wholesale merchant electricity prices in **real terms** "
+    "(today's £). The PIRR engine applies the inflation curve below to convert "
+    "real → nominal for the 'Computed' Nominal Merchant Curve mode. Defaults "
+    "extracted from Excel `Baringa and Aurora` sheet (rows 114 + 194, "
+    "Applied Fixed Tilt)."
+)
+
+
+def _render_vendor_panel(vendor: str, default_curve: dict,
+                          state_key: str, base_year_key: str,
+                          excel_ref: str):
+    """Render a Baringa or Aurora panel inside an st.expander.
+
+    Reads/writes wizard['setup'][state_key] + wizard['setup'][base_year_key].
+    """
+    stored = setup.get(state_key)
+    with st.expander(f"▸ {vendor} Curve", expanded=False):
+        st.caption(
+            f"{excel_ref}. Real-terms £/MWh, monthly. Base year = year at "
+            "which 1 real £ = 1 nominal £."
+        )
+        cols = st.columns([3, 1])
+        with cols[0]:
+            src_opts = ['default', 'upload']
+            src_labels = {'default': "Use Excel default", 'upload': "Upload custom CSV"}
+            current_src = 'upload' if stored else 'default'
+            src = st.radio(
+                "Source:",
+                options=src_opts,
+                format_func=lambda x: src_labels[x],
+                horizontal=True,
+                index=src_opts.index(current_src),
+                key=f'{vendor.lower()}_src_radio',
+            )
+        with cols[1]:
+            base_year = st.number_input(
+                "Base year",
+                min_value=2020, max_value=2030,
+                value=int(setup.get(base_year_key, 2024)),
+                step=1,
+                key=f'{vendor.lower()}_base_year_input',
+            )
+            update_wizard_state('setup', base_year_key, int(base_year))
+
+        if src == 'default':
+            _render_price_curve_chart(
+                default_curve,
+                f"{vendor} default real curve (Excel, locked)",
+                y_label="£/MWh (real)",
+            )
+            update_wizard_state('setup', state_key, None)
+        else:
+            uploaded = st.file_uploader(
+                f"Upload {vendor} CSV (real-terms £/MWh)",
+                type=['csv'],
+                help=(
+                    f"CSV with columns: `year`, `month` (1-12), `price_gbp_mwh_real`. "
+                    f"Required coverage: **{_required_range_str}** (post-PPA window)."
+                ),
+                key=f'{vendor.lower()}_csv_uploader',
+            )
+            if uploaded is not None:
+                curve = _parse_real_curve_csv(uploaded, vendor)
+                if curve is not None:
+                    ok, n_miss, first_miss, range_str = _validate_curve_coverage(
+                        curve, financial
+                    )
+                    if not ok:
+                        st.error(
+                            f"{vendor}: curve must cover **{range_str}**. "
+                            f"Missing {n_miss} months — first: {first_miss}. "
+                            "Stored curve unchanged."
+                        )
+                    else:
+                        update_wizard_state('setup', state_key, curve)
+                        st.success(
+                            f"{vendor}: loaded {len(curve)} months "
+                            f"(covers {range_str} + extras)."
+                        )
+                        _render_price_curve_chart(
+                            curve, f"{vendor} uploaded real curve",
+                            y_label="£/MWh (real)",
+                        )
+            elif stored:
+                st.info(f"Using previously uploaded {vendor} curve: {len(stored)} months.")
+                _render_price_curve_chart(
+                    stored, f"{vendor} uploaded real curve",
+                    y_label="£/MWh (real)",
+                )
+            else:
+                st.info(
+                    f"Upload a CSV to override the default {vendor} curve. "
+                    f"Required coverage: {_required_range_str}."
+                )
+
+
+_render_vendor_panel(
+    "Baringa",
+    _DEFAULT_BARINGA_CURVE_REAL,
+    state_key='baringa_curve',
+    base_year_key='baringa_curve_base_year',
+    excel_ref="Source: Excel `Baringa and Aurora!row 114` (Applied FT)",
+)
+_render_vendor_panel(
+    "Aurora",
+    _DEFAULT_AURORA_CURVE_REAL,
+    state_key='aurora_curve',
+    base_year_key='aurora_curve_base_year',
+    excel_ref="Source: Excel `Baringa and Aurora!row 194` (Applied FT)",
+)
+
+
+# Curve selector: which raw curve drives the Computed nominal mode.
+selector_options = ['baringa', 'aurora', 'average']
+selector_labels = {
+    'baringa': "🔵 Baringa",
+    'aurora':  "🟢 Aurora",
+    'average': "🔵🟢 Average of two",
+}
+current_selector = setup.get('raw_curve_selector', 'baringa')
+if current_selector not in selector_options:
+    current_selector = 'baringa'
+
+selected_curve = st.radio(
+    "Which raw curve feeds the 'Computed' Nominal Merchant Curve mode?",
+    options=selector_options,
+    format_func=lambda x: selector_labels[x],
+    horizontal=True,
+    index=selector_options.index(current_selector),
+    key='raw_curve_selector_radio',
+)
+update_wizard_state('setup', 'raw_curve_selector', selected_curve)
+
+
+st.divider()
+
+
+# =============================================================================
+# INFLATION CURVE SUBSECTION (A50b — uploadable CPI curve)
+# =============================================================================
+
+st.subheader("💸 Inflation Curve")
+st.caption(
+    "Year-by-year CPI rates. Drives opex / tax escalation throughout the engine "
+    "AND the real → nominal conversion when the Nominal Merchant Curve is in "
+    "'Computed' mode. Default = Excel `Curves and D&T!row 10` (2024-2029 "
+    "explicit + 2.0% steady-state from 2030)."
+)
+
+cpi_source_options = ['default', 'upload']
+cpi_source_labels = {
+    'default': "Use Excel default curve",
+    'upload': "Upload custom curve",
+}
+current_cpi_source = financial.get('cpi_curve_source', 'default')
+if current_cpi_source not in cpi_source_options:
+    current_cpi_source = 'default'
+
+cpi_source = st.radio(
+    "Inflation source:",
+    options=cpi_source_options,
+    format_func=lambda x: cpi_source_labels[x],
+    horizontal=True,
+    index=cpi_source_options.index(current_cpi_source),
+    key='cpi_source_radio',
+)
+update_wizard_section('financial', {'cpi_curve_source': cpi_source})
+
+
+def _render_cpi_bar_chart(cpi_dict, steady, label_suffix=""):
+    """Bar chart of annual CPI rates (display %)."""
+    if not cpi_dict:
+        st.info("No inflation curve data to display.")
+        return
+    years = sorted(cpi_dict.keys())
+    rates_pct = [cpi_dict[y] * 100 for y in years]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=years, y=rates_pct, name='CPI %', marker_color='#9b59b6'))
+    fig.add_hline(
+        y=steady * 100, line_dash='dash', line_color='#e67e22',
+        annotation_text=f"Steady-state {steady * 100:.1f}%",
+        annotation_position="right",
+    )
+    fig.update_layout(
+        height=260,
+        margin=dict(l=40, r=20, t=40, b=40),
+        title=dict(text=f"Annual CPI rate{label_suffix}", font=dict(size=14)),
+        xaxis_title="Calendar year",
+        yaxis_title="CPI rate (%)",
+        showlegend=False,
+    )
+    st.plotly_chart(fig, width='stretch')
+
+
+# Steady-state input (display %, stored as decimal)
+default_steady = financial.get('cpi_steady_state_rate')
+default_steady_display = (default_steady * 100) if default_steady is not None else 2.0
+
+steady_pct = st.number_input(
+    "Steady-state CPI rate beyond curve (%)",
+    min_value=0.0, max_value=20.0,
+    value=float(default_steady_display),
+    step=0.1,
+    format="%.2f",
+    help="Used for years not present in the curve. Excel default = 2.0%.",
+    key='cpi_steady_state_input',
+)
+# Store as decimal; None when unchanged from 2.0 default to keep state clean
+steady_decimal = round(steady_pct / 100.0, 6)
+if cpi_source == 'default' and abs(steady_decimal - 0.020) < 1e-9:
+    update_wizard_section('financial', {'cpi_steady_state_rate': None})
+else:
+    update_wizard_section('financial', {'cpi_steady_state_rate': steady_decimal})
+
+if cpi_source == 'default':
+    _render_cpi_bar_chart(
+        _DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR, steady_decimal,
+        label_suffix=" (Excel locked default)",
+    )
+    update_wizard_section('financial', {'cpi_curve_by_calendar_year': None})
+
+else:
+    cpi_uploaded = st.file_uploader(
+        "Upload CPI curve CSV",
+        type=['csv'],
+        help="CSV with columns: `year`, `rate_pct` (display percentage, e.g. `2.2` for 2.2%).",
+        key='cpi_csv_uploader',
+    )
+    if cpi_uploaded is not None:
+        try:
+            df_c = pd.read_csv(cpi_uploaded)
+            df_c.columns = [c.strip().lower() for c in df_c.columns]
+            if not {'year', 'rate_pct'}.issubset(set(df_c.columns)):
+                st.error(
+                    "CPI CSV must have columns `year` and `rate_pct`. "
+                    f"Got: {', '.join(df_c.columns)}"
+                )
+            else:
+                df_c = df_c.dropna(subset=['year', 'rate_pct'])
+                df_c['year'] = df_c['year'].astype(int)
+                df_c['rate_pct'] = df_c['rate_pct'].astype(float)
+                if (df_c['rate_pct'] < 0).any() or (df_c['rate_pct'] > 50).any():
+                    st.error("CPI rates must be in [0, 50] %.")
+                else:
+                    cpi_dict = {
+                        int(r.year): round(float(r.rate_pct) / 100.0, 6)
+                        for r in df_c.itertuples()
+                    }
+                    update_wizard_section('financial', {'cpi_curve_by_calendar_year': cpi_dict})
+                    st.success(f"Loaded {len(cpi_dict)} annual CPI rates.")
+                    _render_cpi_bar_chart(cpi_dict, steady_decimal, label_suffix=" (uploaded)")
+        except Exception as e:
+            st.error(f"Error reading CPI CSV: {e}")
+    else:
+        stored_cpi = financial.get('cpi_curve_by_calendar_year')
+        if stored_cpi:
+            st.info(f"Using previously uploaded CPI curve: {len(stored_cpi)} years.")
+            _render_cpi_bar_chart(stored_cpi, steady_decimal, label_suffix=" (uploaded)")
+        else:
+            st.info("Upload a CPI CSV to override the Excel default.")
+
+
+st.divider()
+
+
+# =============================================================================
+# NOMINAL MERCHANT CURVE SECTION (A49 + A50b: now supports 'computed' mode)
+# =============================================================================
+# Post-PPA merchant electricity price curve. Feeds `PirrInputs.merchant_prices_monthly`
+# via the engine adapter `pirr_inputs_from_wizard_state`. Treated as
+# **nominal £/MWh** — engine consumes verbatim, no further escalation.
+#
+# Three modes (A50b):
+#   - 'default'  : engine's locked Burton-Leonard curve from
+#                  `Solar&BESS Operation!row 66`. D13 audit invariant.
+#   - 'computed' : adapter computes nominal = selected raw curve × inflation
+#                  factors at engine call time. Source curves above.
+#   - 'upload'   : user provides a pre-computed nominal CSV directly (A49).
+# =============================================================================
+
+st.subheader("💰 Nominal Merchant Curve")
+st.caption(
+    "Final post-PPA merchant electricity price (£/MWh, monthly, **nominal "
+    "terms**) consumed by the PIRR engine. Default = locked Excel snapshot. "
+    "Computed = pipeline output of Raw Price Curve × Inflation Curve. "
+    "Upload = drop in a pre-computed nominal CSV."
+)
+
+nm_source_options = ['default', 'computed', 'upload']
+nm_source_labels = {
+    'default':  "🔒 Default (Excel `Solar&BESS Operation!r66`)",
+    'computed': "🧮 Computed (Raw × Inflation)",
+    'upload':   "📤 Upload custom nominal CSV",
+}
+current_nm_source = setup.get('merchant_price_curve_source', 'default')
+if current_nm_source not in nm_source_options:
+    current_nm_source = 'default'
+
+price_source = st.radio(
+    "Curve source:",
+    options=nm_source_options,
+    format_func=lambda x: nm_source_labels[x],
+    horizontal=False,
+    index=nm_source_options.index(current_nm_source),
+    key='merchant_price_source_radio',
+)
+update_wizard_state('setup', 'merchant_price_curve_source', price_source)
+
+
+if price_source == 'default':
+    _render_price_curve_chart(
+        _ENGINE_DEFAULT_CURVE,
+        "Engine default merchant curve (Burton-Leonard, locked)",
+        y_label="£/MWh (nominal)",
+    )
+    # Clear any stored upload if user toggled back to default
+    update_wizard_state('setup', 'merchant_price_curve', None)
+
+elif price_source == 'computed':
+    # Live preview: apply current inflation curve to the selected raw curve.
+    # Engine adapter will perform the same computation at PIRR call time.
+    stored_baringa = setup.get('baringa_curve')
+    stored_aurora = setup.get('aurora_curve')
+    effective_baringa = stored_baringa if stored_baringa else _DEFAULT_BARINGA_CURVE_REAL
+    effective_aurora = stored_aurora if stored_aurora else _DEFAULT_AURORA_CURVE_REAL
+    effective_selector = setup.get('raw_curve_selector', 'baringa')
+    # Active CPI: uploaded curve overrides default; steady-state always read.
+    effective_cpi_curve = (
+        financial.get('cpi_curve_by_calendar_year')
+        or _DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR
+    )
+    effective_cpi_steady = financial.get('cpi_steady_state_rate') or 0.020
+    # Pick base year per the selected vendor
+    if effective_selector == 'baringa':
+        effective_base = int(setup.get('baringa_curve_base_year', 2024))
+    elif effective_selector == 'aurora':
+        effective_base = int(setup.get('aurora_curve_base_year', 2024))
+    else:
+        # Average: use the earlier of the two for safety
+        effective_base = min(
+            int(setup.get('baringa_curve_base_year', 2024)),
+            int(setup.get('aurora_curve_base_year', 2024)),
+        )
+
+    selected_real = _select_raw_curve(
+        effective_baringa, effective_aurora, effective_selector,
+    )
+    if not selected_real:
+        st.warning(
+            "No raw curve available to compute from. Upload Baringa or "
+            "Aurora above, or switch to Default."
+        )
+    else:
+        computed_nominal = _apply_inflation_to_real_curve(
+            selected_real, effective_cpi_curve, effective_cpi_steady,
+            base_year=effective_base,
+        )
+        st.success(
+            f"Computed from {effective_selector.title()} × inflation "
+            f"(base year {effective_base}). {len(computed_nominal)} months."
+        )
+        _render_price_curve_chart(
+            computed_nominal,
+            f"Computed nominal (selected raw × inflation, base {effective_base})",
+            y_label="£/MWh (nominal)",
+        )
+        st.caption(
+            "ℹ️ Engine adapter recomputes this at PIRR call time using the same "
+            "raw curves + inflation curve. No data is written to wizard state — "
+            "the computation is live."
+        )
+    # Clear direct-upload to avoid stale state surprise on mode switch
+    update_wizard_state('setup', 'merchant_price_curve', None)
+
+else:  # 'upload'
+    uploaded_price = st.file_uploader(
+        "Upload Nominal Merchant Curve CSV",
+        type=['csv'],
+        help=(
+            "CSV with columns: `year`, `month` (1-12), `price_gbp_mwh` "
+            "(nominal £/MWh — must include inflation; engine does not "
+            "escalate this curve). One row per month. Required coverage: "
+            f"**{_required_range_str}** (post-PPA window for current "
+            "project timeline)."
+        ),
+        key='merchant_price_csv_uploader',
+    )
+
+    if uploaded_price is not None:
+        try:
+            df_upload = pd.read_csv(uploaded_price)
+            df_upload.columns = [c.strip().lower() for c in df_upload.columns]
+            required = {'year', 'month', 'price_gbp_mwh'}
+            if not required.issubset(set(df_upload.columns)):
+                st.error(
+                    f"CSV must have columns: {', '.join(sorted(required))}. "
+                    f"Got: {', '.join(df_upload.columns)}"
+                )
+            else:
+                df_upload = df_upload.dropna(subset=['year', 'month', 'price_gbp_mwh'])
+                df_upload['year'] = df_upload['year'].astype(int)
+                df_upload['month'] = df_upload['month'].astype(int)
+                df_upload['price_gbp_mwh'] = df_upload['price_gbp_mwh'].astype(float)
+
+                bad_months = df_upload[(df_upload['month'] < 1) | (df_upload['month'] > 12)]
+                if not bad_months.empty:
+                    st.error(f"Month values must be 1-12. Found: {bad_months['month'].tolist()[:5]}")
+                elif (df_upload['price_gbp_mwh'] < 0).any():
+                    st.error("Price values must be non-negative.")
+                else:
+                    curve_dict = {
+                        (int(r.year), int(r.month)): float(r.price_gbp_mwh)
+                        for r in df_upload.itertuples()
+                    }
+                    ok, n_missing, first_miss, range_str = _validate_curve_coverage(
+                        curve_dict, financial
+                    )
+                    if not ok:
+                        st.error(
+                            f"Curve must cover **{range_str}** (post-PPA "
+                            f"window for current project timeline). Missing "
+                            f"{n_missing} months — first: {first_miss}. "
+                            "Stored curve unchanged."
+                        )
+                    else:
+                        update_wizard_state('setup', 'merchant_price_curve', curve_dict)
+                        st.success(
+                            f"Loaded {len(curve_dict)} monthly price points "
+                            f"(covers {range_str} + extras)."
+                        )
+                        _render_price_curve_chart(
+                            curve_dict, "Uploaded merchant curve",
+                            y_label="£/MWh (nominal)",
+                        )
+        except Exception as e:
+            st.error(f"Error reading CSV: {e}")
+    else:
+        stored = setup.get('merchant_price_curve')
+        if stored:
+            st.info(f"Using previously uploaded curve: {len(stored)} months.")
+            _render_price_curve_chart(
+                stored, "Uploaded merchant curve",
+                y_label="£/MWh (nominal)",
+            )
+        else:
+            st.info(
+                f"Upload a CSV to set a custom merchant price curve. "
+                f"Required coverage: {_required_range_str}. "
+                "Engine uses the default curve until upload."
+            )
 
 
 st.divider()

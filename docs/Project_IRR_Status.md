@@ -1,8 +1,37 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-21 (A49 — Nominal Merchant Curve upload wired to engine; A48 placeholder closed)
+**Last updated:** 2026-05-25 (A50 — Step 1 restructure + Baringa/Aurora → Nominal Merchant pipeline)
 
-**Status: v1 AUDIT CLOSED + A48 + A49 LANDED.** Engine state unchanged — d13 still **8.84%** / S+B **9.00%** / Gas **13.07%** / CAPEX **£101.4m** post-A44+A45. **52 tests pass** (was 50 — A49 added 2 wizard-state-path tests for the new adapter branch). 4-row SME audit matrix unchanged at ±0.5 pp v1 tolerance. A48 (wizard reorg + Step 1 price-curve placeholder) committed and pushed `5fa5e5f`; A49 (engine wiring + coverage validator + relabel) is the current uncommitted work on branch `Financial`.
+**Status: v1 AUDIT CLOSED + A48 + A49 + A50 LANDED.** Engine state unchanged on the default path — d13 still **8.84%** / S+B **9.00%** / Gas **13.07%** / CAPEX **£101.4m** post-A44+A45. **73 tests pass** (was 52 — A50 added 16 helper unit tests + 5 e2e adapter tests). 4-row SME audit matrix unchanged at ±0.5 pp v1 tolerance. A48 + A49 committed and pushed to `origin/Financial` (last push `4b82c65`). A50 is the **current uncommitted work** on branch `Financial`.
+
+## A50 (this session — 2026-05-25)
+
+Closes the v2 ambition archived in `docs/future_improvements/v2_price_and_inflation_curves.md`. User-directed restructure of Step 1 + real→nominal pipeline with two vendor slots.
+
+**Phased into A50a (UI reorg) + A50b (pipeline). Both verified across 4 checkpoints with agent review at each:**
+
+| Checkpoint | Scope | Status |
+|---|---|---|
+| CP1 (A50a) | Step 1 grouped under `## ⚙️ Operational` + `## 💼 Commercial` headers; solar profile default switched to `Solar Profile.csv`; Nominal Merchant Curve panel relocated from mid-Operational to end-of-Step-1 under Commercial | ✅ verified |
+| CP2 (A50b engine) | `_apply_inflation_to_real_curve` + `_select_raw_curve` helpers added to `src/project_irr.py`; `_DEFAULT_BARINGA_CURVE_REAL` (506 entries) + `_DEFAULT_AURORA_CURVE_REAL` (519) extracted from Excel `Baringa and Aurora!r114 / r194` (Applied FT); 16 unit tests in `tests/test_a50_helpers.py` | ✅ verified |
+| CP3 (A50b UI) | Wizard state schema: +5 setup keys + 3 financial keys; Step 1 Commercial expanded with 📈 Raw Price Curve (Baringa + Aurora panels in expanders + 3-way selector), 💸 Inflation Curve (default/upload + steady-state), 💰 Nominal Merchant Curve extended to 3 modes (default/computed/upload); Step 2b gets read-only CPI banner | ✅ verified |
+| CP4 (A50b adapter) | `pirr_inputs_from_wizard_state` extended to 3-mode price-source handling; uploaded CPI now flows engine-wide (opex/tax + computed-mode merchant); 5 new e2e tests in `tests/test_wizard_state_path.py` covering computed-baringa / computed-aurora / computed-average / higher-cpi-lifts-pirr / cpi-flows-engine-wide | ✅ verified |
+
+**Files changed (uncommitted):**
+
+| File | Change |
+|---|---|
+| `src/project_irr.py` | +2 pure helpers (~80 lines), +2 dataclass-default imports from new defaults module, adapter extended for 3-mode price source + engine-wide CPI override (~50 lines). Engine core untouched. |
+| `src/_baringa_aurora_defaults.py` | **NEW** — locked vendor defaults extracted from Excel (~1025 entries combined). |
+| `src/wizard_state.py` | +5 setup keys + 3 financial keys for the pipeline. Schema additive only. |
+| `pages/Step1_Setup.py` | Operational header added; Nominal Merchant Curve section moved from mid-page to end; Commercial subsections added (Raw + Inflation + extended Nominal). ~+500 lines net. |
+| `pages/Step2b_FinancialSetup.py` | Read-only CPI banner above OPEX section (~+20 lines). |
+| `tests/test_a50_helpers.py` | **NEW** — 16 unit tests for helpers + bundled defaults. |
+| `tests/test_wizard_state_path.py` | +5 e2e tests + `_run_d13_with_computed_curve` helper (~+140 lines). |
+| `docs/Project_IRR_Integration_Decisions.md` | A50 entry + Revisions row. |
+| `docs/Project_IRR_Status.md` | This rewrite. |
+
+**Out of scope** (preserved for follow-up): vendor scenarios (Reference / Low / High), tracker types (FT / SAT), API-based retrieval, DSCR sculpting (still v2 per A45).
 
 ## A49 (this session — 2026-05-21)
 
@@ -73,25 +102,35 @@ That's the architectural property A48 was meant to deliver: the save-button loca
 
 ## Next session start — pick up from here
 
-**A. Commit + push A49** (current session work — uncommitted on branch `Financial`)
+**A. Commit + push A50** (current session work — uncommitted on branch `Financial`)
 
-A49 closes the A48 placeholder. 5 files changed: `src/project_irr.py` (adapter branch), `pages/Step1_Setup.py` (relabel + coverage validator), `tests/test_wizard_state_path.py` (+2 tests), `docs/Project_IRR_Integration_Decisions.md` (A49 entry), this file. 52 pass / 0 xfail. D13 invariant preserved.
+A50 closes the v2 price-curve ambition. Files changed: see the A50 table in the header above. **73 pass / 0 xfail.** D13 invariant preserved on the `'default'` path. Verified across 4 checkpoints with agent review at each.
 
-Suggested commit message: `PSP A49: A48 placeholder closed — Nominal Merchant Curve upload wired to engine + coverage validator`.
+Suggested commit structure — **one bundled commit** (the pipeline is internally consistent and the 4 checkpoints landed sequentially, each green):
 
-**B. v2 — Real-terms uploads + uploadable CPI curve** (separate session, plan archived)
+```
+PSP A50: Step 1 restructure (Operational + Commercial) + Baringa/Aurora → Nominal Merchant pipeline
+```
 
-Per [docs/future_improvements/v2_price_and_inflation_curves.md](future_improvements/v2_price_and_inflation_curves.md). Adds:
+Or split into two commits if the user prefers: A50a (UI reorg + solar default) then A50b (engine + pipeline + tests).
 
-1. Real-terms upload toggle on Step 1 + base-year picker
-2. New "Inflation (CPI) Curve" expander on Step 2b (uploadable curve + steady-state input)
-3. New helper `_apply_inflation_to_real_curve` in `src/project_irr.py`
-4. Adapter applies real→nominal transformation when user marks upload as real-terms
-5. 3-line preview chart on Step 1 (uploaded / inflation factor / resulting nominal)
+After commit, push to `origin/Financial` and (per A49 pattern) merge Financial into Prototype via worktree + push.
 
-Estimated 1-2 days. G5-compliant — replicates Excel `Curves and D&T!r30` indexation mechanism.
+**B. Browser walk-through** (recommended before commit)
 
-**C. v2 — DSCR sculpting + Equity IRR** (separate session, ~1-2 weeks)
+The four agent reviews verified static correctness, but the live Streamlit on http://localhost:8512 should be exercised to confirm:
+- Step 1 visually groups Operational and Commercial correctly
+- Solar Profile.csv is the new first-time default (fresh session)
+- Baringa / Aurora panels render with default curves; uploading a CSV works
+- Switching the curve selector between baringa / aurora / average changes the Computed preview
+- Switching Nominal Merchant Curve mode between default / computed / upload changes what's shown
+- Step 2b OPEX banner shows the active CPI configuration
+
+**C. Future v2 — Vendor scenarios + tracker types** (deferred per A50 scope)
+
+If you want to expose the full Excel scenario matrix (Reference / Low / High × FT / SAT per vendor) instead of the user pre-selecting the "Applied" row in Excel before upload, that's an additive UI layer — per-panel scenario + tracker selectors that pick the right row from the uploaded vendor file. ~3-5 days work; not currently planned.
+
+**D. v2 — DSCR sculpting + Equity IRR** (separate session, ~1-2 weeks)
 
 1. **DSCR-driven gearing convergence** — iterate senior gearing down until `min(DSCR over debt schedule) ≥ 1.40`, recompute SHL principal as `(1 − senior_effective) × total_capex`, re-run CIR cap. Excel does this via `Solve_P1` VBA. v1 holds senior at 80% flat. **Primary v2 deliverable.**
 2. **Cash sweep mechanism** — excess cash above DSCR-required level amortises debt early.

@@ -680,6 +680,28 @@ def main():
     # =========================================================================
     st.header("6. Operating Expenditure (OPEX)")
 
+    # A50b: surface the active CPI configuration since opex/tax escalation
+    # uses it. Editing happens in Step 1 → Commercial → Inflation Curve.
+    _cpi_src = fin.get('cpi_curve_source', 'default')
+    _cpi_curve_user = fin.get('cpi_curve_by_calendar_year')
+    _cpi_steady = fin.get('cpi_steady_state_rate')
+    _cpi_steady_display = (
+        f"{_cpi_steady * 100:.2f}%" if _cpi_steady is not None else "2.00% (Excel default)"
+    )
+    if _cpi_src == 'upload' and _cpi_curve_user:
+        _cpi_msg = (
+            f"📈 **Active inflation**: custom curve ({len(_cpi_curve_user)} years) "
+            f"+ {_cpi_steady_display} steady-state. "
+            "Edit in **Step 1 → Commercial → Inflation Curve**."
+        )
+    else:
+        _cpi_msg = (
+            f"📈 **Active inflation**: Excel locked default + {_cpi_steady_display} "
+            "steady-state. CPI-indexed opex lines below escalate at these rates. "
+            "Customise in **Step 1 → Commercial → Inflation Curve**."
+        )
+    st.info(_cpi_msg)
+
     with st.expander("Solar OPEX (GBP/kWp/Yr)", expanded=True):
         ox_col1, ox_col2 = st.columns(2)
 
