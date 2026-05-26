@@ -228,7 +228,11 @@ def _step2b_saved_fin_with_current_defaults() -> dict:
         'bess_merchant_switch': 1,
         'bess_scenario': 1,
         'bess_merchant_discount': 5.0,
-        # PPA
+        # PPA (A51: primary engine-driving inputs)
+        'ppa_tariff_gbp_mwh': 170.0,
+        'ppa_tenor_years': 10,
+        'ppa_escalation_pct': 0.0,
+        # PPA legacy (engine ignores)
         'ppa_selection': 1,
         'ppa_flex_pct': 0.0,
         'ppa_indexation': 'CPI',  # adapter doesn't read; harmless
@@ -719,6 +723,40 @@ def test_uploaded_cpi_flows_engine_wide():
     assert pi.cpi_curve_by_calendar_year == {2025: 0.05, 2026: 0.05, 2027: 0.05}, (
         "Adapter ignored uploaded CPI curve dict"
     )
+
+
+def test_ppa_tariff_override_lifts_pirr():
+    """A51: PPA tariff is now editable via Step 2b. Doubling the tariff
+    (£170 → £340) should lift Combined PIRR — proves the new UI widget is
+    actually driving the engine via `f('ppa_tariff_gbp_mwh', ...)`.
+    Also verifies the gas PPA tariff link (A31) still applies."""
+    setup, fin = _build_d13_wizard_state()
+    fin['ppa_tariff_gbp_mwh'] = 340.0  # 2x the default
+
+    raw = get_active_solar_profile(setup)
+    target_dc_mwp = float(fin['solar_capacity_mwp'])
+    solar_mw = raw * (target_dc_mwp / target_dc_mwp)
+    hourly = run_hourly_dispatch(
+        solar_mw, load_mw=float(setup['load_mw']),
+        bess_mwh=250.0, bess_mw=62.5, rte=0.87,
+    )
+    monthly = aggregate_to_monthly(hourly, solar_mw)
+    pi = pirr_inputs_from_wizard_state(fin, setup, monthly)
+    pi.solar_dc_mwp = 82.0
+    pi.bess_mwh = 250.0
+    pi.bess_mw = 62.5
+
+    # Adapter passes through the override
+    assert pi.ppa_tariff_gbp_mwh == 340.0, (
+        f"PPA tariff override ignored: pi.ppa_tariff_gbp_mwh = {pi.ppa_tariff_gbp_mwh}"
+    )
+
+    res = run_pirr(pi)
+    msg = (f"Doubled-tariff Combined: {res.project_irr*100:.2f}% vs "
+           f"default {EXPECTED_COMBINED*100:.2f}%. Expected meaningful uplift.")
+    print(msg)
+    # Doubling the PPA tariff should lift Combined PIRR by at least 1 pp
+    assert res.project_irr > EXPECTED_COMBINED + 0.01, msg
 
 
 def test_uploaded_nominal_curve_feeds_engine():

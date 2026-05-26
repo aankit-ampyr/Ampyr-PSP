@@ -1,8 +1,20 @@
 # Project IRR — Session Handover
 
-**Last updated:** 2026-05-25 (A50 — Step 1 restructure + Baringa/Aurora → Nominal Merchant pipeline)
+**Last updated:** 2026-05-26 (A51 — PPA tariff / tenor / escalation surfaced in Step 2b UI)
 
-**Status: v1 AUDIT CLOSED + A48 + A49 + A50 LANDED.** Engine state unchanged on the default path — d13 still **8.84%** / S+B **9.00%** / Gas **13.07%** / CAPEX **£101.4m** post-A44+A45. **73 tests pass** (was 52 — A50 added 16 helper unit tests + 5 e2e adapter tests). 4-row SME audit matrix unchanged at ±0.5 pp v1 tolerance. A48 + A49 committed and pushed to `origin/Financial` (last push `4b82c65`). A50 is the **current uncommitted work** on branch `Financial`.
+**Status: v1 AUDIT CLOSED + A48 + A49 + A50 + A51 LANDED.** Engine state unchanged on the default path — d13 still **8.84%** / S+B **9.00%** / Gas **13.07%** / CAPEX **£101.4m** post-A44+A45. **74 tests pass** (was 73 — A51 added 1 e2e regression for the new PPA tariff override). 4-row SME audit matrix unchanged at ±0.5 pp v1 tolerance. A48 + A49 + A50 committed and pushed to `origin/Financial` (last push `d73824d`). A51 is the **current uncommitted work** on branch `Financial`.
+
+## A51 (this session — 2026-05-26)
+
+User asked "where is the tariff input configured" during A50 follow-up. Diagnosed a pre-existing legacy gap: the PIRR adapter reads `ppa_tariff_gbp_mwh` / `ppa_tenor_years` / `ppa_escalation_pct` directly from `wizard['financial']`, but no UI widget wrote them. The Step 2b PPA expander had 3 unrelated widgets (`ppa_selection`, `ppa_flex_pct`, `ppa_indexation`) that were vestiges of a pre-engine-wiring "case-table lookup" design that never landed.
+
+**Closed in A51**: 3 new `st.number_input` widgets at the top of the Step 2b PPA expander surface the primary engine-driving values. Legacy widgets kept (labelled "— legacy") for backwards compatibility. Save payload extended. Test fixture aligned. New e2e regression (`test_ppa_tariff_override_lifts_pirr`) proves the override flows through the adapter.
+
+**Files changed:**
+- `pages/Step2b_FinancialSetup.py` — 3 new primary widgets + caption + legacy labelling + save payload (~+45 lines)
+- `tests/test_wizard_state_path.py` — fixture extension + 1 new test (~+35 lines)
+- `docs/Project_IRR_Integration_Decisions.md` — A51 entry + Revisions row
+- `docs/Project_IRR_Status.md` — this rewrite
 
 ## A50 (this session — 2026-05-25)
 

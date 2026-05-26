@@ -334,26 +334,70 @@ def main():
 
     # --- PPA ---
     with st.expander("PPA (Power Purchase Agreement)", expanded=True):
+        # A51 (2026-05-26): primary engine-driving inputs surfaced. The
+        # PIRR adapter reads `ppa_tariff_gbp_mwh`, `ppa_tenor_years`, and
+        # `ppa_escalation_pct` directly — these widgets were missing from
+        # the UI before A51 (engine values hard-locked at DEFAULT_WIZARD_STATE).
+        st.caption(
+            "**Primary PPA inputs (engine-driving).** These three values "
+            "feed `PirrInputs.ppa_*` via the adapter. PPA tariff also drives "
+            "the linked gas PPA per A31 (Excel `Inputs-Gas!I19 = 'Overall Inputs'!E13`)."
+        )
+        primary_col1, primary_col2, primary_col3 = st.columns(3)
+        with primary_col1:
+            ppa_tariff_gbp_mwh = st.number_input(
+                "PPA Tariff (£/MWh)",
+                min_value=0.0, max_value=500.0,
+                value=float(fin.get('ppa_tariff_gbp_mwh', 170.0)),
+                step=1.0, format="%.2f",
+                help="Excel `Overall Inputs!E13` = 170.00. D13 audit uses £170/MWh.",
+                key='ppa_tariff_input',
+            )
+        with primary_col2:
+            ppa_tenor_years = st.number_input(
+                "PPA Tenor (years)",
+                min_value=0, max_value=35,
+                value=int(fin.get('ppa_tenor_years', 10)),
+                help="Excel `Overall Inputs!E11` = 10. Years of PPA before merchant takes over.",
+                key='ppa_tenor_input',
+            )
+        with primary_col3:
+            ppa_escalation_pct = st.number_input(
+                "PPA Escalation (%/yr)",
+                min_value=-5.0, max_value=10.0,
+                value=float(fin.get('ppa_escalation_pct', 0.0)),
+                step=0.1, format="%.2f",
+                help="Excel `Overall Inputs!E14` = 0.0%. Yearly tariff growth during PPA tenor.",
+                key='ppa_escalation_input',
+            )
+
+        st.caption(
+            "ℹ️ The three fields below are legacy UI knobs from a pre-engine-wiring design "
+            "(`ppa_selection` was meant to drive tariff via a case-table lookup that never landed). "
+            "They're saved to wizard state but **not read by the PIRR engine**. Kept for backwards "
+            "compatibility; safe to ignore."
+        )
         ppa_col1, ppa_col2 = st.columns(2)
         with ppa_col1:
             ppa_selection = st.number_input(
-                "PPA Selection (case #)",
+                "PPA Selection (case #) — legacy",
                 min_value=0, max_value=5,
                 value=int(fin.get('ppa_selection', 1)),
-                help="PPA scenario selection (0 = merchant only)",
+                help="Legacy: PPA scenario selection (0 = merchant only). Engine ignores.",
             )
             ppa_flex_pct = st.number_input(
-                "PPA Flex (%)",
+                "PPA Flex (%) — legacy",
                 min_value=-50.0, max_value=50.0,
                 value=float(fin.get('ppa_flex_pct', 0.0)),
                 step=0.5,
+                help="Legacy. Engine ignores.",
             )
         with ppa_col2:
             ppa_indexation = st.selectbox(
-                "PPA Indexation",
+                "PPA Indexation — legacy",
                 options=["CPI", "RPI", "Fixed", "Blend"],
                 index=0,
-                help="Price indexation method for PPA",
+                help="Legacy: price indexation method for PPA. Engine ignores (uses `ppa_escalation_pct` above instead).",
             )
 
     # --- REGOs ---
@@ -1125,7 +1169,11 @@ def main():
             'bess_merchant_switch': 1 if bess_merchant_switch == "Yes" else 0,
             'bess_scenario': bess_scenario,
             'bess_merchant_discount': bess_merchant_discount,
-            # PPA
+            # PPA (A51: primary engine-driving inputs surfaced)
+            'ppa_tariff_gbp_mwh': ppa_tariff_gbp_mwh,
+            'ppa_tenor_years': ppa_tenor_years,
+            'ppa_escalation_pct': ppa_escalation_pct,
+            # PPA legacy fields (engine ignores; kept for back-compat)
             'ppa_selection': ppa_selection,
             'ppa_flex_pct': ppa_flex_pct,
             'ppa_indexation': ppa_indexation,
