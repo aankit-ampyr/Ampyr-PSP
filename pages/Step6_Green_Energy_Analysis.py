@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+from datetime import date, timedelta
 
 from src.wizard_state import get_wizard_state
 from src.data_loader import load_solar_profile_by_name, get_base_solar_peak_capacity
@@ -27,6 +28,10 @@ from src.green_energy_optimizer import (
 # =============================================================================
 
 CAPACITY_STEP_MWH = 5  # Discrete container increment
+
+# Multi-year monthly sheet (column set + month bucketing match Step 5 exactly)
+MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+HOURS_PER_MONTH = [744, 672, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]
 
 
 # =============================================================================
@@ -82,6 +87,235 @@ def get_solar_profile(setup):
         pass
 
     return None
+
+
+def compute_green_multiyear(selected_solar, selected_bess, selected_duration,
+                            selected_dg, setup, rules, degradation_rate, num_years=20):
+    """Project one green-energy config over N years with BESS-only degradation.
+
+    Solar is scaled to ``selected_solar`` MWp and held flat across all years; only
+    BESS usable capacity/power degrades compound-annually. SOC carries over between
+    years. Returns a per-year DataFrame (energy-based Green %, Delivery %, DG,
+    wastage) or ``None`` if the solar profile cannot be loaded/scaled.
+
+    Pure (no Streamlit calls) so it can be exercised headlessly.
+    """
+    from src.dispatch_engine import SimulationParams, run_simulation
+    from src.data_loader import scale_solar_profile
+
+    base_solar = get_solar_profile(setup)
+    if base_solar is None or len(base_solar) == 0:
+        return None, None, None
+    base_peak = get_base_solar_peak_capacity(base_solar)
+    if base_peak <= 0:
+        return None, None, None
+    solar_profile = scale_solar_profile(base_solar, base_peak, selected_solar)
+
+    load_profile = get_load_profile(setup)
+    load_profile = load_profile.tolist() if hasattr(load_profile, 'tolist') else load_profile
+
+    template_id = parse_template_id(rules.get('inferred_template', 'T0'))
+    power_mw = selected_bess / selected_duration if selected_bess > 0 else 0.0
+
+    min_soc = setup.get('bess_min_soc', 5)
+    max_soc = setup.get('bess_max_soc', 95)
+
+    # Efficiency split for BESS loss accounting (mirrors Step 5)
+    load_mw = setup.get('load_mw', 25)
+    one_way_eff = (setup.get('bess_efficiency', 87) / 100) ** 0.5
+    loss_factor = 1 - one_way_eff
+
+    # 20-year energy-balance running totals (feed the Step 5 energy-summary table)
+    tot_solar_gen = tot_dg_gen = tot_solar_curtailed = tot_dg_curtailed = 0.0
+    tot_solar_to_load = tot_bess_to_load = tot_dg_to_load = tot_energy_to_load = 0.0
+    tot_load_solar = tot_load_curtailed = 0.0
+    tot_charging_loss = tot_discharging_loss = tot_delivery_met = 0.0
+    last_capacity = selected_bess
+    last_final_soc = setup.get('bess_initial_soc', 50) / 100
+
+    # Hour -> calendar-month index (0-11); built once, sized to the sim length,
+    # using Step 5's exact datetime mapping so the monthly buckets match Step 5.
+    month_idx_by_hour = []
+
+    rows = []
+    monthly_rows = []
+    carryover_energy_mwh = None
+    for year in range(1, num_years + 1):
+        capacity_factor = (1 - degradation_rate) ** (year - 1)
+        eff_capacity = selected_bess * capacity_factor
+        eff_power = power_mw * capacity_factor
+
+        if year == 1 or carryover_energy_mwh is None or eff_capacity <= 0:
+            init_soc = setup.get('bess_initial_soc', 50)
+        else:
+            carry_pct = (carryover_energy_mwh / eff_capacity) * 100
+            init_soc = max(min_soc, min(max_soc, carry_pct))
+
+        params = SimulationParams(
+            load_profile=load_profile,
+            solar_profile=solar_profile,
+            bess_capacity=eff_capacity,
+            bess_charge_power=eff_power,
+            bess_discharge_power=eff_power,
+            bess_efficiency=setup.get('bess_efficiency', 87),
+            bess_min_soc=min_soc,
+            bess_max_soc=max_soc,
+            bess_initial_soc=init_soc,
+            bess_daily_cycle_limit=setup.get('bess_daily_cycle_limit', 2.0),
+            bess_enforce_cycle_limit=setup.get('bess_enforce_cycle_limit', False),
+            dg_enabled=setup.get('dg_enabled', False) and selected_dg > 0,
+            dg_capacity=selected_dg,
+            dg_charges_bess=rules.get('dg_charges_bess', False),
+            dg_load_priority=rules.get('dg_load_priority', 'bess_first'),
+            dg_takeover_mode=rules.get('dg_takeover_mode', False),
+            night_start_hour=rules.get('night_start', 18),
+            night_end_hour=rules.get('night_end', 6),
+            day_start_hour=rules.get('day_start', 6),
+            day_end_hour=rules.get('day_end', 18),
+            blackout_start_hour=rules.get('blackout_start', 0),
+            blackout_end_hour=rules.get('blackout_end', 0),
+            dg_soc_on_threshold=rules.get('soc_on_threshold', 30),
+            dg_soc_off_threshold=rules.get('soc_off_threshold', 80),
+            dg_fuel_curve_enabled=setup.get('dg_fuel_curve_enabled', False),
+            dg_fuel_f0=setup.get('dg_fuel_f0', 0.03),
+            dg_fuel_f1=setup.get('dg_fuel_f1', 0.22),
+            dg_fuel_flat_rate=setup.get('dg_fuel_flat_rate', 0.25),
+            cycle_charging_enabled=rules.get('cycle_charging_enabled', False),
+            cycle_charging_min_load_pct=rules.get('cycle_charging_min_load_pct', 70.0),
+            cycle_charging_off_soc=rules.get('cycle_charging_off_soc', 80.0),
+        )
+
+        results = run_simulation(params, template_id, num_hours=8760)
+        if not month_idx_by_hour:
+            max_t = max(h.t for h in results)
+            month_idx_by_hour = [min(11, (date(2023, 1, 1) + timedelta(hours=t)).month - 1)
+                                 for t in range(max_t + 1)]
+
+        solar_gen = sum(h.solar for h in results)
+        solar_curtailed = sum(h.solar_curtailed for h in results)
+        solar_to_load = sum(h.solar_to_load for h in results)
+        bess_to_load = sum(h.bess_to_load for h in results)
+        dg_to_load = sum(h.dg_to_load for h in results)
+        delivery_hrs = sum(1 for h in results if h.load > 0 and h.unserved < 0.001)
+        load_hrs = sum(1 for h in results if h.load > 0)
+        dg_hrs = sum(1 for h in results if h.dg_running)
+
+        # Energy-balance accumulators (mirror Step 5's 20-year energy summary)
+        dg_gen = sum(h.dg_to_load + h.dg_to_bess + h.dg_curtailed for h in results)
+        dg_curtailed = sum(h.dg_curtailed for h in results)
+        load_solar = sum(h.solar for h in results if h.load > 0)
+        load_curtailed = sum(h.solar_curtailed for h in results if h.load > 0)
+        charging_energy = sum(-h.bess_power for h in results if h.bess_power < 0)
+        discharging_energy = sum(h.bess_power for h in results if h.bess_power > 0)
+        tot_solar_gen += solar_gen
+        tot_dg_gen += dg_gen
+        tot_solar_curtailed += solar_curtailed
+        tot_dg_curtailed += dg_curtailed
+        tot_solar_to_load += solar_to_load
+        tot_bess_to_load += bess_to_load
+        tot_dg_to_load += dg_to_load
+        tot_energy_to_load += solar_to_load + bess_to_load + dg_to_load
+        tot_load_solar += load_solar
+        tot_load_curtailed += load_curtailed
+        tot_charging_loss += charging_energy * loss_factor
+        tot_discharging_loss += (discharging_energy * loss_factor / one_way_eff) if one_way_eff else 0.0
+        tot_delivery_met += delivery_hrs * load_mw
+
+        green_energy = solar_to_load + bess_to_load
+        total_to_load = green_energy + dg_to_load
+        green_pct = (green_energy / total_to_load * 100) if total_to_load > 0 else 0.0
+        delivery_pct = min(100.0, delivery_hrs / load_hrs * 100) if load_hrs > 0 else 0.0
+        wastage_pct = (solar_curtailed / solar_gen * 100) if solar_gen > 0 else 0.0
+
+        rows.append({
+            'Year': year,
+            'Capacity (MWh)': round(eff_capacity, 1),
+            'Capacity %': round(capacity_factor * 100, 1),
+            'Green % (Energy)': round(green_pct, 1),
+            'Delivery %': round(delivery_pct, 1),
+            'Green Energy to Load (MWh)': round(green_energy, 1),
+            'DG to Load (MWh)': round(dg_to_load, 1),
+            'DG Hrs': dg_hrs,
+            'Wastage %': round(wastage_pct, 1),
+        })
+
+        # Monthly detail rows (columns identical to the Step 5 monthly sheet)
+        m_solar_gen = [0.0] * 12
+        m_curtailed = [0.0] * 12
+        m_green = [0.0] * 12
+        m_dg_to_load = [0.0] * 12
+        m_delivery_hrs = [0] * 12
+        m_dg_hrs = [0] * 12
+        for h in results:
+            mi = month_idx_by_hour[h.t]
+            m_solar_gen[mi] += h.solar
+            m_curtailed[mi] += h.solar_curtailed
+            m_green[mi] += h.solar_to_load + h.bess_to_load
+            m_dg_to_load[mi] += h.dg_to_load
+            if h.load > 0 and h.unserved < 0.001:
+                m_delivery_hrs[mi] += 1
+            if h.dg_running:
+                m_dg_hrs[mi] += 1
+        for mi in range(12):
+            m_wastage = (m_curtailed[mi] / m_solar_gen[mi] * 100) if m_solar_gen[mi] > 0 else 0
+            monthly_rows.append({
+                'Year': year,
+                'Month': MONTH_NAMES[mi],
+                'Month_Num': mi + 1,
+                'Capacity_MWh': round(eff_capacity, 1),
+                'Delivery_Hrs': m_delivery_hrs[mi],
+                'Delivery_%': round(m_delivery_hrs[mi] / HOURS_PER_MONTH[mi] * 100, 1),
+                'DG_Hrs': m_dg_hrs[mi],
+                'Green_Energy_to_Load_MWh': round(m_green[mi], 1),
+                'DG_to_Load_MWh': round(m_dg_to_load[mi], 1),
+                'Curtailed_MWh': round(m_curtailed[mi], 1),
+                'Wastage_%': round(m_wastage, 1),
+            })
+
+        final_soc_pct = results[-1].soc_pct / 100 if results else 0.0
+        carryover_energy_mwh = eff_capacity * final_soc_pct
+        last_capacity = eff_capacity
+        last_final_soc = final_soc_pct
+
+    # 20-year energy balance (In - Out should be ~0 if energy is conserved)
+    initial_soc_frac = setup.get('bess_initial_soc', 50) / 100
+    initial_bess_energy = selected_bess * initial_soc_frac
+    final_bess_energy = last_capacity * last_final_soc
+    total_bess_losses = tot_charging_loss + tot_discharging_loss
+    total_curtailed = tot_solar_curtailed + tot_dg_curtailed
+    total_energy_in = tot_solar_gen + tot_dg_gen + initial_bess_energy
+    total_energy_out = (tot_energy_to_load + tot_solar_curtailed + tot_dg_curtailed
+                        + total_bess_losses + final_bess_energy)
+    energy_summary = {
+        'num_years': num_years,
+        'total_solar_gen': tot_solar_gen,
+        'total_dg_gen': tot_dg_gen,
+        'total_solar_curtailed': tot_solar_curtailed,
+        'total_dg_curtailed': tot_dg_curtailed,
+        'total_curtailed': total_curtailed,
+        'total_energy_to_load': tot_energy_to_load,
+        'total_solar_to_load': tot_solar_to_load,
+        'total_bess_to_load': tot_bess_to_load,
+        'total_dg_to_load': tot_dg_to_load,
+        'total_delivery_met': tot_delivery_met,
+        'total_load_solar': tot_load_solar,
+        'total_load_curtailed': tot_load_curtailed,
+        'total_charging_loss': tot_charging_loss,
+        'total_discharging_loss': tot_discharging_loss,
+        'total_bess_losses': total_bess_losses,
+        'initial_bess_energy': initial_bess_energy,
+        'final_bess_energy': final_bess_energy,
+        'final_capacity': last_capacity,
+        'final_soc_pct': last_final_soc,
+        'initial_soc_pct': initial_soc_frac,
+        'bol_capacity': selected_bess,
+        'load_wastage_pct': (tot_load_curtailed / tot_load_solar * 100) if tot_load_solar > 0 else 0.0,
+        'total_energy_in': total_energy_in,
+        'total_energy_out': total_energy_out,
+        'balance_difference': total_energy_in - total_energy_out,
+    }
+
+    return pd.DataFrame(rows), pd.DataFrame(monthly_rows), energy_summary
 
 
 def main():
@@ -1082,6 +1316,216 @@ def main():
                 file_name=monthly_filename,
                 mime="text/csv"
             )
+
+        # ===========================
+        # 20-Year Green Energy Projection
+        # ===========================
+        st.divider()
+        st.subheader("20-Year Green Energy Projection")
+        st.markdown(
+            "Project the **configuration selected above** over 20 years with compound "
+            "BESS degradation. Solar is held flat; only BESS usable capacity degrades, "
+            "so green energy declines as the battery ages. Year 1 uses the selected "
+            "capacity as beginning-of-life (BOL)."
+        )
+
+        if selected_row is None:
+            st.info("Select a configuration above to enable the 20-year projection.")
+        else:
+            my_col1, my_col2 = st.columns([1, 2])
+            with my_col1:
+                my_deg_pct = st.select_slider(
+                    "Annual BESS Degradation",
+                    options=[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0],
+                    value=2.0,
+                    format_func=lambda x: f"{x}%/year",
+                    key='green_my_degradation',
+                )
+            with my_col2:
+                st.caption(
+                    f"Projecting Solar {selected_solar:.0f} MWp, "
+                    f"BESS {selected_bess:.0f} MWh ({selected_duration:.0f}hr), "
+                    f"DG {selected_dg:.0f} MW over 20 years."
+                )
+
+            if st.button("Run 20-Year Projection", type="primary", key='run_green_multiyear'):
+                with st.spinner("Simulating 20 years..."):
+                    my_df, my_monthly_df, my_summary = compute_green_multiyear(
+                        selected_solar, selected_bess, selected_duration, selected_dg,
+                        setup, rules, my_deg_pct / 100,
+                    )
+                if my_df is None:
+                    st.error("Could not load or scale the solar profile for the projection. "
+                             "Check the Step 1 solar configuration.")
+                else:
+                    st.session_state['green_multiyear_df'] = my_df
+                    st.session_state['green_multiyear_monthly_df'] = my_monthly_df
+                    st.session_state['green_multiyear_summary'] = my_summary
+                    st.session_state['green_multiyear_config'] = {
+                        'solar_mwp': selected_solar,
+                        'bess_mwh': selected_bess,
+                        'duration_hr': selected_duration,
+                        'dg_mw': selected_dg,
+                        'degradation_pct': my_deg_pct,
+                    }
+
+            if 'green_multiyear_df' in st.session_state:
+                my_df = st.session_state['green_multiyear_df']
+                my_cfg = st.session_state.get('green_multiyear_config', {})
+
+                # Green % trajectory chart
+                fig_my = go.Figure()
+                fig_my.add_trace(go.Scatter(
+                    x=my_df['Year'], y=my_df['Green % (Energy)'],
+                    mode='lines+markers', name='Green % (Energy)',
+                    line=dict(color='#2E8B57', width=3),
+                ))
+                fig_my.add_trace(go.Scatter(
+                    x=my_df['Year'], y=my_df['Delivery %'],
+                    mode='lines+markers', name='Delivery %',
+                    line=dict(color='#4169E1', width=2, dash='dot'),
+                ))
+                fig_my.update_layout(
+                    title="Green % and Delivery % over 20 Years",
+                    xaxis_title="Year", yaxis_title="%",
+                    yaxis=dict(range=[0, 100]), height=400,
+                    legend=dict(orientation='h', yanchor='bottom', y=1.02,
+                                xanchor='right', x=1),
+                )
+                st.plotly_chart(fig_my, width='stretch')
+
+                # Year 1 vs Year 20 insight
+                y1 = my_df.iloc[0]
+                y20 = my_df.iloc[-1]
+                st.info(
+                    f"**Green % (Energy):** Year 1 {y1['Green % (Energy)']:.1f}% → "
+                    f"Year 20 {y20['Green % (Energy)']:.1f}% "
+                    f"({y20['Green % (Energy)'] - y1['Green % (Energy)']:+.1f} pp) as BESS "
+                    f"degrades to {y20['Capacity %']:.0f}% of BOL."
+                )
+
+                st.dataframe(
+                    my_df,
+                    width='stretch',
+                    hide_index=True,
+                    column_config={
+                        'Green % (Energy)': st.column_config.ProgressColumn(
+                            'Green % (Energy)', min_value=0, max_value=100, format="%.1f%%"),
+                        'Delivery %': st.column_config.ProgressColumn(
+                            'Delivery %', min_value=0, max_value=100, format="%.1f%%"),
+                        'Wastage %': st.column_config.NumberColumn('Wastage %', format="%.1f%%"),
+                        'Capacity %': st.column_config.NumberColumn('Cap %', format="%.1f%%"),
+                    },
+                )
+
+                my_csv = my_df.to_csv(index=False)
+                my_fname = (f"green_multiyear_Solar{my_cfg.get('solar_mwp', 0):.0f}MWp_"
+                            f"BESS{my_cfg.get('bess_mwh', 0):.0f}MWh_"
+                            f"DG{my_cfg.get('dg_mw', 0):.0f}MW.csv")
+                st.download_button(
+                    "Download 20-Year Projection (CSV)",
+                    data=my_csv,
+                    file_name=my_fname,
+                    mime="text/csv",
+                    key='download_green_multiyear',
+                )
+
+                if 'green_multiyear_monthly_df' in st.session_state:
+                    my_monthly_df = st.session_state['green_multiyear_monthly_df']
+                    my_monthly_csv = my_monthly_df.to_csv(index=False)
+                    my_monthly_fname = (
+                        f"green_20year_monthly_Solar{my_cfg.get('solar_mwp', 0):.0f}MWp_"
+                        f"BESS{my_cfg.get('bess_mwh', 0):.0f}MWh_"
+                        f"DG{my_cfg.get('dg_mw', 0):.0f}MW.csv"
+                    )
+                    st.download_button(
+                        "Download 20-Year Monthly Detail (CSV)",
+                        data=my_monthly_csv,
+                        file_name=my_monthly_fname,
+                        mime="text/csv",
+                        key='download_green_multiyear_monthly',
+                    )
+                    st.caption(
+                        f"Monthly sheet: {len(my_monthly_df)} rows (20 years x 12 months), "
+                        "same columns as the Step 5 monthly export."
+                    )
+
+                # ---- 20-Year Energy Summary (energy-balance correction check) ----
+                if 'green_multiyear_summary' in st.session_state:
+                    s = st.session_state['green_multiyear_summary']
+                    st.divider()
+                    st.subheader("20-Year Energy Summary")
+
+                    sc = st.columns(6)
+                    sc[0].metric("Total Solar", f"{s['total_solar_gen']:,.0f} MWh")
+                    sc[1].metric("Total DG", f"{s['total_dg_gen']:,.0f} MWh")
+                    sc[2].metric(
+                        "Total Curtailed", f"{s['total_curtailed']:,.0f} MWh",
+                        f"{s['total_curtailed'] / s['total_solar_gen'] * 100:.1f}%"
+                        if s['total_solar_gen'] > 0 else "N/A")
+                    sc[3].metric("Load Wastage", f"{s['total_load_curtailed']:,.0f} MWh",
+                                 f"{s['load_wastage_pct']:.1f}%")
+                    sc[4].metric("Delivery Met", f"{s['total_delivery_met']:,.0f} MWh")
+                    sc[5].metric("BESS Losses", f"{s['total_bess_losses']:,.0f} MWh")
+
+                    n_yr = s['num_years']
+                    summary_table_df = pd.DataFrame({
+                        'Category': [
+                            'ENERGY IN', '', '', '', '',
+                            'ENERGY OUT', '', '', '', '', '',
+                            'BALANCE',
+                        ],
+                        'Item': [
+                            'Solar Generated', 'DG Generated', 'Initial BESS Energy',
+                            'Total Energy In', '',
+                            'Energy to Load', 'Solar Curtailed', 'DG Curtailed',
+                            'BESS Losses', 'Final BESS Energy', 'Total Energy Out',
+                            'Difference (In - Out)',
+                        ],
+                        'Value (MWh)': [
+                            f"{s['total_solar_gen']:,.0f}",
+                            f"{s['total_dg_gen']:,.0f}",
+                            f"{s['initial_bess_energy']:,.0f}",
+                            f"{s['total_energy_in']:,.0f}",
+                            '',
+                            f"{s['total_energy_to_load']:,.0f}",
+                            f"{s['total_solar_curtailed']:,.0f}",
+                            f"{s['total_dg_curtailed']:,.0f}",
+                            f"{s['total_bess_losses']:,.0f}",
+                            f"{s['final_bess_energy']:,.0f}",
+                            f"{s['total_energy_out']:,.0f}",
+                            f"{s['balance_difference']:,.0f}",
+                        ],
+                        'Details': [
+                            f"{s['total_solar_gen'] / n_yr:,.0f} MWh/year avg",
+                            f"{s['total_dg_gen'] / n_yr:,.0f} MWh/year avg"
+                            if s['total_dg_gen'] > 0 else "DG disabled",
+                            f"{s['bol_capacity']:.0f} MWh x {s['initial_soc_pct'] * 100:.0f}% SOC",
+                            '',
+                            '',
+                            f"Solar: {s['total_solar_to_load']:,.0f} + "
+                            f"BESS: {s['total_bess_to_load']:,.0f} + "
+                            f"DG: {s['total_dg_to_load']:,.0f}",
+                            f"{s['total_solar_curtailed'] / s['total_solar_gen'] * 100:.1f}% of solar"
+                            if s['total_solar_gen'] > 0 else "N/A",
+                            f"{s['total_dg_curtailed'] / s['total_dg_gen'] * 100:.1f}% of DG"
+                            if s['total_dg_gen'] > 0 else "N/A",
+                            f"Charge: {s['total_charging_loss']:,.0f} + "
+                            f"Discharge: {s['total_discharging_loss']:,.0f}",
+                            f"{s['final_capacity']:.0f} MWh x {s['final_soc_pct'] * 100:.0f}% "
+                            f"SOC (Year {n_yr} end)",
+                            '',
+                            'Should be ~0 if balanced',
+                        ],
+                    })
+                    st.dataframe(summary_table_df, width='stretch', hide_index=True)
+
+                    if abs(s['balance_difference']) < 100:
+                        st.success(f"Energy balance verified: {s['balance_difference']:,.0f} MWh "
+                                   "difference (within tolerance)")
+                    else:
+                        st.warning(f"Energy balance issue: {s['balance_difference']:,.0f} MWh "
+                                   "difference detected")
 
 
 if __name__ == "__main__":
