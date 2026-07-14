@@ -13,10 +13,11 @@ Share this document and state:
 
 > "I am continuing development of a BESS & DG Sizing Tool. All 7 templates (0-6) are finalized. Sizing iteration logic is complete. We need to proceed with:
 > (a) Implementing all templates in code.
-> 
+>
 > All requirements, decisions, and dispatch logic are in the attached documents. Please review and continue."
 
 **Documents to Share:**
+
 1. This file (PROJECT_HANDOFF.md) - Project overview and decisions
 2. REQUIREMENTS_SPEC.md - Formal specification (includes sizing logic)
 3. TEMPLATE_0_Solar_BESS_Dispatch.md - Finalized dispatch logic
@@ -32,15 +33,19 @@ Share this document and state:
 ## 1. Project Overview
 
 ### 1.1 What We're Building
+
 An internal tool for the investment team to size Battery Energy Storage Systems (BESS) for colocated Solar + BESS + optional DG projects in the European market.
 
 ### 1.2 Core Question Answered
+>
 > "Given this solar profile, which size of BESS and DG gives me highest availability with lowest solar wastage in different scenarios while providing maximum load delivery hours or 100% delivery?"
 
 ### 1.3 Primary Users
+
 Investment analysts evaluating energy projects
 
 ### 1.4 What the Tool Does
+
 - Takes load profile and solar profile as inputs (8760 hourly values)
 - Simulates hourly energy dispatch for a full year
 - **Iterates through BESS capacities × duration classes × DG sizes**
@@ -49,6 +54,7 @@ Investment analysts evaluating energy projects
 - Exports results to dashboard and Excel
 
 ### 1.5 Current Process Being Replaced
+
 - Excel spreadsheets
 - Gut feel / manual estimation
 
@@ -57,8 +63,9 @@ Investment analysts evaluating energy projects
 ## 2. MVP Scope
 
 ### 2.1 In Scope
+
 | Feature | Status |
-|---------|--------|
+| --------- | -------- |
 | Solar + BESS topology (no grid, no DG) | Template 0 FINALIZED |
 | Solar + BESS + DG topology | Templates 1-6 FINALIZED |
 | Predefined dispatch templates | 7 templates defined |
@@ -70,6 +77,7 @@ Investment analysts evaluating energy projects
 | Excel export | Specified |
 
 ### 2.2 Out of Scope (V2)
+
 - Grid connectivity
 - Custom dispatch rules (IF-THEN builder)
 - Financial modeling (IRR, NPV, LCOE)
@@ -84,7 +92,7 @@ Investment analysts evaluating energy projects
 ## 3. System Topologies
 
 | ID | Config | MVP Status |
-|----|--------|------------|
+| ---- | -------- | ------------ |
 | A | Solar + BESS | ✓ In Scope (Template 0) |
 | B | Solar + BESS + Grid | ✗ Deferred |
 | C | Solar + BESS + DG | ✓ In Scope (Templates 1-6) |
@@ -95,7 +103,7 @@ Investment analysts evaluating energy projects
 ## 4. Dispatch Templates
 
 | # | Template Name | Topology | Status |
-|---|---------------|----------|--------|
+| --- | --------------- | ---------- | -------- |
 | 0 | Solar + BESS Only | A | **FINALIZED** |
 | 1 | Green Priority | C | **FINALIZED (v1.2)** |
 | 2 | DG Night Charge | C | **FINALIZED (v1.2)** |
@@ -105,12 +113,14 @@ Investment analysts evaluating energy projects
 | 6 | DG Night SoC Trigger | C | **FINALIZED (v1.2)** |
 
 ### 4.1 Template 0: Solar + BESS Only (FINALIZED)
+
 - **Merit Order:** Solar → BESS → Unserved
 - **Charging:** BESS from excess solar only
 - **Logic:** See TEMPLATE_0_Solar_BESS_Dispatch.md
 - **Status:** SME validated, ready for implementation
 
 ### 4.2 Template 1: Green Priority (FINALIZED v1.2)
+
 - **Merit Order:** Solar → BESS → DG → Unserved
 - **Charging:** BESS from excess solar; optionally from DG excess
 - **DG Behavior:** Full Capacity when ON (reactive only)
@@ -119,6 +129,7 @@ Investment analysts evaluating energy projects
 - **Status:** SME validated, ready for implementation
 
 ### 4.3 Template 2: DG Night Charge (FINALIZED v1.2)
+
 - **Merit Order (Night):** DG → BESS (if DG off) → Unserved
 - **Merit Order (Day):** Solar → BESS → Emergency DG → Unserved
 - **Night Window:** Fixed hours OR Dynamic (from solar profile)
@@ -128,6 +139,7 @@ Investment analysts evaluating energy projects
 - **Status:** SME validated, ready for implementation
 
 ### 4.4 Template 3: DG Blackout Window (FINALIZED v1.1)
+
 - **Merit Order (Blackout):** Solar → BESS → Unserved (DG strictly disabled)
 - **Merit Order (Outside):** Solar → BESS → DG → Unserved
 - **Blackout Window:** Fixed hours (single window for MVP)
@@ -136,6 +148,7 @@ Investment analysts evaluating energy projects
 - **Status:** SME validated, ready for implementation
 
 ### 4.5 Template 4: DG Emergency Only (FINALIZED v1.1)
+
 - **Merit Order (DG OFF):** Solar → BESS → Unserved
 - **Merit Order (DG ON):** Solar → DG → BESS Assist → Unserved
 - **DG Trigger:** SoC drops to/below ON threshold
@@ -146,6 +159,7 @@ Investment analysts evaluating energy projects
 - **Status:** SME validated, ready for implementation
 
 ### 4.6 Template 5: DG Day Charge (FINALIZED v1.1)
+
 - **Merit Order (Day, DG ON):** Solar → DG → BESS Assist → Unserved
 - **Merit Order (Night):** Solar → BESS → Emergency DG → Unserved
 - **DG Behavior:** SoC-triggered during day, Full Capacity when ON
@@ -155,6 +169,7 @@ Investment analysts evaluating energy projects
 - **Status:** SME validated, ready for implementation
 
 ### 4.7 Template 6: DG Night SoC Trigger (FINALIZED v1.2)
+
 - **Merit Order (Night, DG ON):** Solar → DG → BESS Assist → Unserved
 - **Merit Order (Day):** Solar → BESS → Emergency DG → Unserved
 - **DG Behavior:** SoC-triggered during night, Full Capacity when ON
@@ -168,16 +183,19 @@ Investment analysts evaluating energy projects
 ## 5. Source Parameters (Finalized)
 
 ### 5.1 Load
+
 - `load_profile`: CSV upload or generated via Load Scenario Builder
 - Load Scenario Builder templates: Constant, Day-only, Night-only, Day-peak
 
 ### 5.2 Solar
+
 - `solar_profile`: CSV upload (absolute MW, 8760 values)
 - `solar_capacity`: MWp (for reporting)
 
 ### 5.3 BESS
+
 | Parameter | Unit | Default | Sizing Mode |
-|-----------|------|---------|-------------|
+| ----------- | ------ | --------- | ------------- |
 | `bess_capacity` | MWh | Required | User provides range |
 | `bess_charge_power` | MW | Required | **Auto-calculated from duration** |
 | `bess_discharge_power` | MW | Required | **Auto-calculated from duration** |
@@ -193,8 +211,9 @@ Investment analysts evaluating energy projects
 **Key Change:** In Sizing Mode, power is derived from capacity and duration class, not user input.
 
 ### 5.4 DG
+
 | Parameter | Unit | Default |
-|-----------|------|---------|
+| ----------- | ------ | --------- |
 | `dg_capacity` | MW | Required (range in Sizing Mode) |
 | `dg_enabled` | Boolean | False |
 | `dg_charges_bess` | Boolean | False |
@@ -205,7 +224,7 @@ Investment analysts evaluating energy projects
 ## 6. Key Technical Decisions (SME Validated)
 
 | # | Decision |
-|---|----------|
+| --- | ---------- |
 | 1 | Merit order: Solar → BESS → (DG) → Unserved |
 | 2 | Efficiency: sqrt(RTE) applied to both charge and discharge |
 | 3 | Cycle counting: Discharge throughput only (matches OEM warranties) |
@@ -221,14 +240,16 @@ Investment analysts evaluating energy projects
 ## 7. Sizing Approach (UPDATED)
 
 ### 7.1 Mode Selection
+
 - **Fixed Size Mode:** User provides exact capacity and power; single simulation
 - **Sizing Mode:** User provides capacity range; system iterates with duration classes
 
 ### 7.2 Sizing Mode Parameters
 
 **User Inputs:**
+
 | Parameter | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `bess_capacity_min` | MWh range start |
 | `bess_capacity_max` | MWh range end |
 | `bess_capacity_step` | MWh increment |
@@ -237,6 +258,7 @@ Investment analysts evaluating energy projects
 | `dg_capacity_step` | MW increment |
 
 **Removed from User Input:**
+
 - ~~`bess_power_min/max/step`~~ — Power is now derived from duration
 
 ### 7.3 Duration Classes (System-Generated)
@@ -244,7 +266,7 @@ Investment analysts evaluating energy projects
 For each capacity value, system automatically tests 7 duration classes:
 
 | Duration | C-Rate | Power Formula |
-|----------|--------|---------------|
+| ---------- | -------- | --------------- |
 | 1-hour | 1C | capacity ÷ 1 |
 | 2-hour | 0.5C | capacity ÷ 2 |
 | 3-hour | 0.33C | capacity ÷ 3 |
@@ -262,6 +284,7 @@ total_simulations = capacity_steps × 7 duration_classes × dg_steps
 Example: 5 capacity values × 7 durations × 5 DG values = 175 simulations
 
 ### 7.5 Method
+
 - Single-stage full sweep over all combinations
 - Each combination runs full 8760-hour simulation
 - Results stored in comparison table
@@ -274,7 +297,7 @@ Example: 5 capacity values × 7 durations × 5 DG values = 175 simulations
 ### 8.1 Comparison Table Columns
 
 | Column | Unit | Description |
-|--------|------|-------------|
+| -------- | ------ | ------------- |
 | `capacity` | MWh | BESS energy capacity |
 | `duration` | hours | Duration class |
 | `power` | MW | Calculated power |
@@ -295,6 +318,7 @@ Example: 5 capacity values × 7 durations × 5 DG values = 175 simulations
 **Default sort:** Delivery % desc, then Curtailed % asc
 
 **Quick filters:**
+
 - "100% Delivery Only"
 - "Zero DG"
 - "No Curtailment" (< 1%)
@@ -309,7 +333,7 @@ Config A dominates Config B if A is equal or better on all metrics (delivery, cu
 ## 9. Success Metrics
 
 | ID | Metric | Definition |
-|----|--------|------------|
+| ---- | -------- | ------------ |
 | C1 | Hours of ANY Delivery | Hours with any load served |
 | C2 | Hours of FULL Delivery | Hours with 100% load served |
 | C3 | Hours of GREEN Delivery | Hours with 100% load from Solar + BESS |
@@ -323,7 +347,7 @@ Config A dominates Config B if A is equal or better on all metrics (delivery, cu
 ## 10. Technology Stack (Proposed)
 
 | Component | Technology |
-|-----------|------------|
+| ----------- | ------------ |
 | Backend | Python |
 | Simulation | NumPy / Pandas |
 | UI | Streamlit |
@@ -334,7 +358,7 @@ Config A dominates Config B if A is equal or better on all metrics (delivery, cu
 ## 11. All Confirmed Decisions (97 Total)
 
 | # | Decision |
-|---|----------|
+| --- | ---------- |
 | D1 | Topologies A and C for MVP (grid excluded) |
 | D2 | Predefined dispatch templates (custom rules V2) |
 | D3 | Time windows: fixed hours AND dynamic (sunrise/sunset) |
@@ -391,7 +415,7 @@ Config A dominates Config B if A is equal or better on all metrics (delivery, cu
 ## 12. Project Progress
 
 | Step | Description | Status |
-|------|-------------|--------|
+| ------ | ------------- | -------- |
 | 1 | Problem Definition | ✓ COMPLETE |
 | 2 | Dispatch Logic Specification | ✓ COMPLETE |
 | 2a | Template 0 (Solar + BESS) | ✓ FINALIZED |
@@ -414,12 +438,14 @@ Config A dominates Config B if A is equal or better on all metrics (delivery, cu
 **Sizing iteration logic is COMPLETE.**
 
 **Next Step: Code Implementation**
+
 - Build Python simulation engine for all templates (0-6)
 - Build sizing iteration wrapper
 - Validate against test cases in specifications
 - Create basic Streamlit UI for user interaction
 
 **Implementation Order (Recommended):**
+
 1. Template 0 (Solar + BESS) - Foundation
 2. Sizing iteration wrapper with duration classes
 3. Template 1 (Green Priority) - Add DG basics
@@ -428,6 +454,7 @@ Config A dominates Config B if A is equal or better on all metrics (delivery, cu
 6. Output comparison table and filtering
 
 **Code Architecture Considerations:**
+
 - Common BESS dispatch logic can be shared across templates
 - Sizing wrapper calls simulation engine for each combo
 - Assist Mode / Recovery Mode patterns reusable
@@ -449,7 +476,7 @@ Config A dominates Config B if A is equal or better on all metrics (delivery, cu
 ## 15. Document Inventory
 
 | Document | Purpose | Status |
-|----------|---------|--------|
+| ---------- | --------- | -------- |
 | PROJECT_HANDOFF.md | Project overview, decisions, handoff | Current (v2) |
 | REQUIREMENTS_SPEC.md | Formal specification | Complete (v0.9) |
 | TEMPLATE_0_Solar_BESS_Dispatch.md | Dispatch logic for Template 0 | FINALIZED |
@@ -468,6 +495,7 @@ The user requested:
 > "Stop being agreeable and act as my brutally honest, high-level advisor. Don't validate me. Don't soften the truth. Challenge my thinking."
 
 Key instructions:
+
 - Do not generate code without approval
 - Document everything
 - Work step by step
@@ -478,7 +506,7 @@ Key instructions:
 ## 17. Parked Items (V2)
 
 | Category | Items |
-|----------|-------|
+| ---------- | ------- |
 | Load | Priority levels, partial shedding |
 | Solar | Degradation, availability, inverter efficiency |
 | BESS | Self-discharge, degradation, temperature, unit combinations |
@@ -510,6 +538,7 @@ Key instructions:
 ### All Templates - COMPLETE
 
 **Confirmed Correct:**
+
 - Merit order (Solar → BESS → DG → Unserved)
 - Efficiency approach (sqrt split)
 - Cycle counting (discharge only)
@@ -517,6 +546,7 @@ Key instructions:
 - Hourly resolution for sizing
 
 **Key Decisions:**
+
 - Enforce mode = full disable (charge + discharge)
 - Count mode = track and warn only
 - Degradation buffer deferred to V2
@@ -525,6 +555,7 @@ Key instructions:
 ### Sizing Logic - COMPLETE
 
 **New Decisions:**
+
 - User inputs capacity range only (not power)
 - System generates 7 duration classes automatically
 - Full comparison table output

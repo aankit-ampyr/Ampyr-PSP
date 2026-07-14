@@ -40,8 +40,27 @@ DEFAULT_WIZARD_STATE = {
         # Solar profile
         'solar_capacity_mw': 100.0,
         'solar_source': 'inputs',  # 'inputs' (from folder) or 'upload' (custom CSV)
-        'solar_selected_file': None,  # Selected filename from Inputs folder
+        'solar_selected_file': 'Solar Profile.csv',  # Default first-time selection (A50a)
         'solar_csv_data': None,  # numpy array if CSV uploaded
+
+        # Market price curve (A48 placeholder; A49 engine-wired; A50b extended).
+        # 'default' = use engine's locked _DEFAULT_MERCHANT_PRICES_MONTHLY.
+        # 'upload' = user uploaded a pre-computed nominal curve (stored in
+        #            merchant_price_curve dict[(year,month), float]).
+        # 'computed' = engine adapter computes nominal at runtime from the
+        #              raw Baringa/Aurora curves + inflation curve below.
+        'merchant_price_curve_source': 'default',  # 'default' | 'upload' | 'computed'
+        'merchant_price_curve': None,              # dict[(y,m), nominal_£/MWh] when source='upload'
+
+        # Raw vendor price curves (A50b, 2026-05-21):
+        # Real-terms £/MWh by (year, month). The engine applies the inflation
+        # curve (in wizard['financial']) to convert real → nominal when
+        # merchant_price_curve_source == 'computed'.
+        'baringa_curve': None,                     # dict[(y,m), real_£/MWh] or None
+        'baringa_curve_base_year': 2024,           # year at which 1 real £ = 1 nominal £
+        'aurora_curve': None,                      # dict[(y,m), real_£/MWh] or None
+        'aurora_curve_base_year': 2024,
+        'raw_curve_selector': 'baringa',           # 'baringa' | 'aurora' | 'average'
 
         # BESS parameters
         'bess_container_types': ['5mwh_2.5mw', '5mwh_1.25mw'],  # List of container types to evaluate
@@ -136,35 +155,192 @@ DEFAULT_WIZARD_STATE = {
     },
 
     # Step 4: Results
-    'results': {
-        'simulation_results': None,  # DataFrame with all configs
-        'selected_configs': [],  # List of config indices for comparison (max 3)
-        'sort_column': 'delivery_pct',
-        'sort_ascending': False,
-        'filters': {
-            'full_delivery': False,
-            'zero_dg': False,
-            'low_wastage': False,
-            'hide_dominated': False,
-        },
-        'detail_view_config': None,  # Config index for detail view
+    # Sizing simulation results live at top-level `st.session_state.sizing_results`
+    # per Spec §8 and Step 1's cache-invalidation contract — NOT nested here. See
+    # decisions log A42 (2026-05-16). The previously-present nested keys
+    # (selected_configs, sort_*, filters, detail_view_config,
+    # ranked_recommendations) were removed in A47 (2026-05-16) — they were
+    # never read by any page; the 5 helper functions that referenced them were
+    # removed too.
 
-        # Ranked recommendations
-        'ranked_recommendations': None,  # Result from calculate_ranked_recommendations()
-        'recommendation_generated': False,
-    },
-
-    # Financial Analysis
+    # Financial Analysis (GBP-based, mirrors Excel model Off-Grid Solution v8.xlsm)
+    #
+    # IMPORTANT (A43, 2026-05-16): All values below are aligned with Step 7's
+    # UI defaults (A28) and the D13 audit fixture. Pre-A43, the wizard state
+    # used a stale pre-A28 defaults baseline — so when a user opened Step 3a
+    # without visiting Step 7 first, the engine got the wrong defaults
+    # (CAPEX £64.7m vs £101.6m audit; Combined PIRR ~19.7% vs 8.88% audit).
+    # The lock-in test is `test_default_wizard_state_produces_audit` in
+    # `tests/test_wizard_state_path.py`. If you change a value here, that
+    # test will tell you whether the engine still reproduces the D13 audit.
     'financial': {
-        'enabled': False,  # Enable financial analysis
-        'bess_cost_per_mwh': 300000,  # $/MWh
-        'dg_cost_per_mw': 200000,  # $/MW
-        'augmentation_cost_per_mwh': 250000,  # $/MWh
-        'discount_rate': 0.08,  # 8%
-        'project_life_years': 20,
-        'fuel_price_per_liter': 1.50,
-        'delivery_value_per_mwh': 100,  # $/MWh
-        'projection_results': None,  # Cached projection results
+        'enabled': False,
+
+        # --- Timing ---
+        'model_start': None,       # date object
+        'dev_start': None,
+        'dev_time_months': 12,
+        'construction_start': None,
+        'construction_months': 18,
+        'cod_date': None,
+        'project_life_years': 35,
+
+        # --- Solar ---
+        'solar_capacity_mwp': 82.0,
+        'generation_selection': 'P50',   # A43: was 'P90', D13 uses P50
+        'yield_p50': 967.0,
+        'yield_p75': 936.0,
+        'yield_p90': 895.0,
+        'degradation_pct': 0.3,      # display % (0.3 = 0.003 decimal)
+        'outage_selection': 0,
+        'outage_month_idx': 0,
+        'outage_length_days': 14,
+
+        # --- BESS ---
+        'bess_switch': 1,
+        'bess_capacity_mw': 62.5,
+        'bess_duration_hrs': 4.0,
+        'bess_operating_life': 10,       # A43: was 15, Excel `Solar&BESS Inputs!F112` = 10
+        'bess_degradation_pct': 2.5,
+        'bess_merchant_switch': 1,
+        'bess_scenario': 1,
+        'bess_merchant_discount': 5.0,  # display %
+
+        # --- PPA ---
+        'ppa_selection': 1,
+        'ppa_flex_pct': 0.0,
+        'ppa_indexation': 'CPI',
+        'ppa_tariff_gbp_mwh': 170.0,    # Excel: Overall Inputs!E13
+        'ppa_tenor_years': 10,          # Excel: Overall Inputs!E11
+        'ppa_escalation_pct': 0.0,      # Excel: Overall Inputs!E14 (display %)
+
+        # --- Dispatch / merchant (used by tariff_inputs_from_wizard_state) ---
+        'merchant_price_default': 67.0,  # GBP/MWh fallback for post-PPA solar
+        'profile_reference_mwp': 67.89,  # peak MW of Inputs/Solar Profile.csv
+
+        # --- REGOs (A43: aligned to D13) ---
+        'rego_switch': 1,
+        'rego_price': 2.5,           # A43: was 5.0
+        'rego_indexation': 'NIL',    # A43: was 'CPI'
+        'rego_tenor_years': 35,      # A43: was 15
+
+        # --- Capacity Market (A43: D13 has CM OFF) ---
+        'cm_t1_value': 0.0,          # A43: was 20.0
+        'cm_t1_derating': 27.15,     # display %
+        'cm_t1_tenor': 3,            # A43: was 1
+        'cm_t4_value': 0.0,
+        'cm_t4_derating': 20.94,     # A43: was 0.0
+        'cm_t4_tenor': 15,           # A43: was 0
+
+        # --- Embedded Benefits (A43: D13 has Embedded ON) ---
+        'emb_benefits_switch': 1,    # A43: was 0
+        'emb_benefits_tenor': 15,
+        'emb_benefits_index': 'CPI',
+
+        # --- BESS Floor (A43: D13 has Floor OFF) ---
+        'bess_floor_switch': 0,      # A43: was 1
+        'bess_floor_price': 40.0,
+        'bess_floor_rev_share': 9.0, # A43: was 10.0
+        'bess_floor_tenor': 10,
+
+        # --- CAPEX (GBP/kWp) — A43: aligned to engine PirrInputs / Excel ---
+        'capex_epc': 400.0,
+        'capex_grid': 57.858,        # A43: was 30.0
+        'capex_development': 2.949,  # A43: was 15.0
+        'capex_acquisition': 0.0,
+        'capex_dd': 3.775,           # A43: was 5.0
+        'capex_discharge': 0.983,    # A43: was 0.0
+        'capex_sdlt': 0.753,         # A43: was 0.0
+        'capex_land_legal': 3.686,   # A43: was 2.0
+        'capex_other_finance': 5.0,  # A43: was 0.0
+        'capex_other_legal': 0.0,    # A43: was 2.0
+        'capex_land_purchase': 0.0,
+        'capex_ampyr_tech': 3.236,   # A43: was 0.0
+        'capex_success_fee': 0.0,
+        'capex_community': 0.0,
+        # A43: was 80.0. Unit was wrong (labelled GBP/kWp solar; engine field
+        # `capex_bess_gbp_per_kw_bess` expects GBP/kW of BESS power). Excel
+        # `Solar&BESS Inputs!F349` = 600. This was the root cause of the
+        # £64.7m vs £101.6m CAPEX bug in browser smoke test §16.
+        'capex_bess': 600.0,
+        'capex_landowner_fees': 11.597,  # A43: was 0.0
+        'capex_insurance': 6.329,    # A43: was 3.0
+        'capex_land_lease_constr': 2.457,  # A43: was 0.0
+        'capex_asset_adoption': 0.0,
+        'capex_others': 0.0,
+        'capex_misc': 4.916,         # A43: was 0.0
+        'capex_contingency_pct': 1.0,  # display %
+
+        # --- Solar OPEX (GBP/kWp/Yr) — A43: aligned to engine ---
+        'opex_pv_om': 5.48,
+        'opex_grid_conn': 0.003,     # A43: was 1.5
+        'opex_greenkeeping': 1.5,    # A43: was 0.5
+        'opex_community': 0.5,       # A43: was 0.0
+        'opex_real_estate_tax': 1.222,  # A43: was 1.0
+        'opex_non_tech_am': 1.3,     # A43: was 1.0
+        'opex_subsidy_loss': 0.0,
+        'opex_insurance': 2.021,     # A43: was 2.02 (precision)
+        'opex_fixed_lease': 0.0,
+        'opex_corrective_maint': 3.2,
+        'opex_tech_am': 0.3,         # A43: was 1.5
+        'opex_social_cost': 0.0,       # GBP/MWh
+        'opex_balancing_cfd': 2.75,  # A43: was 0.0, GBP/MWh
+
+        # --- BESS OPEX (GBPk/MW/Yr) — A43: aligned ---
+        'bess_opex_om': 7.063,       # A43: was 7.06 (precision)
+        'bess_opex_import': 0.0,
+        'bess_opex_rates': 3.276,    # A43: was 0.0
+        'bess_opex_lease': 1.489,    # A43: was 0.0
+
+        # --- Land (A43: D13 has lease ON, 205 acres, £700/acre, 5%/5%) ---
+        'fixed_lease_switch': 1,     # A43: was 0
+        'fixed_lease_acres': 205.0,  # A43: was 200.0
+        'fixed_lease_price': 700.0,  # A43: was 800.0
+        'rev_dep_lease_switch': 1,   # A43: was 0
+        'rev_share_yr1_10': 5.0,
+        'rev_share_yr11_35': 5.0,    # A43: was 7.5
+        'land_purchase_switch': 0,
+        'land_purchase_acres': 0.0,
+        'land_purchase_price': 10000.0,
+        'construction_rent_sw': 0,
+        'construction_rent': 500.0,
+
+        # --- Tax ---
+        'corp_tax_rate_low': 19.0,
+        'corp_tax_rate_high': 25.0,
+        'corp_tax_threshold': 250.0,   # GBPk
+        'taxation_month': 12,
+
+        # --- Working Capital & Financial (A43: aligned) ---
+        'wc_debtors_days': 30,         # A43: was 45
+        'wc_creditors_days': 30,
+        'project_discount_rate': 6.5,  # A43: was 8.0
+        'cost_of_capital': 6.0,        # display %
+
+        # --- Inflation Curve (A50b, 2026-05-21) ---
+        # Step 1 Commercial → Inflation Curve panel writes these via
+        # update_wizard_section('financial', ...). Read by the engine adapter
+        # for opex/tax CPI escalation and (when merchant_price_curve_source=='computed')
+        # for the real→nominal conversion of Baringa/Aurora uploads.
+        # 'default' = use engine's locked `_DEFAULT_CPI_CURVE_BY_CALENDAR_YEAR`.
+        # 'upload'  = use the dict + steady-state below.
+        'cpi_curve_source': 'default',          # 'default' | 'upload'
+        'cpi_curve_by_calendar_year': None,     # dict[int, float decimal] when uploaded
+        'cpi_steady_state_rate': None,          # float decimal (None = engine default 0.020)
+
+        # --- Advanced (A43: SHL + depreciation, Excel-locked per A21/A28) ---
+        # These keys were missing from DEFAULT_WIZARD_STATE pre-A43 but the
+        # engine adapter `pirr_inputs_from_wizard_state` reads them. Without
+        # them, SHL tax shield + RB depreciation didn't activate on the
+        # fresh-session path (only on the Step 7-Save path).
+        'shl_switch': 1,
+        'shl_pct_of_unfunded': 99.0,     # Excel `Solar&BESS Inputs!F556` = 0.99
+        'shl_rate': 15.0,                # Excel `Solar&BESS Inputs!F553` = 15%
+        'depreciation_method': 'RB',     # Excel `D&T!E165` = "RB"
+        'depreciation_rate': 100.0 * 2.0 / 36.0,  # Excel `D&T!E164` = 2/36 ≈ 5.5556%
+
+        # --- Results (cached) ---
+        'screening_results': None,
     },
 
     # Quick Analysis (alternative to 5-step wizard)
@@ -264,10 +440,13 @@ def get_current_step() -> int:
     return st.session_state.wizard['current_step']
 
 
+TOTAL_STEPS = 7   # Setup, Rules, Sizing, Results, MultiYear, GreenEnergy, Financial
+
+
 def set_current_step(step: int) -> None:
     """Set current wizard step."""
     init_wizard_state()
-    st.session_state.wizard['current_step'] = max(1, min(5, step))
+    st.session_state.wizard['current_step'] = max(1, min(TOTAL_STEPS, step))
 
 
 def can_navigate_to_step(target_step: int) -> bool:
@@ -390,6 +569,38 @@ def validate_step_3() -> tuple[bool, List[str]]:
     return len(errors) == 0, errors
 
 
+def validate_step_7() -> tuple[bool, List[str]]:
+    """Validate Step 7 (Financial) data. Returns (is_valid, error_messages)."""
+    init_wizard_state()
+    fin = st.session_state.wizard['financial']
+    errors = []
+
+    # Must be enabled
+    if not fin.get('enabled'):
+        errors.append("Financial inputs have not been saved yet")
+        return False, errors
+
+    # Timing
+    if fin.get('project_life_years', 0) < 10:
+        errors.append("Project life must be at least 10 years")
+    if fin.get('construction_months', 0) < 1:
+        errors.append("Construction time must be at least 1 month")
+
+    # Solar
+    if fin.get('solar_capacity_mwp', 0) <= 0:
+        errors.append("Solar capacity must be positive")
+
+    # CAPEX
+    if fin.get('capex_epc', 0) <= 0:
+        errors.append("EPC cost must be positive")
+
+    # Financial
+    if fin.get('project_discount_rate', 0) <= 0:
+        errors.append("Discount rate must be positive")
+
+    return len(errors) == 0, errors
+
+
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
@@ -495,48 +706,12 @@ def build_simulation_params() -> Dict[str, Any]:
     }
 
 
-def add_comparison_config(config_index: int) -> bool:
-    """Add a config to comparison selection. Returns True if added."""
-    init_wizard_state()
-    selected = st.session_state.wizard['results']['selected_configs']
-
-    if config_index in selected:
-        return False
-    if len(selected) >= 3:
-        return False
-
-    selected.append(config_index)
-    return True
-
-
-def remove_comparison_config(config_index: int) -> bool:
-    """Remove a config from comparison selection. Returns True if removed."""
-    init_wizard_state()
-    selected = st.session_state.wizard['results']['selected_configs']
-
-    if config_index not in selected:
-        return False
-
-    selected.remove(config_index)
-    return True
-
-
-def clear_comparison_selection() -> None:
-    """Clear all selected configs for comparison."""
-    init_wizard_state()
-    st.session_state.wizard['results']['selected_configs'] = []
-
-
-def set_results_filter(filter_name: str, value: bool) -> None:
-    """Set a results filter."""
-    init_wizard_state()
-    if filter_name in st.session_state.wizard['results']['filters']:
-        st.session_state.wizard['results']['filters'][filter_name] = value
-
-
-def toggle_results_filter(filter_name: str) -> None:
-    """Toggle a results filter."""
-    init_wizard_state()
-    filters = st.session_state.wizard['results']['filters']
-    if filter_name in filters:
-        filters[filter_name] = not filters[filter_name]
+# A47 (2026-05-16) removed 5 helper functions that operated on the dead
+# `wizard['results']` slot (which itself was removed at A47):
+#   add_comparison_config, remove_comparison_config, clear_comparison_selection,
+#   set_results_filter, toggle_results_filter
+# None of these were imported by any page. They were vestiges of an earlier
+# results-comparison feature that never shipped to the UI. If a future
+# version wants config-comparison UX, re-introduce these in a fresh module
+# alongside the actual UI that needs them — not as orphan functions in
+# wizard_state.py.

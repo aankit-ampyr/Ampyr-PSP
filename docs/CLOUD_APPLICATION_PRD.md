@@ -11,8 +11,9 @@
 This document outlines requirements for transforming an existing Streamlit-based Battery Energy Storage System (BESS) Sizing Tool into a full-featured, cloud-hosted web application. The tool optimizes battery storage sizing for solar+storage systems through year-long hourly simulations.
 
 ### Project Context
+
 | Aspect | Details |
-|--------|---------|
+| -------- | --------- |
 | **Current State** | Working Streamlit prototype with core algorithms |
 | **Target Users** | Internal engineering/analysis team (1-10 users) |
 | **Scale** | ~100 projects/month initially |
@@ -24,20 +25,25 @@ This document outlines requirements for transforming an existing Streamlit-based
 ## 1. Business Overview
 
 ### 1.1 Problem Statement
+
 Engineering teams need to determine optimal battery capacity for solar+storage projects. This requires:
+
 - Running thousands of hourly simulations across battery sizes
 - Enforcing complex operational constraints (binary delivery, cycle limits)
 - Analyzing financial viability over 20-year project life
 - Comparing multiple system configurations
 
 ### 1.2 Solution
+
 A cloud-hosted application that:
+
 - Performs battery sizing optimization with scientific accuracy
 - Persists projects and simulation history
 - Enables team collaboration on sizing studies
 - Provides professional reporting for customer proposals
 
 ### 1.3 Success Criteria
+
 - [ ] Team can create, save, and retrieve sizing projects
 - [ ] Simulation results match existing Streamlit tool (validated)
 - [ ] Multiple users can collaborate on projects
@@ -49,6 +55,7 @@ A cloud-hosted application that:
 ## 2. Current System Analysis
 
 ### 2.1 Existing Technology Stack
+
 ```
 Frontend:        Streamlit 1.41.0 (Python-based)
 Backend:         Python 3.11+
@@ -61,7 +68,7 @@ Deployment:      Streamlit Cloud (single-page apps)
 ### 2.2 Core Modules to Preserve/Reimplement
 
 | Module | Purpose | Lines | Complexity |
-|--------|---------|-------|------------|
+| -------- | --------- | ------- | ------------ |
 | `dispatch_engine.py` | Core simulation (8760 hourly loop) | ~1,200 | High |
 | `financial_model.py` | 20-year NPV projection | ~550 | High |
 | `degradation_engine.py` | Battery degradation modeling | ~430 | Medium |
@@ -87,7 +94,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 2.4 Dispatch Templates (7 Operating Modes)
 
 | ID | Template Name | DG | Description |
-|----|---------------|-----|-------------|
+| ---- | --------------- | ----- | ------------- |
 | T0 | Solar + BESS Only | No | Pure solar+battery operation |
 | T1 | Green Priority | Yes | DG reactive - runs when battery depleted |
 | T2 | DG Night Charge | Yes | DG proactive - pre-emptive night charging |
@@ -103,7 +110,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 3.1 User Management (Priority: HIGH)
 
 | ID | Requirement | Description |
-|----|-------------|-------------|
+| ---- | ------------- | ------------- |
 | UM-01 | User authentication | Email/password login with secure session management |
 | UM-02 | User roles | Admin (manage users), Analyst (full access), Viewer (read-only) |
 | UM-03 | Password reset | Self-service password reset via email |
@@ -114,7 +121,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 3.2 Project Management (Priority: HIGH)
 
 | ID | Requirement | Description |
-|----|-------------|-------------|
+| ---- | ------------- | ------------- |
 | PM-01 | Create project | New project with name, description, customer reference |
 | PM-02 | Save project | Persist all configuration and results to database |
 | PM-03 | Load project | Retrieve and restore complete project state |
@@ -127,7 +134,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 3.3 Configuration Wizard (Priority: HIGH)
 
 | ID | Requirement | Description |
-|----|-------------|-------------|
+| ---- | ------------- | ------------- |
 | WZ-01 | Step 1: Setup | Configure load profile, solar capacity, BESS params, DG settings |
 | WZ-02 | Step 2: Rules | Set dispatch rules, timing windows, SOC thresholds |
 | WZ-03 | Step 3: Sizing | Define battery size range, duration classes, DG range |
@@ -140,7 +147,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 3.4 Simulation Engine (Priority: CRITICAL)
 
 | ID | Requirement | Description |
-|----|-------------|-------------|
+| ---- | ------------- | ------------- |
 | SE-01 | Hourly simulation | 8760-hour year simulation for each configuration |
 | SE-02 | Batch processing | Process 100+ configurations per sizing run |
 | SE-03 | Template support | All 7 dispatch templates (T0-T6) |
@@ -153,6 +160,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 | SE-10 | Progress feedback | Show simulation progress to user |
 
 **Performance Targets:**
+
 - Single configuration: < 500ms
 - Batch of 500 configurations: < 30 seconds
 - Batch of 1000 configurations: < 1 minutes
@@ -160,7 +168,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 3.5 Results & Analysis (Priority: HIGH)
 
 | ID | Requirement | Description |
-|----|-------------|-------------|
+| ---- | ------------- | ------------- |
 | RA-01 | Results table | Sortable, filterable table of all configurations |
 | RA-02 | Configuration comparison | Side-by-side compare up to 3 configurations |
 | RA-03 | Detail view | Hourly breakdown for selected configuration |
@@ -172,7 +180,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 3.6 Data Import/Export (Priority: MEDIUM)
 
 | ID | Requirement | Description |
-|----|-------------|-------------|
+| ---- | ------------- | ------------- |
 | DE-01 | Solar profile upload | CSV upload with validation (8760 hours) |
 | DE-02 | Load profile upload | CSV upload for custom load patterns |
 | DE-03 | Results export CSV | Export simulation results to CSV |
@@ -183,7 +191,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 3.7 Collaboration Features (Priority: MEDIUM)
 
 | ID | Requirement | Description |
-|----|-------------|-------------|
+| ---- | ------------- | ------------- |
 | CO-01 | Project sharing | Share project with team members (view/edit) |
 | CO-02 | Comments | Add comments to projects and configurations |
 | CO-03 | Activity log | Track who changed what and when |
@@ -233,6 +241,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 4.2 Configuration Parameters (JSON Schema)
 
 **Setup Parameters (~25 fields):**
+
 ```json
 {
   "load_mode": "constant|day_only|night_only|seasonal|csv",
@@ -252,6 +261,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ```
 
 **Rules Parameters (~15 fields):**
+
 ```json
 {
   "dg_timing": "anytime|day_only|night_only|custom_blackout",
@@ -267,6 +277,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ```
 
 **Sizing Parameters:**
+
 ```json
 {
   "mode": "sizing|fixed",
@@ -283,7 +294,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 4.3 Storage Estimates
 
 | Data Type | Per Project | 100 Projects/Month |
-|-----------|-------------|-------------------|
+| ----------- | ------------- | ------------------- |
 | Configuration JSON | ~5 KB | 500 KB |
 | Summary Results | ~50 KB | 5 MB |
 | Hourly Data (compressed) | ~2 MB | 200 MB |
@@ -298,7 +309,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 5.1 Performance
 
 | Metric | Target |
-|--------|--------|
+| -------- | -------- |
 | Page load time | < 2 seconds |
 | Single simulation | < 500ms |
 | Batch simulation (100 configs) | < 30 seconds |
@@ -308,7 +319,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 5.2 Availability & Reliability
 
 | Metric | Target |
-|--------|--------|
+| -------- | -------- |
 | Uptime | 99.5% (business hours) |
 | Data backup frequency | Daily |
 | Backup retention | 30 days |
@@ -318,7 +329,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 5.3 Security
 
 | Requirement | Description |
-|-------------|-------------|
+| ------------- | ------------- |
 | Authentication | Secure password hashing (bcrypt/argon2) |
 | Session management | JWT or secure cookies, 8-hour expiry |
 | Data encryption | TLS 1.3 in transit, AES-256 at rest |
@@ -329,7 +340,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 ### 5.4 Scalability
 
 | Aspect | Requirement |
-|--------|-------------|
+| -------- | ------------- |
 | Users | Handle 10 concurrent, scalable to 50 |
 | Projects | 100/month initially, scalable to 1,000 |
 | Simulations | 10,000 configurations/day |
@@ -424,7 +435,7 @@ Alternative: Quick Analysis → Single configuration deep-dive
 For internal team of 1-10 users:
 
 | Option | Recommendation |
-|--------|---------------|
+| -------- | --------------- |
 | **Quick Start** | Streamlit Cloud Teams ($500/month) + Supabase |
 | **Better UX** | Vercel (frontend) + Railway/Render (backend) + Supabase |
 | **Enterprise** | AWS ECS/Fargate + RDS + CloudFront |
@@ -470,6 +481,7 @@ Discharging: energy_output = stored × 0.933
 ### 7.4 Financial Model (20-Year NPV)
 
 Key calculations:
+
 - **CAPEX:** BESS ($/MWh + $/MW) + DG ($/MW) + Installation (15%)
 - **OPEX:** Fixed O&M + Variable O&M + Fuel (with escalation)
 - **Degradation:** 2% calendar + cycle-based (Rainflow counting)
@@ -481,6 +493,7 @@ Key calculations:
 ## 8. Deliverables
 
 ### Phase 1: MVP (Month 1-2)
+
 - [ ] User authentication (login/logout)
 - [ ] Project CRUD (create, read, update, delete)
 - [ ] 5-step configuration wizard
@@ -490,6 +503,7 @@ Key calculations:
 - [ ] Cloud deployment
 
 ### Phase 2: Core Features (Month 2-3)
+
 - [ ] Solar/load profile upload
 - [ ] Configuration comparison
 - [ ] Financial projections (20-year)
@@ -498,6 +512,7 @@ Key calculations:
 - [ ] Activity logging
 
 ### Phase 3: Polish (Month 3-4)
+
 - [ ] Interactive charts
 - [ ] PDF report generation
 - [ ] Comments on projects
@@ -510,18 +525,21 @@ Key calculations:
 ## 9. Acceptance Criteria
 
 ### 9.1 Simulation Accuracy
+
 - All 7 dispatch templates produce results matching Streamlit tool (±0.1%)
 - SOC never exceeds bounds (5%-95%)
 - Cycle limits enforced correctly
 - Binary delivery constraint never violated
 
 ### 9.2 User Experience
+
 - Wizard flow matches current 5-step process
 - Page loads < 2 seconds
 - Simulation feedback shows progress
 - Error messages are clear and actionable
 
 ### 9.3 Data Integrity
+
 - Projects saved correctly and retrievable
 - No data loss on page refresh
 - Concurrent edits handled gracefully
@@ -534,6 +552,7 @@ Key calculations:
 When evaluating development companies, ask:
 
 ### Technical
+
 1. Experience with Python simulation/scientific computing?
 2. Familiarity with energy/battery storage domain?
 3. Frontend framework preference and why?
@@ -541,18 +560,21 @@ When evaluating development companies, ask:
 5. Database choice and rationale?
 
 ### Project Management
+
 6. Development methodology (Agile, Scrum, etc.)?
 7. How do you handle scope changes?
 8. Communication cadence and tools?
 9. Code review and QA process?
 
 ### Delivery
+
 10. Can you meet 3-4 month timeline? What's realistic?
 11. What does MVP include vs. future phases?
 12. Post-launch support and maintenance terms?
 13. Source code ownership and licensing?
 
 ### Budget
+
 14. Fixed price vs. time & materials?
 15. What's included vs. additional cost?
 16. Payment milestones?
@@ -564,6 +586,7 @@ When evaluating development companies, ask:
 ### A. Input Data Format
 
 **Solar Profile CSV (required):**
+
 ```csv
 timestamp,Solar_Generation_MW
 2024-01-01 00:00,0
@@ -572,6 +595,7 @@ timestamp,Solar_Generation_MW
 2024-01-01 12:00,64.8
 ...
 ```
+
 - 8760 rows (full year hourly data)
 - Values in MW
 - Non-negative values only
@@ -579,7 +603,7 @@ timestamp,Solar_Generation_MW
 ### B. Key Output Metrics
 
 | Metric | Description | Unit |
-|--------|-------------|------|
+| -------- | ------------- | ------ |
 | Delivery Hours | Hours meeting 25 MW target | hours |
 | Delivery % | Delivery hours / 8760 | % |
 | Total Cycles | Cumulative battery cycles | cycles |
@@ -593,6 +617,7 @@ timestamp,Solar_Generation_MW
 ### C. Existing Code Repository
 
 The complete working Streamlit application is available for reference:
+
 - All simulation algorithms implemented and tested
 - Financial model with 20-year projections
 - 7 dispatch templates operational
@@ -605,7 +630,7 @@ The complete working Streamlit application is available for reference:
 ## Document Control
 
 | Version | Date | Author | Changes |
-|---------|------|--------|---------|
+| --------- | ------ | -------- | --------- |
 | 1.0 | Jan 2026 | - | Initial PRD |
 
 ---

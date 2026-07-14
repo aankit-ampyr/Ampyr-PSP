@@ -10,20 +10,24 @@
 ## 1. Overview
 
 ### 1.1 Description
+
 Green-first system with DG backup. Load is served primarily by solar and battery. DG activates only when solar + BESS cannot meet demand. DG is the last resort.
 
 ### 1.2 Merit Order
+
 1. Solar direct to load
 2. BESS discharge to load
 3. DG to load (only if BESS insufficient)
 4. Unserved energy (only if all sources exhausted)
 
 ### 1.3 Charging Sources
+
 - BESS charges from excess solar (always)
 - BESS charges from excess DG (if `dg_charges_bess = Yes`)
 - DG charging is reactive only (DG does not turn ON proactively to charge BESS)
 
 ### 1.4 Key Characteristics
+
 - No time-based restrictions on DG
 - No SoC threshold triggers for DG
 - DG runs at Full Capacity when ON
@@ -35,15 +39,16 @@ Green-first system with DG backup. Load is served primarily by solar and battery
 ## 2. Input Parameters
 
 ### 2.1 Profiles (8760 hourly values)
+
 | Parameter | Description | Unit |
-|-----------|-------------|------|
+| ----------- | ------------- | ------ |
 | `load_profile[t]` | Hourly load demand | MW |
 | `solar_profile[t]` | Hourly solar generation | MW |
 
 ### 2.2 BESS Parameters
 
 | Parameter | Description | Unit | Default | Fixed Mode | Sizing Mode |
-|-----------|-------------|------|---------|------------|-------------|
+| ----------- | ------------- | ------ | --------- | ------------ | ------------- |
 | `bess_capacity` | Total energy capacity | MWh | Required | User input | Iterated (range) |
 | `bess_charge_power` | Max charge rate | MW | Required | User input | **Auto-calculated** |
 | `bess_discharge_power` | Max discharge rate | MW | Required | User input | **Auto-calculated** |
@@ -57,8 +62,9 @@ Green-first system with DG backup. Load is served primarily by solar and battery
 | `bess_enforce_cycle_limit` | Enforce limit? | Boolean | False | User input | User input |
 
 ### 2.3 DG Parameters
+
 | Parameter | Description | Unit | Default |
-|-----------|-------------|------|---------|
+| ----------- | ------------- | ------ | --------- |
 | `dg_capacity` | Rated power output | MW | Required |
 | `dg_charges_bess` | Can DG charge BESS? | Boolean | False |
 
@@ -69,6 +75,7 @@ Green-first system with DG backup. Load is served primarily by solar and battery
 In **Sizing Mode**, the simulation engine iterates through multiple configurations:
 
 **User Inputs (Sizing Mode):**
+
 - `bess_capacity_min`, `bess_capacity_max`, `bess_capacity_step` (MWh range)
 - `dg_capacity_min`, `dg_capacity_max`, `dg_capacity_step` (MW range)
 
@@ -76,7 +83,7 @@ In **Sizing Mode**, the simulation engine iterates through multiple configuratio
 For each BESS capacity value, the system automatically tests 7 duration classes:
 
 | Duration | C-Rate | Power Calculation |
-|----------|--------|-------------------|
+| ---------- | -------- | ------------------- |
 | 1-hour | 1C | `power = capacity ÷ 1` |
 | 2-hour | 0.5C | `power = capacity ÷ 2` |
 | 3-hour | 0.33C | `power = capacity ÷ 3` |
@@ -86,12 +93,14 @@ For each BESS capacity value, the system automatically tests 7 duration classes:
 | 10-hour | 0.1C | `power = capacity ÷ 10` |
 
 **Power Derivation:**
+
 ```
 bess_charge_power = bess_capacity ÷ duration_hours
 bess_discharge_power = bess_capacity ÷ duration_hours
 ```
 
 **Simulation Matrix:**
+
 ```
 total_simulations = capacity_steps × 7_duration_classes × dg_steps
 ```
@@ -134,7 +143,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 4. State Variables
 
 | Variable | Description | Initial Value | Resets |
-|----------|-------------|---------------|--------|
+| ---------- | ------------- | --------------- | -------- |
 | `soc` | Current BESS state of charge (MWh) | `bess_capacity × initial_soc / 100` | Never |
 | `daily_discharge` | BESS energy discharged today (MWh) | 0 | Daily |
 | `daily_cycles` | BESS cycles consumed today | 0 | Daily |
@@ -146,7 +155,7 @@ soc = bess_capacity × bess_initial_soc / 100
 **Per-Day Tracking Arrays (for Summary Metrics):**
 
 | Variable | Description | Size |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `max_daily_cycles_per_day[]` | Peak cycles reached each day | 365 |
 
 ---
@@ -154,7 +163,7 @@ soc = bess_capacity × bess_initial_soc / 100
 ## 5. Hourly Output Variables
 
 | Variable | Description | Unit |
-|----------|-------------|------|
+| ---------- | ------------- | ------ |
 | `solar_to_load` | Solar energy serving load directly | MWh |
 | `solar_to_bess` | Solar energy charging BESS | MWh |
 | `solar_curtailed` | Excess solar wasted | MWh |
@@ -392,7 +401,7 @@ bess_equivalent_cycles = IF usable_capacity > 0 THEN (bess_throughput / usable_c
 When run in Sizing Mode, the simulation produces a **comparison table**:
 
 | Column | Description | Unit |
-|--------|-------------|------|
+| -------- | ------------- | ------ |
 | `capacity` | BESS energy capacity | MWh |
 | `duration` | Duration class tested | hours |
 | `power` | Calculated charge/discharge power | MW |
@@ -409,13 +418,14 @@ When run in Sizing Mode, the simulation produces a **comparison table**:
 **Example Output:**
 
 | Capacity | Duration | Power | DG | Delivery % | Green % | Curtailed % | DG Hours |
-|----------|----------|-------|-----|------------|---------|-------------|----------|
+| ---------- | ---------- | ------- | ----- | ------------ | --------- | ------------- | ---------- |
 | 100 MWh | 1-hr | 100 MW | 10 MW | 99.8% | 94.2% | 0.5% | 498 |
 | 100 MWh | 2-hr | 50 MW | 10 MW | 99.1% | 92.1% | 1.8% | 692 |
 | 100 MWh | 4-hr | 25 MW | 10 MW | 96.4% | 87.3% | 5.2% | 1,105 |
 | 100 MWh | 4-hr | 25 MW | 20 MW | 99.2% | 87.3% | 5.0% | 1,098 |
 
 **Interpretation:**
+
 - Lower power (4-hr) → more solar curtailed → BESS depletes faster → more DG hours
 - Higher DG capacity → better delivery % but doesn't improve green %
 
@@ -424,7 +434,7 @@ When run in Sizing Mode, the simulation produces a **comparison table**:
 ## 9. Edge Cases
 
 | Scenario | Expected Behavior |
-|----------|-------------------|
+| ---------- | ------------------- |
 | Solar = 0, BESS at min SoC | DG activates to serve load |
 | Solar + BESS can meet load | DG stays OFF |
 | DG on, BESS at max SoC, dg_charges_bess = Yes | DG excess is curtailed |
@@ -441,21 +451,26 @@ When run in Sizing Mode, the simulation produces a **comparison table**:
 ## 10. Key Definitions and Policies
 
 ### 10.1 Daily Cycle Definition
+
 ```
 daily_cycles = total_bess_discharge_to_load_today / usable_capacity
 ```
+
 - Only **discharge to load** is counted
 - Charging (from solar or DG) is NOT counted toward cycles
 
 ### 10.2 Cycle Limit Enforcement Policy
+
 - When `bess_enforce_cycle_limit = True` and limit reached: BESS fully disabled
 - When `bess_enforce_cycle_limit = False`: Cycles tracked as warning only
 
 ### 10.3 "Green" Delivery Definition (Simplified)
+
 - An hour is "green" if: `unserved == 0 AND dg_running == False`
 - All BESS discharge is treated as "green" regardless of charge source
 
 ### 10.4 No Simultaneous Charge and Discharge
+
 - If BESS discharges to serve load, it cannot be charged (even if DG has excess)
 - Tracked via `bess_discharged_this_hour` flag
 
@@ -464,7 +479,7 @@ daily_cycles = total_bess_discharge_to_load_today / usable_capacity
 ## 11. Assumptions and Simplifications
 
 | Assumption | Description |
-|------------|-------------|
+| ------------ | ------------- |
 | **Hourly resolution** | Δt = 1 hour; MW values represent MWh |
 | **365-day year** | 8760 hours; leap years not handled |
 | **No simultaneous charge/discharge** | BESS either charges OR discharges |

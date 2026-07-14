@@ -16,7 +16,11 @@ from src.wizard_state import (
 from src.dispatch_engine import (
     SimulationParams, run_simulation, HourlyResult, calculate_metrics
 )
-from src.data_loader import load_solar_profile, load_solar_profile_by_name
+from src.data_loader import (
+    get_active_solar_profile,
+    load_solar_profile,
+    load_solar_profile_by_name,
+)
 from src.load_builder import build_load_profile
 
 
@@ -40,12 +44,16 @@ def render_step_indicator():
     steps = [
         ("1", "Setup", get_step_status(1)),
         ("2", "Rules", get_step_status(2)),
+        ("2b", "Financial Setup", get_step_status(2)),
         ("3", "Sizing", get_step_status(3)),
+        ("3a", "Financial Sweep", get_step_status(3)),
         ("4", "Results", 'current'),
         ("5", "Multi-Year", get_step_status(5)),
+        ("6", "Green Energy", get_step_status(6)),
+        ("7", "Financial", get_step_status(7)),
     ]
 
-    cols = st.columns(5)
+    cols = st.columns(len(steps))
     for i, (num, label, status) in enumerate(steps):
         with cols[i]:
             if status == 'completed':
@@ -72,36 +80,14 @@ CONTAINER_SPECS = {
 # =============================================================================
 
 def get_solar_profile(setup):
-    """Get solar profile from setup configuration - matches Step 3 exactly."""
-    solar_source = setup.get('solar_source', 'inputs')
+    """Return the canonical solar profile from wizard state as a list of MW values.
 
-    # Handle uploaded CSV data
-    if solar_source == 'upload' and setup.get('solar_csv_data') is not None:
-        solar_data = setup['solar_csv_data']
-        if isinstance(solar_data, list):
-            return solar_data[:8760] if len(solar_data) >= 8760 else solar_data
-        return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-
-    # Handle selection from Inputs folder
-    if solar_source in ('inputs', 'default'):
-        selected_file = setup.get('solar_selected_file')
-        if selected_file:
-            try:
-                solar_data = load_solar_profile_by_name(selected_file)
-                if solar_data is not None and len(solar_data) > 0:
-                    return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-            except Exception:
-                pass
-
-    # Fallback: load default profile
-    try:
-        solar_data = load_solar_profile()
-        if solar_data is not None and len(solar_data) > 0:
-            return solar_data[:8760].tolist() if len(solar_data) >= 8760 else solar_data.tolist()
-    except Exception:
-        pass
-
-    return None
+    Step 1 owns profile loading + validation. See decisions log A27.
+    """
+    arr = get_active_solar_profile(setup)
+    if arr is None:
+        return None
+    return arr.tolist()
 
 
 def get_solar_peak(setup):
@@ -205,6 +191,36 @@ def find_cached_result(bess_mwh: float, dg_mw: float, container_type: str):
     )
 
     matching = results_df[mask]
+    if len(matching) > 0:
+        return matching.iloc[0].to_dict()
+
+    return None
+
+
+def find_cached_financial(bess_mwh: float, dg_mw: float, container_type: str):
+    """Lookup the financial-sweep row matching this config, if Step 3a has run.
+
+    Mirrors `find_cached_result` but against `st.session_state.financial_results`.
+    Returns None when financial_results is absent, empty, or has no matching row.
+    """
+    financial_df = st.session_state.get('financial_results')
+    if financial_df is None or len(financial_df) == 0:
+        return None
+
+    spec = CONTAINER_SPECS.get(container_type, {})
+    duration_hr = spec.get('duration_hr', 2)
+
+    required = {'BESS (MWh)', 'DG (MW)', 'Duration (hr)'}
+    if not required.issubset(financial_df.columns):
+        return None
+
+    mask = (
+        (financial_df['BESS (MWh)'] == bess_mwh) &
+        (financial_df['DG (MW)'] == dg_mw) &
+        (financial_df['Duration (hr)'] == duration_hr)
+    )
+
+    matching = financial_df[mask]
     if len(matching) > 0:
         return matching.iloc[0].to_dict()
 
@@ -488,7 +504,7 @@ with col2:
     run_button = st.button(
         "See Results" if cached else "Run Simulation",
         type="primary",
-        use_container_width=True,
+        width='stretch',
         key='run_analysis_btn'
     )
 
@@ -564,6 +580,87 @@ if st.session_state.analysis_results is not None:
     col4.metric("Solar Utilization", f"{solar_utilization:.1f}%")
 
     # =============================================================================
+    # FINANCIAL METRICS (Step 3a augmentation — conditional)
+    # =============================================================================
+    #
+    # Per Spec D15 + §7: Step 4 surfaces PIRR / NPV alongside the operational
+    # drilldown when the user has run Step 3a's financial sweep. Matches on the
+    # same (BESS MWh, DG MW, Duration hr) tuple used by `find_cached_result`.
+    # Hidden entirely when financial_results is absent (Step 3a not run) or when
+    # the user's current selection isn't in the sweep — caption surfaces the
+    # latter case so they can return to Step 3a.
+
+    financial_row = find_cached_financial(bess_mwh, dg_mw, selected_container)
+    has_financial_sweep = 'financial_results' in st.session_state and \
+        st.session_state.financial_results is not None and \
+        len(st.session_state.financial_results) > 0
+
+    if financial_row is not None:
+        st.divider()
+        st.subheader("£ Financial Metrics")
+        st.caption(
+            "From Step 3a Financial Sweep. The Project IRR engine "
+            "(`src/project_irr.py`) uses `dispatch_energy.run_hourly_dispatch` "
+            "to produce monthly aggregates, so the green/DG share may differ "
+            "from the operational metrics above (see decisions log A24)."
+        )
+        # v1 SME-facing disclosure (A45): conservative-offset note above
+        # the PIRR tiles.
+        st.info(
+            "ℹ️ **v1 reports Project IRR ~0.3-0.5 pp lower than Excel.** Gap is "
+            "the structural v1 carve-out (DSCR sculpting + cash sweep + Equity "
+            "IRR deferred to v2). Config ranking + sensitivity preserved; use "
+            "Excel for the IC-pack headline IRR."
+        )
+
+        f_col1, f_col2, f_col3, f_col4, f_col5, f_col6, f_col7 = st.columns(7)
+        f_col1.metric(
+            "Combined PIRR",
+            f"{financial_row.get('Combined PIRR (%)', float('nan')):.2f}%"
+        )
+        f_col2.metric(
+            "S+B PIRR",
+            f"{financial_row.get('S+B PIRR (%)', float('nan')):.2f}%"
+        )
+        f_col3.metric(
+            "Gas PIRR",
+            f"{financial_row.get('Gas PIRR (%)', float('nan')):.2f}%"
+        )
+        f_col4.metric(
+            "NPV (GBPm)",
+            f"{financial_row.get('NPV (GBPm)', float('nan')):.1f}"
+        )
+        moic = financial_row.get('MOIC (x)', float('nan'))
+        f_col5.metric(
+            "MOIC",
+            "n/a" if pd.isna(moic) else f"{moic:.2f}x",
+            help="Multiple on Invested Capital, ungeared FCFF basis: "
+                 "sum(positive FCFF) / |sum(negative FCFF)|."
+        )
+        f_col6.metric(
+            "CAPEX (GBPm)",
+            f"{financial_row.get('Total CAPEX (GBPm)', float('nan')):.1f}"
+        )
+        payback = financial_row.get('Payback (yrs)', float('nan'))
+        f_col7.metric(
+            "Payback (yrs)",
+            "n/a" if pd.isna(payback) else f"{payback:.1f}"
+        )
+
+        if financial_row.get('Error'):
+            st.error(f"PIRR run reported error: {financial_row['Error']}")
+
+    elif has_financial_sweep:
+        st.divider()
+        st.info(
+            "Financial sweep exists but does not include this config "
+            f"(BESS {bess_mwh:.0f} MWh / DG {dg_mw:.0f} MW / "
+            f"{CONTAINER_SPECS[selected_container]['duration_hr']}-hr duration). "
+            "Re-run Step 3a Financial Sweep after Step 3 has produced this row, "
+            "or pick a config that's already in the sweep."
+        )
+
+    # =============================================================================
     # MONTHLY SUMMARY TABLE
     # =============================================================================
 
@@ -617,7 +714,7 @@ if st.session_state.analysis_results is not None:
 
     st.dataframe(
         monthly_df,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             'Delivery %': st.column_config.ProgressColumn(
@@ -750,7 +847,7 @@ if st.session_state.analysis_results is not None:
 
         # Dispatch graph
         fig = create_dispatch_graph(filtered_df, load_mw, bess_capacity, soc_on, soc_off)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
         st.caption("""
         **Orange**: Solar | **Red**: DG Output | **Blue**: BESS Power (negative=charging) | **Purple**: Delivery
@@ -786,7 +883,7 @@ if st.session_state.analysis_results is not None:
         ]
 
         styled_df = display_df[display_cols].style.apply(style_hourly_row, axis=1)
-        st.dataframe(styled_df, use_container_width=True, height=400)
+        st.dataframe(styled_df, width='stretch', height=400)
 
         st.markdown("""
         **Row Colors:** 🟢 Green = Charging | 🟣 Lavender = Discharging | 🟡 Yellow = DG Running | 🔴 Pink = Unmet Load
@@ -812,7 +909,7 @@ if st.session_state.analysis_results is not None:
                 data=csv_data,
                 file_name=f"hourly_{bess_capacity}mwh_{start_date}_to_{end_date}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
         with col2:
@@ -829,7 +926,7 @@ if st.session_state.analysis_results is not None:
                 data=full_year_csv,
                 file_name=f"hourly_{bess_capacity}mwh_full_year.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
         with col3:
@@ -840,7 +937,7 @@ if st.session_state.analysis_results is not None:
                 data=monthly_csv,
                 file_name=f"monthly_summary_{bess_capacity}mwh.csv",
                 mime="text/csv",
-                use_container_width=True
+                width='stretch'
             )
 
 else:
@@ -852,13 +949,13 @@ st.divider()
 col1, col2, col3 = st.columns([1, 1, 1])
 
 with col1:
-    if st.button("← Back to Sizing", use_container_width=True):
+    if st.button("← Back to Sizing", width='stretch'):
         st.switch_page("pages/Step3_Sizing.py")
 
 with col3:
     has_results = st.session_state.analysis_results is not None
     if st.button("Next → Multi-Year", type="primary" if has_results else "secondary",
-                 disabled=not has_results, use_container_width=True):
+                 disabled=not has_results, width='stretch'):
         st.switch_page("pages/Step5_MultiYear.py")
 
 # Sidebar summary

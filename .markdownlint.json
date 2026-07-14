@@ -1,0 +1,21 @@
+{
+  "_comment": "Markdownlint config for Ampyr-PSP docs. Style-preference rules disabled where they don't match this project's established conventions (long-form prose, multi-iteration playbooks with repeated section names, technical decision logs with deliberately dense tables).",
+
+  "MD013": false,
+  "_md013_comment": "MD013/line-length: disabled. Project docs use long-form prose lines; an 80-char limit would force unhelpful mid-sentence wraps in decision-log entries and playbook tables.",
+
+  "MD024": false,
+  "_md024_comment": "MD024/no-duplicate-heading: disabled. Smoke-test playbook deliberately reuses section names ('What landed', 'Pass criteria', 'What the next session needs to do') across §10/§11/§12/§13/§14/§15 iterations — that's the structure, not a bug.",
+
+  "MD036": false,
+  "_md036_comment": "MD036/no-emphasis-as-heading: disabled. Some sections use **bold** as a soft sub-heading within a decision log entry; promoting them to real headings would over-fragment the doc.",
+
+  "MD033": false,
+  "_md033_comment": "MD033/no-inline-html: disabled. Rare HTML (e.g. <br> in tables) is occasionally needed.",
+
+  "MD029": false,
+  "_md029_comment": "MD029/ol-prefix: disabled. Numbered lists in playbook re-use '1.' across sections; rewriting them all is churn for no benefit.",
+
+  "MD040": false,
+  "_md040_comment": "MD040/fenced-code-language: disabled. Many code blocks are pseudocode, tables-as-text, or shell snippets where the language tag adds little. Could be re-enabled later if Doublu wants it for syntax highlighting in their docs site."
+}
